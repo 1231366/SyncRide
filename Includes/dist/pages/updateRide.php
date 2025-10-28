@@ -1,0 +1,46 @@
+<?php
+require __DIR__ . '/../../../Auth/dbconfig.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $viagemId = $_POST['edit_trip_id'] ?? null;
+    $dataHora = $_POST['edit_departure_datetime'] ?? null;
+    $localRecolha = $_POST['edit_origin'] ?? null;
+    $localEntrega = $_POST['edit_destination'] ?? null;
+
+    if ($viagemId && $dataHora) {
+        try {
+            // Separar data e hora corretamente
+            list($data, $hora) = explode('T', $dataHora); // "YYYY-MM-DDTHH:MM" → ["YYYY-MM-DD", "HH:MM"]
+            $hora .= ":00"; // Adiciona segundos para garantir formato "HH:MM:SS"
+
+            // Atualizar a BD
+            $sql = "UPDATE Services 
+                    SET serviceDate = :data, 
+                        serviceStartTime = :hora, 
+                        serviceStartPoint = :startPoint, 
+                        serviceTargetPoint = :targetPoint
+                    WHERE ID = :rideID";
+
+            $stmt = $pdo->prepare($sql);
+            $stmt->bindParam(':data', $data, PDO::PARAM_STR);
+            $stmt->bindParam(':hora', $hora, PDO::PARAM_STR);
+            $stmt->bindParam(':startPoint', $localRecolha, PDO::PARAM_STR);
+            $stmt->bindParam(':targetPoint', $localEntrega, PDO::PARAM_STR);
+            $stmt->bindParam(':rideID', $viagemId, PDO::PARAM_INT);
+            $stmt->execute();
+
+            header('Location: ManageRides.php?success=rideUpdated');
+            exit();
+        } catch (PDOException $e) {
+            header('Location: ManageRides.php?success=false&message=' . urlencode('Erro ao atualizar viagem: ' . $e->getMessage()));
+            exit();
+        }
+    } else {
+        header('Location: ManageRides.php?success=false&message=' . urlencode('Dados inválidos!'));
+        exit();
+    }
+} else {
+    header('Location: ManageRides.php?success=false&message=' . urlencode('Método não permitido!'));
+    exit();
+}
+?>

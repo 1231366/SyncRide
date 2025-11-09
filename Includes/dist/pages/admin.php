@@ -15,7 +15,6 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role']
 
 <!DOCTYPE html>
 <html lang="en">
-  <!--begin::Head-->
   <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
@@ -23,45 +22,34 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role']
 
 
 
-    <!-- Toastr CSS -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet"/>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>Painel de Administrador</title>
-    <!--begin::Fonts-->
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@fontsource/source-sans-3@5.0.12/index.css"
       integrity="sha256-tXJfXfp6Ewt1ilPzLDtQnJV4hclT9XuaZUKyUvmyr+Q="
       crossorigin="anonymous"
     />
-    <!--end::Fonts-->
-    <!--begin::Third Party Plugin(OverlayScrollbars)-->
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.10.1/styles/overlayscrollbars.min.css"
       integrity="sha256-tZHrRjVqNSRyWg2wbppGnT833E/Ys0DHWGwT04GiqQg="
       crossorigin="anonymous"
     />
-    <!--end::Third Party Plugin(OverlayScrollbars)-->
-    <!--begin::Third Party Plugin(Bootstrap Icons)-->
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
       integrity="sha256-9kPW/n5nn53j4WMRYAxe9c1rCY96Oogo/MKSVdKzPmI="
       crossorigin="anonymous"
     />
-    <!--end::Third Party Plugin(Bootstrap Icons)-->
-    <!--begin::Required Plugin(AdminLTE)-->
     <link rel="stylesheet" href="../../dist/css/adminlte.css" />
-    <!--end::Required Plugin(AdminLTE)-->
-    <!-- apexcharts -->
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/apexcharts@3.37.1/dist/apexcharts.css"
       integrity="sha256-4MX+61mt9NVvvuPjUWdUdyfZfxSB1/Rf9WtqRHgG5S0="
       crossorigin="anonymous"
     />
-    <!-- jsvectormap -->
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/css/jsvectormap.min.css"
@@ -71,16 +59,10 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role']
     <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet"/>
 </head>
   </head>
-  <!--end::Head-->
-  <!--begin::Body-->
   <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
-    <!--begin::App Wrapper-->
     <div class="app-wrapper">
-      <!--begin::Header-->
       <nav class="app-header navbar navbar-expand bg-body">
-        <!--begin::Container-->
         <div class="container-fluid">
-          <!--begin::Start Navbar Links-->
           <ul class="navbar-nav">
             <li class="nav-item">
               <a class="nav-link" data-lte-toggle="sidebar" href="#" role="button">
@@ -90,38 +72,28 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role']
             <li class="nav-item d-none d-md-block"><a href="#" class="nav-link">Home</a></li>
             <li class="nav-item d-none d-md-block"><a href="#" class="nav-link">Contact</a></li>
           </ul>
-          <!--end::Start Navbar Links-->
-          <!--begin::End Navbar Links-->
           <ul class="navbar-nav ms-auto">
-            <!--begin::Navbar Search-->
             <li class="nav-item">
               <a class="nav-link" data-widget="navbar-search" href="#" role="button">
                 <i class="bi bi-search"></i>
               </a>
             </li>
-            <!--end::Navbar Search-->
-            <!--end::Notifications Dropdown Menu-->
-            <!--begin::Fullscreen Toggle-->
             <li class="nav-item">
               <a class="nav-link" href="#" data-lte-toggle="fullscreen">
                 <i data-lte-icon="maximize" class="bi bi-arrows-fullscreen"></i>
                 <i data-lte-icon="minimize" class="bi bi-fullscreen-exit" style="display: none"></i>
               </a>
             </li>
-            <!--end::Fullscreen Toggle-->
-            <!--begin::User Menu Dropdown-->
-<li class="nav-item dropdown user-menu">
+            <li class="nav-item dropdown user-menu">
   <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
     <img
       src="../../dist/assets/img/user2-160x160.jpg"
       class="user-image rounded-circle shadow"
       alt="User Image"
     />
-    <!-- Mostrar o nome do utilizador logado -->
     <span class="d-none d-md-inline"><?php  echo $_SESSION['name']; ?></span>
   </a>
   <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
-    <!--begin::User Image-->
     <li class="user-header text-bg-primary">
       <img
         src="../../dist/assets/img/user2-160x160.jpg"
@@ -130,7 +102,6 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role']
       />
       <p>
         
-        <!-- Mostrar o nome do utilizador e o tipo de utilizador (role) -->
         <?php 
           require_once __DIR__ . '/../../../Auth/dbconfig.php';
 
@@ -140,48 +111,28 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role']
         ?>
       </p>
     </li>
-    <!--end::User Image-->
-    <!--begin::Menu Footer-->
     <li class="user-footer">
       <a href="profile.html" class="btn btn-default btn-flat">Profile</a>
       <a href="logout.php" class="btn btn-default btn-flat float-end">Sign out</a>
     </li>
-    <!--end::Menu Footer-->
-  </ul>
+    </ul>
 </li>
-<!--end::User Menu Dropdown-->
-
-            <!--end::User Menu Dropdown-->
-          </ul>
-          <!--end::End Navbar Links-->
-        </div>
-        <!--end::Container-->
-      </nav>
-      <!--end::Header-->
-      <!--begin::Sidebar-->
+</ul>
+          </div>
+        </nav>
       <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
-        <!--begin::Sidebar Brand-->
         <div class="sidebar-brand">
-          <!--begin::Brand Link-->
           <a href="./admin.php" class="brand-link">
-            <!--begin::Brand Image-->
             <img
               src="../../dist/assets/img/AdminLTELogo.png"
               alt="AdminLTE Logo"
               class="brand-image opacity-75 shadow"
             />
-            <!--end::Brand Image-->
-            <!--begin::Brand Text-->
             <span class="brand-text fw-light">SyncRide</span>
-            <!--end::Brand Text-->
-          </a>
-          <!--end::Brand Link-->
-        </div>
-        <!--end::Sidebar Brand-->
-        <!--begin::Sidebar Wrapper-->
+            </a>
+          </div>
         <div class="sidebar-wrapper">
           <nav class="mt-2">
-            <!--begin::Sidebar Menu-->
             <ul
               class="nav sidebar-menu flex-column"
               data-lte-toggle="treeview"
@@ -209,29 +160,27 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role']
                   </a>
               </li>
 
+              <li class="nav-item">
+                  <a href="admin_driver_stats.php" class="nav-link">
+                      <i class="nav-icon bi bi-graph-up"></i>
+                      <p>Estatísticas (Condutores)</p>
+                  </a>
+              </li>
               
               <li class="nav-item">
                   <a href="manageStorage.php" class="nav-link">
-                      <i class="nav-icon bi bi-box-seam-fill"></i>
+                      <i class="nav-icon bi bi-archive-fill"></i>
                       <p>Gerir Armazenamento</p>
                   </a>
               </li>
 
 
-            <!--end::Sidebar Menu-->
-          </nav>
+            </nav>
         </div>
-        <!--end::Sidebar Wrapper-->
-      </aside>
-      <!--end::Sidebar-->
-      <!--begin::App Main-->
-      
+        </aside>
       <main class="app-main">
-        <!--begin::App Content Header-->
         <div class="app-content-header">
-          <!--begin::Container-->
           <div class="container-fluid">
-            <!--begin::Row-->
             <div class="row">
               <div class="col-sm-6"><h3 class="mb-0">Painel de Administrador</h3></div>
               <div class="col-sm-6">
@@ -241,12 +190,8 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role']
                 </ol>
               </div>
             </div>
-            <!--end::Row-->
+            </div>
           </div>
-          <!--end::Container-->
-        </div>
-        <!--end::App Content Header-->
-        <!--begin::App Content-->
         <?php
 require __DIR__ . '/../../../Auth/dbconfig.php';
 
@@ -320,49 +265,55 @@ $percentagemSemanaConcluida = $totalViagensSemana > 0
     ? round(($totalSemanaConcluidas / $totalViagensSemana) * 100, 2)
     : 0;
 
-// Calcular viagens por dia da última semana (segunda-feira a domingo)
-$sqlViagensPorDiaSemana = "
-    SELECT DAYOFWEEK(s.serviceDate) AS diaSemana, COUNT(*) AS totalViagens
-    FROM Services s
-    LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
-    WHERE s.serviceDate BETWEEN CURDATE() - INTERVAL (DAYOFWEEK(CURDATE()) - 2) DAY 
-                              AND CURDATE() - INTERVAL (DAYOFWEEK(CURDATE()) - 1) DAY
-    GROUP BY diaSemana
-    ORDER BY diaSemana
+// --- ALTERAÇÃO: Lógica para o Gráfico (Volume Mensal do Ano Corrente) ---
+
+// 1. Preparar os arrays para o JavaScript
+// Labels (eixo X) - Nomes dos 12 meses
+$chartLabels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+// Dados (eixo Y) - Inicializa um array com 12 meses, todos a 0
+// As chaves vão de 1 (Jan) a 12 (Dez)
+$monthlyDataCounts = array_fill(1, 12, 0);
+
+// 2. Obter os dados da BD
+$sqlMensal = "
+    SELECT 
+        MONTH(serviceDate) AS mes, 
+        COUNT(*) AS totalViagens
+    FROM Services
+    WHERE YEAR(serviceDate) = YEAR(CURDATE())  -- Apenas do ano corrente
+    GROUP BY mes
+    ORDER BY mes ASC
 ";
+$stmtMensal = $pdo->prepare($sqlMensal);
+$stmtMensal->execute();
+$resultsMensal = $stmtMensal->fetchAll(PDO::FETCH_ASSOC);
 
-// Executar a consulta para obter o total de viagens por dia da semana
-$stmt = $pdo->prepare($sqlViagensPorDiaSemana);
-$stmt->execute();
-$viagensPorDiaSemana = $stmt->fetchAll();
-
-// Organizar os resultados para garantir que todos os dias da semana apareçam, mesmo que sem viagens
-$viagensPorDia = array_fill(1, 7, 0); // Inicializa todos os dias com 0
-
-foreach ($viagensPorDiaSemana as $viagem) {
-    $viagensPorDia[$viagem['diaSemana']] = $viagem['totalViagens'];
+// 3. Preencher o array de dados com os totais da BD
+// $resultsMensal só terá os meses que têm viagens.
+foreach ($resultsMensal as $row) {
+    $mes = (int)$row['mes']; // O número do mês (ex: 1 para Jan, 11 para Nov)
+    $total = (int)$row['totalViagens'];
+    
+    // Atualiza o valor desse mês no array
+    if (isset($monthlyDataCounts[$mes])) {
+        $monthlyDataCounts[$mes] = $total;
+    }
 }
 
-// Formatar os dados para o gráfico
-$viagensDia = implode(",", $viagensPorDia);
+// 4. Preparar o array final para o JS
+// O JS precisa de um array simples [50, 0, 120, ...], por isso usamos array_values()
+// para extrair apenas os valores, na ordem correta (Jan-Dez).
+$chartData = array_values($monthlyDataCounts);
 
-// Variação de datas para a última semana
-$categorias = [];
-for ($i = 6; $i >= 0; $i--) {
-    $categorias[] = date('D', strtotime("-$i days"));
-}
-
-$categoriasStr = implode("','", $categorias);
+// As variáveis $chartLabels e $chartData estão prontas para o script do gráfico.
+// --- FIM DA ALTERAÇÃO ---
 ?>
 
         <div class="app-content">
-          <!--begin::Container-->
           <div class="container-fluid">
-            <!--begin::Row-->
             <div class="row">
-              <!--begin::Col-->
               <div class="col-lg-3 col-6">
-                <!--begin::Small Box Widget 1-->
                 <div class="small-box text-bg-primary">
                   <div class="inner">
                     <h3><?= $totalTodasAsViagens ?></h3>
@@ -380,11 +331,8 @@ $categoriasStr = implode("','", $categorias);
                     ></path>
                   </svg>
                 </div>
-                <!--end::Small Box Widget 1-->
-              </div>
-              <!--end::Col-->
+                </div>
               <div class="col-lg-3 col-6">
-                <!--begin::Small Box Widget 2-->
                 <div class="small-box text-bg-success">
                   <div class="inner">
                     <h3><?= $totalViagensSemana ?><sup class="fs-5"></sup></h3>
@@ -402,11 +350,8 @@ $categoriasStr = implode("','", $categorias);
                     ></path>
                   </svg>
                 </div>
-                <!--end::Small Box Widget 2-->
-              </div>
-              <!--end::Col-->
+                </div>
               <div class="col-lg-3 col-6">
-                <!--begin::Small Box Widget 3-->
                 <div class="small-box text-bg-warning">
                   <div class="inner">
                     <h3><?= $percentagemSemanaConcluida ?>%</h3>
@@ -424,11 +369,8 @@ $categoriasStr = implode("','", $categorias);
                     ></path>
                   </svg>
                 </div>
-                <!--end::Small Box Widget 3-->
-              </div>
-              <!--end::Col-->
+                </div>
               <div class="col-lg-3 col-6">
-                <!--begin::Small Box Widget 4-->
                 <div class="small-box text-bg-danger">
                   <div class="inner">
                     <h3><?= $totalViagensHoje ?></h3>
@@ -453,34 +395,25 @@ $categoriasStr = implode("','", $categorias);
                     ></path>
                   </svg>
                 </div>
-                <!--end::Small Box Widget 4-->
+                </div>
               </div>
-              <!--end::Col-->
-            </div>
-            <!--end::Row-->
-            <!--begin::Row-->
             <div class="row">
-  <!-- Start col com gráfico, visível apenas no desktop -->
   <div class="col-lg-7 connectedSortable d-none d-lg-block">
     <div class="card mb-4">
-      <div class="card-header"><h3 class="card-title">Volume de Viagens Efetuadas</h3></div>
+      <div class="card-header"><h3 class="card-title">Volume de Viagens Efetuadas (Ano Corrente)</h3></div>
       <div class="card-body"><div id="revenue-chart"></div></div>
     </div>
-    <!-- /.card -->
-  </div>
-<!-- Start col com formulário de upload, visível em todos os dispositivos -->
+    </div>
 <div class="col-lg-5 connectedSortable">
   <div class="card text-white bg-primary bg-gradient border-primary mb-4">
     <div class="card-header border-0">
       <h3 class="card-title">Efetuar Upload de Viagens (XML)</h3>
     </div>
     <div class="card-body">
-      <!-- Formulário para fazer upload do XML -->
       <form method="POST" enctype="multipart/form-data" id="uploadForm">
         <div class="text-center mb-4">
           <label for="xmlFile" class="form-label h5 text-white">Arraste e largue o seu ficheiro XML aqui ou clique para escolher</label>
           
-          <!-- Área de Drag and Drop -->
           <div id="drop-area" class="drop-area p-5 text-center rounded-lg shadow-lg">
             <i class="fas fa-cloud-upload-alt fa-4x mb-3 text-white"></i>
             <p class="text-white">Arraste o seu ficheiro XML aqui</p>
@@ -492,6 +425,7 @@ $categoriasStr = implode("','", $categorias);
           <button type="submit" class="btn btn-light btn-lg">Carregar</button>
         </div>
       </form>
+      
       <?php
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['xmlFile']) && $_FILES['xmlFile']['error'] == 0) {
 
@@ -513,10 +447,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['xmlFile']) && $_FILES
 
     require_once __DIR__ . '/../../../Auth/dbconfig.php';
 
+    // --- ALTERAÇÃO 1: Mudar a Query SQL ---
+    // Adicionámos o "ID" e a cláusula "ON DUPLICATE KEY UPDATE"
     $sql = "INSERT INTO Services 
-            (serviceDate, serviceStartTime, paxADT, paxCHD, serviceStartPoint, serviceTargetPoint, FlightNumber, NomeCliente, ClientNumber, serviceType)
+            (ID, serviceDate, serviceStartTime, paxADT, paxCHD, serviceStartPoint, serviceTargetPoint, FlightNumber, NomeCliente, ClientNumber, serviceType)
             VALUES 
-            (:serviceDate, :serviceStartTime, :paxADT, :paxCHD, :serviceStartPoint, :serviceTargetPoint, :FlightNumber, :NomeCliente, :ClientNumber, :serviceType)";
+            (:ID, :serviceDate, :serviceStartTime, :paxADT, :paxCHD, :serviceStartPoint, :serviceTargetPoint, :FlightNumber, :NomeCliente, :ClientNumber, :serviceType)
+            ON DUPLICATE KEY UPDATE
+                serviceDate = VALUES(serviceDate),
+                serviceStartTime = VALUES(serviceStartTime),
+                paxADT = VALUES(paxADT),
+                paxCHD = VALUES(paxCHD),
+                serviceStartPoint = VALUES(serviceStartPoint),
+                serviceTargetPoint = VALUES(serviceTargetPoint),
+                FlightNumber = VALUES(FlightNumber),
+                NomeCliente = VALUES(NomeCliente),
+                ClientNumber = VALUES(ClientNumber),
+                serviceType = VALUES(serviceType)";
 
     $stmt = $pdo->prepare($sql);
     $success = false; // Para verificar se houve alguma inserção
@@ -527,8 +474,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['xmlFile']) && $_FILES
             $vehicleType = (string) $service->serviceUnitVehicleName;
             $serviceType = ($vehicleType == 'Taxi') ? 0 : 1; // 0 para Taxi Privado, 1 para Partilhado
 
-            // Inicializa os dados básicos do serviço
+            // --- ALTERAÇÃO 2: Capturar o serviceId ---
             $serviceData = [
+                'ID'                 => (string) $service->serviceId, // <-- LINHA ADICIONADA
                 'serviceDate'        => (string) $service->serviceDate,
                 'serviceStartTime'   => (string) $service->serviceStartTime,
                 'paxADT'             => (int) $service->bookings->bookingItem->paxADT,
@@ -576,7 +524,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['xmlFile']) && $_FILES
                 echo "<script>
                         $(document).Toasts('create', {
                             title: 'Erro!',
-                            body: 'Erro ao inserir serviço: " . $serviceData['serviceDate'] . " - " . $serviceData['serviceStartTime'] . "',
+                            body: 'Erro ao inserir serviço: " . $serviceData['ID'] . " - " . $e->getMessage() . "',
                             class: 'bg-danger',
                             autohide: true,
                             delay: 5000
@@ -586,7 +534,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['xmlFile']) && $_FILES
         }
 
         if ($success) {
-            // Você pode adicionar uma mensagem de sucesso, se desejar.
+            // Mensagem de sucesso
+             echo "<script>
+                $(document).Toasts('create', {
+                    title: 'Sucesso!',
+                    body: 'Viagens carregadas/atualizadas com sucesso.',
+                    class: 'bg-success',
+                    autohide: true,
+                    delay: 5000
+                });
+              </script>";
         }
     } else {
         echo "<script>
@@ -601,15 +558,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['xmlFile']) && $_FILES
     }
 }
 ?>
-
-    </div>
+      </div>
   </div>
 </div>
 </div>
 
 
 
-<!-- Estilos e Script para Drag and Drop -->
 <style>
   #drop-area {
     background-color: #007bff;
@@ -688,33 +643,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['xmlFile']) && $_FILES
 
 
 
-              <!-- /.Start col -->
-               
+              </div>
             </div>
-            <!-- /.row (main row) -->
           </div>
-          <!--end::Container-->
-        </div>
-        <!--end::App Content-->
-      </main>
-      <!--end::App Main-->
-      <!--begin::Footer-->
+        </main>
       <footer class="app-footer">
-        <!--begin::To the end-->
         <div class="float-end d-none d-sm-inline"></div>
-        <!--end::To the end-->
-        <!--begin::Copyright-->
         SyncRide All rights reserved.
-        <!--end::Copyright-->
-      </footer>
-      <!--end::Footer-->
-    </div>
+        </footer>
+      </div>
 
 
 
-    <!--end::App Wrapper-->
-    <!--begin::Script-->
-    <!-- Toastr JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 
     <script>
@@ -728,28 +668,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['xmlFile']) && $_FILES
         });
     <?php endif; ?>
     </script>
-    <!--begin::Third Party Plugin(OverlayScrollbars)-->
-    
     <script
       src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.10.1/browser/overlayscrollbars.browser.es6.min.js"
       integrity="sha256-dghWARbRe2eLlIJ56wNB+b760ywulqK3DzZYEpsg2fQ="
       crossorigin="anonymous"
     ></script>
-    <!--end::Third Party Plugin(OverlayScrollbars)--><!--begin::Required Plugin(popperjs for Bootstrap 5)-->
     <script
       src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
       integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r"
       crossorigin="anonymous"
     ></script>
-    <!--end::Required Plugin(popperjs for Bootstrap 5)--><!--begin::Required Plugin(Bootstrap 5)-->
     <script
       src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js"
       integrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy"
       crossorigin="anonymous"
     ></script>
-    <!--end::Required Plugin(Bootstrap 5)--><!--begin::Required Plugin(AdminLTE)-->
     <script src="../../dist/js/adminlte.js"></script>
-    <!--end::Required Plugin(AdminLTE)--><!--begin::OverlayScrollbars Configure-->
     <script>
       const SELECTOR_SIDEBAR_WRAPPER = '.sidebar-wrapper';
       const Default = {
@@ -770,15 +704,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['xmlFile']) && $_FILES
         }
       });
     </script>
-    <!--end::OverlayScrollbars Configure-->
-    <!-- OPTIONAL SCRIPTS -->
-    <!-- sortablejs -->
     <script
       src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"
       integrity="sha256-ipiJrswvAR4VAx/th+6zWsdeYmVae0iJuiR+6OqHJHQ="
       crossorigin="anonymous"
     ></script>
-    <!-- sortablejs -->
     <script>
       const connectedSortables = document.querySelectorAll('.connectedSortable');
       connectedSortables.forEach((connectedSortable) => {
@@ -793,23 +723,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['xmlFile']) && $_FILES
         cardHeader.style.cursor = 'move';
       });
     </script>
-    <!-- apexcharts -->
     <script
       src="https://cdn.jsdelivr.net/npm/apexcharts@3.37.1/dist/apexcharts.min.js"
       integrity="sha256-+vh8GkaU7C9/wbSLIcwq82tQ2wTf44aOHA8HlBMwRI8="
       crossorigin="anonymous"
     ></script>
-    <!-- ChartJS -->
     <script>
-      // NOTICE!! DO NOT USE ANY OF THIS JAVASCRIPT
-      // IT'S ALL JUST JUNK FOR DEMO
-      // ++++++++++++++++++++++++++++++++++++++++++
-
+      // --- ALTERAÇÃO: Configuração do Gráfico com dados do PHP ---
       const sales_chart_options = {
         series: [
           {
             name: 'Viagens',
-            data: [28, 48, 40, 19, 86, 27, 90],
+            // Injeta os dados do PHP. json_encode cria o array JS: [0, 5, 12, ...]
+            data: <?php echo json_encode($chartData); ?>,
           },
         ],
         chart: {
@@ -822,7 +748,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['xmlFile']) && $_FILES
         legend: {
           show: false,
         },
-        colors: ['#0d6efd', '#20c997'],
+        colors: ['#0d6efd'], // Cor primária
         dataLabels: {
           enabled: false,
         },
@@ -830,21 +756,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['xmlFile']) && $_FILES
           curve: 'smooth',
         },
         xaxis: {
-          type: 'datetime',
-          categories: [
-            '2023-01-01',
-            '2023-02-01',
-            '2023-03-01',
-            '2023-04-01',
-            '2023-05-01',
-            '2023-06-01',
-            '2023-07-01',
-          ],
+          type: 'category', // Mudar para 'category'
+          // Injeta as labels do PHP. json_encode cria: ['02 Nov', '03 Nov', ...]
+          categories: <?php echo json_encode($chartLabels); ?>,
         },
         tooltip: {
-          x: {
-            format: 'MMMM yyyy',
-          },
+            // Mostra o tooltip corretamente
+            x: {
+                format: 'dd MMMM',
+            },
+            y: {
+                formatter: function (val) {
+                    return val + " viagens"; // Texto no tooltip
+                }
+            }
         },
       };
 
@@ -853,8 +778,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['xmlFile']) && $_FILES
         sales_chart_options,
       );
       sales_chart.render();
+      // --- FIM DA ALTERAÇÃO ---
     </script>
-    <!-- jsvectormap -->
     <script
       src="https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/js/jsvectormap.min.js"
       integrity="sha256-/t1nN2956BT869E6H4V1dnt0X5pAQHPytli+1nTZm2Y="
@@ -865,7 +790,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['xmlFile']) && $_FILES
       integrity="sha256-XPpPaZlU8S/HWf7FZLAncLg2SAkP8ScUTII89x9D3lY="
       crossorigin="anonymous"
     ></script>
-    <!-- jsvectormap -->
     <script>
       const visitorsData = {
         US: 398, // USA
@@ -972,9 +896,5 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['xmlFile']) && $_FILES
       const sparkline3 = new ApexCharts(document.querySelector('#sparkline-3'), option_sparkline3);
       sparkline3.render();
     </script>
-    <!--end::Script-->
-</body>
-
-  </body>
-  <!--end::Body-->
-</html>
+    </body>
+  </html>

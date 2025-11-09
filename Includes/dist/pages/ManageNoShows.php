@@ -10,9 +10,12 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
 
 <!doctype html>
 <html lang="en">
+  <!--begin::Head-->
   <head>
+    <!-- Toastr CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
     
+    <!-- DataTables CSS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
 
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -38,6 +41,7 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
     />
     <link rel="stylesheet" href="../../dist/css/adminlte.css" />
     
+    <!-- Estilos Personalizados -->
     <style>
         /* Esconde a barra de pesquisa feia do DataTables */
         .dataTables_filter {
@@ -82,9 +86,13 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
         }
     </style>
   </head>
+  <!--end::Head-->
+  <!--begin::Body-->
   <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
   
+    <!--begin::App Wrapper-->
     <div class="app-wrapper">
+      <!--begin::Header-->
       <nav class="app-header navbar navbar-expand bg-body">
         <div class="container-fluid">
           <ul class="navbar-nav">
@@ -142,6 +150,9 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
           </ul>
         </div>
       </nav>
+      <!--end::Header-->
+      
+      <!--begin::Sidebar-->
       <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
         <div class="sidebar-brand">
           <a href="./admin.php" class="brand-link">
@@ -185,6 +196,7 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
                       <p>Estatísticas (Condutores)</p>
                   </a>
               </li>
+              <!-- ADICIONA ESTE LINK ÀS OUTRAS PÁGINAS DE ADMIN -->
               <li class="nav-item">
                   <a href="ManageNoShows.php" class="nav-link active">
                       <i class="nav-icon bi bi-camera-fill"></i>
@@ -201,7 +213,11 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
           </nav>
         </div>
       </aside>
+      <!--end::Sidebar-->
+      
+      <!--begin::App Main-->
       <main class="app-main">
+        <!--begin::App Content Header-->
         <div class="app-content-header">
           <div class="container-fluid">
             <div class="row">
@@ -215,9 +231,13 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
             </div>
           </div>
         </div>
+        <!--end::App Content Header-->
+        
+        <!--begin::App Content-->
         <div class="app-content">
           <div class="container-fluid">
             
+            <!-- Card da Tabela -->
             <div class="card shadow-sm border-0">
                 <div class="card-body">
                     <div class="table-responsive">
@@ -232,20 +252,30 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
                                 </tr>
                             </thead>
                             <tbody>
-                                </tbody>
+                                <!-- Os dados vão ser carregados aqui via AJAX -->
+                            </tbody>
                         </table>
                     </div>
                 </div>
             </div>
             
           </div>
-          </div>
-        </main>
+          <!--end::Container-->
+        </div>
+        <!--end::App Content-->
+      </main>
+      <!--end::App Main-->
+      
+      <!--begin::Footer-->
       <footer class="app-footer">
         <div class="float-end d-none d-sm-inline"></div>
         <strong>SyncRide All rights reserved.</strong>
       </footer>
-      </div>
+      <!--end::Footer-->
+    </div>
+    <!--end::App Wrapper-->
+
+    <!-- Modal Ver Foto -->
     <div class="modal fade" id="photoModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -260,27 +290,39 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
       </div>
     </div>
     
+    <!-- MODAL DE EMAIL FOI REMOVIDO -->
+
+
+    <!-- =================================== -->
+    <!-- SCRIPTS (jQuery, Bootstrap, AdminLTE) -->
+    <!-- =================================== -->
+    
+    <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
+    <!-- Toastr JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
     
+    <!-- DataTables JS -->
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     
+    <!-- Bootstrap e AdminLTE JS -->
     <script
       src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
-      integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r"
+      xintegrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r"
       crossorigin="anonymous"
     ></script>
     <script
-      src="httpsG://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js"
-      integrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy"
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js"
+      xintegrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy"
       crossorigin="anonymous"
     ></script>
     <script src="../../dist/js/adminlte.js"></script>
     
+    <!-- OverlayScrollbars -->
     <script
-      src="https.cdn.jsdelivr.net/npm/overlayscrollbars@2.10.1/browser/overlayscrollbars.browser.es6.min.js"
+      src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.10.1/browser/overlayscrollbars.browser.es6.min.js"
       integrity="sha256-dghWARbRe2eLlIJ56wNB+b760ywulqK3DzZYEpsg2fQ="
       crossorigin="anonymous"
     ></script>
@@ -305,6 +347,9 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
       });
     </script>
     
+    <!-- =================================== -->
+    <!-- JAVASCRIPT DA PÁGINA (DataTables e Modais) -->
+    <!-- =================================== -->
     <script>
     
     let tabelaNoShows;
@@ -371,8 +416,6 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
         $('#photoModalImage').attr('src', photoPath);
         photoModal.show();
     }
-
-    // A FUNÇÃO openEmailModal FOI REMOVIDA (o link agora é direto)
     
     // Toastr (Notificações)
     toastr.options = {
@@ -384,4 +427,5 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
     </script>
     
   </body>
-  </html>
+  <!--end::Body-->
+</html>

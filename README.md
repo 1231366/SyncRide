@@ -63,7 +63,7 @@ The system provides an immediate and immense return on time, eliminating human e
 
 ### 2. Driver Panel
 
-<img src="Assets/demos/driver-panel-demo.gif" alt="Driver Panel Demo" width="280" align="right">
+<img src="Assets/demos/DriverView.gif" alt="Driver Panel Demo" width="280" align="right">
 
 * **Mobile-First Interface:** A responsive dashboard designed for on-the-go use by drivers.
 * **Trip Manifest:** Displays a clean list of all trips assigned to the logged-in driver.

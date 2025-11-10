@@ -36,29 +36,39 @@ The system provides an immediate and immense return on time, eliminating human e
 
 ---
 
-## 🚀 Key Features
+## 🚀 Key Features & Visual Showcase
 
 ### 1. Administration Panel
 
-* **Central Dashboard:** At-a-glance overview of daily and weekly operational statistics.
-* **Ride Management:** Full CRUD (Create, Read, Update, Delete) capabilities for all trips. Includes features for assigning and re-assigning rides to specific drivers.
-* **User Management:** Complete user administration for creating, editing, and deleting admin and driver accounts.
-* **No-Show Management:** A dedicated portal to review all trips flagged as "No-Show" by drivers. Includes viewing photographic evidence submitted from the field.
+<img src="Assets/demos/admin-dashboard-and-assign.gif" alt="Admin Dashboard & Ride Assignment Demo" width="450" align="right">
+
+* **Central Dashboard:** At-a-glance overview of daily and weekly operational statistics using interactive charts.
+* **Ride Management:** Full CRUD (Create, Read, Update, Delete) capabilities for all trips in a filterable `DataTables.js` interface.
+* **Driver Assignment:** Assign rides to available drivers directly from the main ride list.
 * **Data Import:** A utility to upload and parse XML files, which automatically populates and updates the trip database.
-* **Driver Statistics:** A reporting page to analyze driver performance and completed trip counts.
+* **User Management:** Complete user administration for creating, editing, and deleting admin and driver accounts.
+
+<br clear="all">
+<br>
+
+<img src="Assets/demos/admin-noshow-and-maintenance.gif" alt="No-Show and System Maintenance Demo" width="450" align="right">
+
+* **No-Show Management:** A dedicated portal to review all trips flagged as "No-Show". Includes viewing photographic evidence submitted from the field.
 * **System Maintenance:** A storage and data management panel with critical functions:
     * **Database Backup:** One-click generation and download of a full SQL database backup.
     * **Data Pruning:** Secure functions to delete all trip records (`Services`) or clear all system action `Logs`.
     * **System Health Monitor:** A dashboard widget that shows the time elapsed since the last system backup.
 
+<br clear="all">
+
 ### 2. Driver Panel
+
+<img src="Assets/demos/driver-panel-demo.gif" alt="Driver Panel Demo" width="280" align="right">
 
 * **Mobile-First Interface:** A responsive dashboard designed for on-the-go use by drivers.
 * **Trip Manifest:** Displays a clean list of all trips assigned to the logged-in driver.
 * **Quick Filters:** "Yesterday," "Today," and "Tomorrow" buttons to easily filter the trip list.
-* **Trip Details Modal:** Provides all necessary trip info, including:
-    * Date, Time, Pickup, and Dropoff locations.
-    * Passenger count (ADT/CHD), client name, and flight number.
+* **Trip Details Modal:** Provides all necessary trip info, including passenger count, client name, and flight number.
 * **Waze Integration:** Features one-click buttons to open the Waze app and automatically start navigation to either the pickup point or the final destination.
 * **No-Show Reporting:**
     * Allows the driver to report a client no-show directly from the trip details.
@@ -66,41 +76,39 @@ The system provides an immediate and immense return on time, eliminating human e
     * Captures and uploads the photo proof directly to the server via an AJAX request.
     * The modal interface is optimized to auto-scroll to the camera view on mobile devices.
 
+<br clear="all">
+
 ---
 
 ## 🛠️ Technology Stack
 
-This project is built on a classic, reliable LAMP-style stack.
-
 ### Backend
-* **PHP:** Core server-side language. Used for all business logic, session management, and database interaction.
-* **MySQL (via PDO):** The database backend. All database queries are handled securely using the PDO (PHP Data Objects) extension (see `Auth/dbconfig.php`).
+* 🐘 **PHP:** Core server-side language. Used for all business logic, session management, and database interaction.
+* 🐬 **MySQL (via PDO):** The database backend. All database queries are handled securely using the PDO (PHP Data Objects) extension (see `Auth/dbconfig.php`).
 
 ### Frontend
-* **HTML5 & CSS3:** Standard markup and styling.
-* **JavaScript (ES6+):** Used heavily for client-side interactivity, especially in the Driver Panel.
-* **AdminLTE:** The core Bootstrap-based admin template used for the entire UI.
-* **jQuery:** Used for simplified DOM manipulation and AJAX calls.
-* **DataTables.js:** Powers the interactive, searchable, and paginated tables in the Admin Panel.
-* **Toastr.js:** Used for clean, non-intrusive success and error notifications.
-* **ApexCharts:** Used to render statistics charts in the admin dashboards.
+* 📄 **HTML5 & CSS3:** Standard markup and styling.
+* ⚡ **JavaScript (ES6+):** Used heavily for client-side interactivity, especially in the Driver Panel.
+* 🅱️ **AdminLTE:** The core Bootstrap-based admin template used for the entire UI.
+* ⚙️ **jQuery:** Used for simplified DOM manipulation and AJAX calls.
+* 🗂️ **DataTables.js:** Powers the interactive, searchable, and paginated tables in the Admin Panel.
+* 🔔 **Toastr.js:** Used for clean, non-intrusive success and error notifications.
+* 📊 **ApexCharts:** Used to render statistics charts in the admin dashboards.
 
 ---
 
 ## ⚙️ Installation & Setup
 
-To get this project running on a local server (like XAMPP, WAMP, or MAMP):
-
-1.  **Clone the repository:**
+1️⃣  **Clone the repository:**
     ```bash
     git clone [https://github.com/your-username/syncride.git](https://github.com/your-username/syncride.git)
     cd syncride
     ```
 
-2.  **Database Configuration:**
+2️⃣  **Database Configuration:**
     * Create a new MySQL database (e.g., `syncride`).
     * Import the database schema from a `.sql` file (if provided) or build the tables manually.
-    * **Crucially**, ensure your `Services` table contains the `noShowStatus` and `noShowPhotoPath` columns for the No-Show feature to work:
+    * **Crucially**, ensure your `Services` table contains the `noShowStatus` and `noShowPhotoPath` columns:
         ```sql
         ALTER TABLE Services
         ADD COLUMN noShowStatus TINYINT(1) NOT NULL DEFAULT 0,
@@ -108,7 +116,7 @@ To get this project running on a local server (like XAMPP, WAMP, or MAMP):
         ```
     * Configure your database credentials by editing `Auth/dbconfig.php`.
 
-3.  **Set Folder Permissions (Critical Step):**
+3️⃣  **Set Folder Permissions (Critical Step):**
     * The No-Show upload script requires write permissions on the server to save photos.
     * Ensure the `Includes/dist/pages/uploads/no_shows/` directory exists.
     * Give your web server (e.g., `www-data`, `apache`) write permissions to this folder.
@@ -123,7 +131,7 @@ To get this project running on a local server (like XAMPP, WAMP, or MAMP):
         chmod -R 775 Includes/dist/pages/uploads/
         ```
 
-4.  **Run the Application:**
+4️⃣  **Run the Application:**
     * Place the project folder in your server's web root (e.g., `htdocs`).
     * Access the application through your browser (e.g., `http://localhost/syncride/`).
     * The main login page is `index.php`.
@@ -134,10 +142,10 @@ To get this project running on a local server (like XAMPP, WAMP, or MAMP):
 
 Future plans to enhance the SyncRide platform include:
 
-* **Live Driver Tracking:** Re-architecting the Driver Panel as a hybrid mobile app (using Capacitor.js) to enable reliable, background GPS tracking that reports location data to a live map in the admin panel.
-* **Push Notifications:** Alerting drivers via push notification when a new trip is assigned to them.
-* **Client Portal:** A simple interface for clients to check the status of their upcoming ride.
-* **Drag-and-Drop Assignment:** A visual interface in the admin panel to drag trips onto a list of available drivers.
+* 🛰️ **Live Driver Tracking:** Re-architecting the Driver Panel as a hybrid mobile app (using Capacitor.js) to enable reliable, background GPS tracking that reports location data to a live map in the admin panel.
+* 🔔 **Push Notifications:** Alerting drivers via push notification when a new trip is assigned to them.
+* 🧑‍💻 **Client Portal:** A simple interface for clients to check the status of their upcoming ride.
+* 🖐️ **Drag-and-Drop Assignment:** A visual interface in the admin panel to drag trips onto a list of available drivers.
 
 ## 📄 License
 

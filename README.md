@@ -40,7 +40,7 @@ The system provides an immediate and immense return on time, eliminating human e
 
 ### 1. Administration Panel
 
-<img src="Assets/demos/admin-dashboard-and-assign.gif" alt="Admin Dashboard & Ride Assignment Demo" width="450" align="right">
+<img src="Assets/demos/AdminView.gif" alt="Admin Panel Demo" width="450" align="right">
 
 * **Central Dashboard:** At-a-glance overview of daily and weekly operational statistics using interactive charts.
 * **Ride Management:** Full CRUD (Create, Read, Update, Delete) capabilities for all trips in a filterable `DataTables.js` interface.

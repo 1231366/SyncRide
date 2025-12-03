@@ -1,3 +1,19 @@
+<?php
+// 1. Iniciar sessão e incluir a configuração (que contém a lógica de Auto-Login)
+session_start();
+require_once 'auth/dbconfig.php'; 
+
+// 2. Verificar se o utilizador JÁ está logado (Sessão ou Cookie recuperado pelo dbconfig)
+if (isset($_SESSION['user_id'])) {
+    // Se já estiver logado, redireciona imediatamente para a página correta
+    if ($_SESSION['role'] == 1) {
+        header("Location: Includes/dist/pages/admin.php");
+    } else {
+        header("Location: Includes/dist/pages/driver.php");
+    }
+    exit(); // Importante: parar a execução para não carregar o HTML de login
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -16,11 +32,35 @@
     <link rel="stylesheet" type="text/css" href="assets/css/util.css">
     <link rel="stylesheet" type="text/css" href="assets/css/main.css">
 
-    <!-- Toastr CSS -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet"/>
+    
+    <style>
+        /* Estilo para a checkbox */
+        .remember-me-wrapper {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            padding-bottom: 20px;
+        }
+        .remember-check {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .remember-check input {
+            margin-right: 8px;
+            transform: scale(1.2);
+            cursor: pointer;
+        }
+        .remember-check label {
+            font-size: 14px;
+            color: #666;
+            cursor: pointer;
+            margin: 0;
+        }
+    </style>
 </head>
 <body>
-
 
     <div class="limiter">
         <div class="container-login100">
@@ -47,10 +87,17 @@
                         <span class="focus-input100" data-placeholder="Password"></span>
                     </div>
 
+                    <div class="remember-me-wrapper">
+                        <div class="remember-check">
+                            <input type="checkbox" name="remember" id="rememberBox">
+                            <label for="rememberBox">Guardar sessão</label>
+                        </div>
+                    </div>
+
                     <div class="container-login100-form-btn">
                         <div class="wrap-login100-form-btn">
                             <div class="login100-form-bgbtn"></div>
-                            <button class="login100-form-btn name= btn_login">
+                            <button class="login100-form-btn">
                                 Login
                             </button>
                         </div>
@@ -72,21 +119,26 @@
     <script src="assets/vendor/countdowntime/countdowntime.js"></script>
     <script src="assets/js/main.js"></script>
 
-    <!-- Toastr JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 
     <script>
-    // Verificar se existe um erro na URL e mostrar a notificação com o Toastr
-    <?php if (isset($_GET['error']) && $_GET['error'] == 'senha_incorreta'): ?>
-        toastr.error('Senha incorreta. Tente novamente.', 'Erro!', {
+    // Verificar erros na URL
+    <?php if (isset($_GET['error'])): ?>
+        let errorType = '<?php echo $_GET['error']; ?>';
+        let msg = 'Ocorreu um erro.';
+        
+        if(errorType == 'senha_incorreta') msg = 'Senha incorreta. Tente novamente.';
+        else if(errorType == 'utilizador_nao_encontrado') msg = 'Utilizador não encontrado.';
+        else if(errorType == 'campos_vazios') msg = 'Preencha todos os campos.';
+
+        toastr.error(msg, 'Erro!', {
             closeButton: true,
             progressBar: true,
-            timeOut: 5000, // Tempo para desaparecer (5 segundos)
-            positionClass: 'toast-top-right' // Posicionar à direita no topo
+            timeOut: 5000,
+            positionClass: 'toast-top-right'
         });
     <?php endif; ?>
-</script>
-
+    </script>
 
 </body>
 </html>

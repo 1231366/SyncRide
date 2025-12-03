@@ -82,32 +82,8 @@ try {
     echo json_encode(['data' => $data]);
 
 } catch (PDOException $e) {
+    // Se a consulta SQL falhar, o script entra aqui e devolve "data" vazia.
+    // É ISTO QUE ESTÁ A ACONTECER!
     echo json_encode(['data' => [], 'error' => $e->getMessage()]);
 }
 ?>
-```
-
----
-
-### 3. (OPCIONAL) Adicionar o Link ao Menu
-
-Se ainda não o fizeste, vai aos teus outros ficheiros de admin (`admin.php`, `ManageRides.php`, `admin_driver_stats.php`) e adiciona o link para a `ManageNoShows.php` no menu lateral (`<aside class="app-sidebar">`):
-
-```html
-              <!-- ... (outros links) ... -->
-              
-              <!-- LINK PARA A NOVA PÁGINA -->
-              <li class="nav-item">
-                  <a href="ManageNoShows.php" class="nav-link">
-                      <i class="nav-icon bi bi-camera-fill"></i>
-                      <p>Gerir No Shows</p>
-                  </a>
-              </li>
-              <!-- FIM DO NOVO LINK -->
-
-              <li class="nav-item">
-                  <a href="manageStorage.php" class="nav-link">
-                      <i class="nav-icon bi bi-archive-fill"></i>
-                      <p>Gerir Armazenamento</p>
-                  </a>
-              </li>

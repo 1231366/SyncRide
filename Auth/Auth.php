@@ -1,56 +1,102 @@
 <?php
+// Auth/Auth.php - Versão Híbrida (Web Redirect + App JSON)
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Incluir o arquivo de configuração da base de dados
-require_once 'dbconfig.php';  // Ajuste o caminho conforme a localização do seu dbconfig.php
-
-// Começar a sessão para armazenar as variáveis de sessão
+require_once 'dbconfig.php';
 session_start();
 
+// 1. Detetar se a chamada veio da App Móvel (AJAX/Fetch) ou de um formulário Web normal
+$is_mobile_app_call = isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+
+// Se for a App, forçamos a resposta JSON
+if ($is_mobile_app_call) {
+    header('Content-Type: application/json');
+}
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Obter email e senha do formulário
     $email = trim($_POST['email']);
     $password = trim($_POST['pass']);
 
-    // Verificar se os campos não estão vazios
     if (empty($email) || empty($password)) {
-        die("Email ou senha não podem estar vazios.");
+        if ($is_mobile_app_call) {
+            echo json_encode(['success' => false, 'message' => 'Email ou senha não podem estar vazios.']);
+        } else {
+            header("Location: ../index.php?error=campos_vazios");
+        }
+        exit();
     }
 
-    // Buscar o utilizador na base de dados
     try {
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = :email");
+        // Usa 'Users' (Maiúsculo) conforme a estrutura da sua BD
+        $stmt = $pdo->prepare("SELECT * FROM Users WHERE email = :email");
         $stmt->execute(['email' => $email]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($user) {
-            // Verificar a password com hashing
             if (password_verify($password, $user['password'])) {
-                // Autenticação bem-sucedida, guardar os dados do utilizador na sessão
+                
+                // Login Sucesso: Inicia a sessão PHP (para compatibilidade Web)
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['email'] = $user['email'];
                 $_SESSION['role'] = $user['role'];
-                $_SESSION['name'] = $user['name'];  // Armazenando o nome do utilizador
+                $_SESSION['name'] = $user['name'];
 
-                // Redirecionar para o painel de controlo do utilizador (conforme o tipo)
-                if ($user['role'] == 1) {
-                    header("Location: /SyncRide/Includes/dist/pages/admin.php");
+                $redirect_route = ($user['role'] == 1) ? '/SyncRide/Includes/dist/pages/admin.php' : '/SyncRide/Includes/dist/pages/driver.php';
+
+                if ($is_mobile_app_call) {
+                    // Cénario 1: App Móvel (Devolve JSON)
+                    echo json_encode([
+                        'success' => true,
+                        'message' => 'Login bem-sucedido.',
+                        'user' => [
+                            'id' => $user['id'], 
+                            'token' => $user['id'],
+                            'role' => $user['role'],
+                            'name' => $user['name']
+                        ],
+                        'redirect_route' => $redirect_route
+                    ]);
                 } else {
-                    header("Location: /SyncRide/Includes/dist/pages/driver.php");
+                    // Cénario 2: Web Browser (Redireciona)
+                    header("Location: " . $redirect_route);
                 }
                 exit();
+
             } else {
-                header("Location: ../index.php?error=senha_incorreta");
+                // Senha Incorreta
+                if ($is_mobile_app_call) {
+                    echo json_encode(['success' => false, 'message' => 'Senha incorreta.']);
+                } else {
+                    header("Location: ../index.php?error=senha_incorreta");
+                }
                 exit();
             }
         } else {
-            header("Location: ../index.php?error=utilizador_nao_encontrado");
+            // Utilizador não encontrado
+            if ($is_mobile_app_call) {
+                echo json_encode(['success' => false, 'message' => 'Utilizador não encontrado.']);
+            } else {
+                header("Location: ../index.php?error=utilizador_nao_encontrado");
+            }
             exit();
         }
     } catch (PDOException $e) {
-        echo "Erro ao consultar o banco de dados: " . $e->getMessage();
+        if ($is_mobile_app_call) {
+            echo json_encode(['success' => false, 'message' => 'Erro BD: ' . $e->getMessage()]);
+        } else {
+            echo "Erro ao consultar o banco de dados: " . $e->getMessage();
+        }
+        exit();
     }
+}
+
+// Se o método não for POST
+if ($is_mobile_app_call) {
+    echo json_encode(['success' => false, 'message' => 'Método inválido.']);
+} else {
+    // Redireciona para o login se for acesso direto via GET
+    header("Location: ../index.php"); 
 }
 ?>

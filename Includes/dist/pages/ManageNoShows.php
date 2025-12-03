@@ -1,5 +1,5 @@
 <?php
-session_start(); // Inicia a sessão
+session_start(); 
 
 // Verifica se o usuário está logado e tem a role de admin
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 1) {
@@ -8,424 +8,251 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
 }
 ?>
 
-<!doctype html>
-<html lang="en">
-  <!--begin::Head-->
+<!DOCTYPE html>
+<html lang="pt">
   <head>
-    <!-- Toastr CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
-    
-    <!-- DataTables CSS -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
-
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Gerir No Shows</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@fontsource/source-sans-3@5.0.12/index.css"
-      integrity="sha256-tXJfXfp6Ewt1ilPzLDtQnJV4hclT9XuaZUKyUvmyr+Q="
-      crossorigin="anonymous"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.10.1/styles/overlayscrollbars.min.css"
-      integrity="sha256-tZHrRjVqNSRyWg2wbppGnT833E/Ys0DHWGwT04GiqQg="
-      crossorigin="anonymous"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
-      integrity="sha256-9kPW/n5nn53j4WMRYAxe9c1rCY96Oogo/MKSVdKzPmI="
-      crossorigin="anonymous"
-    />
-    <link rel="stylesheet" href="../../dist/css/adminlte.css" />
-    
-    <!-- Estilos Personalizados -->
+    <title>Gerir No Shows - SyncRide</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/source-sans-3@5.0.12/index.css" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.10.1/styles/overlayscrollbars.min.css" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@4.0.0-beta1/dist/css/adminlte.min.css" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet"/>
+
     <style>
-        /* Esconde a barra de pesquisa feia do DataTables */
-        .dataTables_filter {
-            display: none;
+        :root { --header-height-base: 56px; --bottom-nav-height: 65px; }
+        .app-header { position: fixed; top: 0; left: 0; right: 0; z-index: 1030; height: var(--header-height-base); }
+
+        /* ================= MOBILE APP (< 992px) ================= */
+        @media (max-width: 991.98px) {
+            .app-header { padding-top: env(safe-area-inset-top); height: calc(var(--header-height-base) + env(safe-area-inset-top)); background-color: #ffffff !important; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+            .app-sidebar, .navbar-toggler, .bi-list { display: none !important; }
+            .app-main { margin-top: calc(var(--header-height-base) + env(safe-area-inset-top)) !important; padding-bottom: calc(var(--bottom-nav-height) + 20px + env(safe-area-inset-bottom)) !important; }
+            .bottom-navbar { display: flex !important; }
+            .modal-dialog { margin-top: calc(env(safe-area-inset-top) + 60px) !important; margin-bottom: 80px; }
+
+            /* PESQUISA ESTÉTICA */
+            .dataTables_filter { width: 100%; margin-bottom: 10px; position: relative; float: none !important; text-align: left !important; }
+            .dataTables_filter label { width: 100%; margin: 0; }
+            .dataTables_filter input { width: 100% !important; margin: 0 !important; height: 40px; border-radius: 50px; border: 1px solid #f0f0f0; background-color: #f8f9fa; padding-left: 40px; font-size: 0.9rem; }
+            .dataTables_filter::before { content: "\F52A"; font-family: "bootstrap-icons"; position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #adb5bd; font-size: 1.1rem; z-index: 10; pointer-events: none; }
+            .dataTables_length { display: none; } /* Esconde seletor de quantidade */
+
+            /* CARTÕES NO SHOW COMPACTOS */
+            #tabelaNoShows thead { display: none; }
+            #tabelaNoShows tbody tr {
+                display: block; position: relative; background: #fff; border-bottom: 1px solid #eee; padding: 10px 12px; margin: 0; 
+            }
+            #tabelaNoShows tbody td { display: block; border: none; padding: 0; width: 100% !important; }
+
+            /* ID */
+            #tabelaNoShows tbody td:nth-child(1) { position: absolute; top: 10px; left: 12px; font-size: 0.7rem; color: #adb5bd; font-weight: 700; }
+            #tabelaNoShows tbody td:nth-child(1)::before { content: "#"; }
+
+            /* Data & Hora */
+            #tabelaNoShows tbody td:nth-child(2) { margin-top: 14px; font-size: 0.95rem; font-weight: 700; color: #333; }
+
+            /* Condutor */
+            #tabelaNoShows tbody td:nth-child(3) { font-size: 0.8rem; color: #666; margin-bottom: 4px; }
+            #tabelaNoShows tbody td:nth-child(3)::before { content: "👮 "; margin-right: 4px; }
+
+            /* Rota */
+            #tabelaNoShows tbody td:nth-child(4) { font-size: 0.85rem; color: #444; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 85%; }
+            #tabelaNoShows tbody td:nth-child(4)::before { content: "🗺️ "; margin-right: 4px; }
+
+            /* Ações (Botão Foto) */
+            #tabelaNoShows tbody td:last-child { position: absolute; top: 10px; right: 10px; width: auto !important; }
+            .btn-group-sm > .btn { width: 35px; height: 35px; border-radius: 8px !important; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+            
+            /* Paginação */
+            .dataTables_paginate { margin-top: 15px !important; display: flex; justify-content: center; }
+            .pagination .page-link { padding: 6px 12px; font-size: 0.85rem; }
         }
-        /* Tabela limpa */
-        .table-borderless tbody tr {
-             border-bottom: 1px solid #dee2e6;
+
+        /* ================= WEB DESKTOP (>= 992px) ================= */
+        @media (min-width: 992px) {
+            .bottom-navbar { display: none !important; }
+            .app-main { margin-top: var(--header-height-base) !important; }
+            .table-borderless tbody tr { border-bottom: 1px solid #dee2e6; }
+            .btn-group-sm > .btn.rounded-circle { width: 32px; height: 32px; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; }
+            div.dataTables_wrapper div.dataTables_filter { text-align: right; }
+            div.dataTables_wrapper div.dataTables_filter input { margin-left: 0.5em; border-radius: .25rem; border: 1px solid #ced4da; padding: .375rem .75rem; }
         }
-        .table-borderless thead th {
-             border-bottom: 2px solid #343a40;
+
+        /* --- GERAL --- */
+        .bottom-navbar {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+            background: #ffffff; box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            display: none; justify-content: space-around; align-items: flex-start;
+            padding-top: 10px; padding-bottom: env(safe-area-inset-bottom); z-index: 1040;
+            border-top-left-radius: 20px; border-top-right-radius: 20px;
         }
-        .table-hover tbody tr:hover {
-            background-color: #f1f3f5 !important;
-        }
-        /* Botões de Ação Modernos */
-        .btn-group-sm > .btn.rounded-circle {
-            width: 34px; height: 34px; padding: 0;
-            line-height: 1; display: inline-flex;
-            align-items: center; justify-content: center;
-            margin: 0 4px; border: none;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: all 0.2s ease;
-        }
-        .btn-group-sm > .btn.rounded-circle:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-        }
-        /* Tooltip */
-        .tooltip-inner {
-            background-color: #343a40; color: #fff;
-            border-radius: 4px; font-size: 0.8rem; padding: 4px 8px;
-        }
-        .tooltip.bs-tooltip-top .tooltip-arrow::before {
-            border-top-color: #343a40;
-        }
-        /* Estilo para a imagem no modal */
-        #photoModalImage {
-            width: 100%;
-            height: auto;
-            border-radius: 8px;
-        }
+        .nav-item-bottom { display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none; color: #adb5bd; font-size: 10px; font-weight: 500; width: 20%; transition: 0.2s; }
+        .nav-item-bottom i { font-size: 22px; margin-bottom: 4px; transition: transform 0.2s; }
+        .nav-item-bottom.active { color: #0d6efd; }
+        .nav-item-bottom.active i { transform: translateY(-3px); }
+        
+        #photoModalImage { width: 100%; height: auto; border-radius: 8px; }
     </style>
   </head>
-  <!--end::Head-->
-  <!--begin::Body-->
   <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
   
-    <!--begin::App Wrapper-->
     <div class="app-wrapper">
-      <!--begin::Header-->
+      
       <nav class="app-header navbar navbar-expand bg-body">
         <div class="container-fluid">
           <ul class="navbar-nav">
-            <li class="nav-item">
-              <a class="nav-link" data-lte-toggle="sidebar" href="#" role="button">
-                <i class="bi bi-list"></i>
-              </a>
-            </li>
+            <li class="nav-item"><a class="nav-link" data-lte-toggle="sidebar" href="#"><i class="bi bi-list" style="font-size: 1.5rem;"></i></a></li>
+            <li class="nav-item d-lg-none ms-2"><span class="fw-bold fs-5">No Shows</span></li>
+            <li class="nav-item d-none d-lg-block"><a href="#" class="nav-link">Home</a></li>
           </ul>
           <ul class="navbar-nav ms-auto">
-            <li class="nav-item">
-              <a class="nav-link" data-widget="navbar-search" href="#" role="button">
-                <i class="bi bi-search"></i>
-              </a>
-              <div class="navbar-search-block">
-                <form class="form-inline">
-                  <div class="input-group">
-                    <input class="form-control form-control-navbar" type="search" placeholder="Procurar na tabela..." aria-label="Search" id="table-search-input">
-                    <button class="btn btn-navbar" type="button" data-widget="navbar-search">
-                      <i class="bi bi-x-lg"></i>
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#" data-lte-toggle="fullscreen">
-                <i data-lte-icon="maximize" class="bi bi-arrows-fullscreen"></i>
-              </a>
-            </li>
+            <li class="nav-item"><a class="nav-link" href="#" data-lte-toggle="fullscreen"><i data-lte-icon="maximize" class="bi bi-arrows-fullscreen"></i><i data-lte-icon="minimize" class="bi bi-fullscreen-exit" style="display: none"></i></a></li>
             <li class="nav-item dropdown user-menu">
               <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
-                <img
-                  src="../../dist/assets/img/user2-160x160.jpg"
-                  class="user-image rounded-circle shadow"
-                  alt="User Image"
-                />
-                <span class="d-none d-md-inline"><?php  echo $_SESSION['name']; ?></span>
+                <img src="https://syncride.webminds.pt/Includes/dist/assets/img/user2-160x160.jpg" class="user-image rounded-circle shadow" alt="User" />
               </a>
               <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
-                <li class="user-header text-bg-primary">
-                  <img
-                    src="../../dist/assets/img/user2-160x160.jpg"
-                    class="rounded-circle shadow"
-                    alt="User Image"
-                  />
-                  <p><?php echo $_SESSION['name']; ?> - Admin</p>
-                </li>
-                <li class="user-footer">
-                  <a href="#" class="btn btn-default btn-flat">Profile</a>
-                  <a href="logout.php" class="btn btn-default btn-flat float-end">Sign out</a>
-                </li>
+                <li class="user-header text-bg-primary"><p><?php echo $_SESSION['name']; ?> - Admin</p></li>
+                <li class="user-footer"><a href="logout.php" class="btn btn-default btn-flat float-end">Sair</a></li>
               </ul>
             </li>
           </ul>
         </div>
       </nav>
-      <!--end::Header-->
-      
-      <!--begin::Sidebar-->
+
       <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
-        <div class="sidebar-brand">
-          <a href="./admin.php" class="brand-link">
-            <img
-              src="../../dist/assets/img/AdminLTELogo.png"
-              alt="AdminLTE Logo"
-              class="brand-image opacity-75 shadow"
-            />
-            <span class="brand-text fw-light">SyncRide</span>
-          </a>
-        </div>
+        <div class="sidebar-brand"><a href="./admin.php" class="brand-link"><span class="brand-text fw-light">SyncRide</span></a></div>
         <div class="sidebar-wrapper">
           <nav class="mt-2">
-            <ul
-              class="nav sidebar-menu flex-column"
-              data-lte-toggle="treeview"
-              role="menu"
-              data-accordion="false"
-            >
-            <li class="nav-item">
-                <a href="admin.php" class="nav-link">
-                    <i class="nav-icon bi bi-speedometer"></i>
-                    <p>Painel de Administrador</p>
-                </a>
-            </li>
-              <li class="nav-item">
-                  <a href="ManageRides.php" class="nav-link">
-                      <i class="nav-icon bi bi-box-seam-fill"></i>
-                      <p>Gerir Viagens</p>
-                  </a>
-              </li>
-              <li class="nav-item">
-                  <a href="manageUsers.php" class="nav-link">
-                      <i class="nav-icon bi bi-people-fill"></i>
-                      <p>Gerir Funcionários</p>
-                  </a>
-              </li>
-              <li class="nav-item">
-                  <a href="admin_driver_stats.php" class="nav-link">
-                      <i class="nav-icon bi bi-graph-up"></i>
-                      <p>Estatísticas (Condutores)</p>
-                  </a>
-              </li>
-              <!-- ADICIONA ESTE LINK ÀS OUTRAS PÁGINAS DE ADMIN -->
-              <li class="nav-item">
-                  <a href="ManageNoShows.php" class="nav-link active">
-                      <i class="nav-icon bi bi-camera-fill"></i>
-                      <p>Gerir No Shows</p>
-                  </a>
-              </li>
-              <li class="nav-item">
-                  <a href="manageStorage.php" class="nav-link">
-                      <i class="nav-icon bi bi-archive-fill"></i>
-                      <p>Gerir Armazenamento</p>
-                  </a>
-              </li>
+            <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="menu" data-accordion="false">
+              <li class="nav-item"><a href="admin.php" class="nav-link"><i class="nav-icon bi bi-speedometer"></i><p>Dashboard</p></a></li>
+              <li class="nav-item"><a href="ManageRides.php" class="nav-link"><i class="nav-icon bi bi-box-seam-fill"></i><p>Viagens</p></a></li>
+              <li class="nav-item"><a href="manageUsers.php" class="nav-link"><i class="nav-icon bi bi-people-fill"></i><p>Funcionários</p></a></li>
+              <li class="nav-item"><a href="admin_driver_stats.php" class="nav-link"><i class="nav-icon bi bi-graph-up"></i><p>Estatísticas</p></a></li>
+              <li class="nav-item"><a href="ManageNoShows.php" class="nav-link active"><i class="nav-icon bi bi-camera-fill"></i><p>No Shows</p></a></li>
+              <li class="nav-item"><a href="manageStorage.php" class="nav-link"><i class="nav-icon bi bi-archive-fill"></i><p>Armazenamento</p></a></li>
             </ul>
           </nav>
         </div>
       </aside>
-      <!--end::Sidebar-->
-      
-      <!--begin::App Main-->
+
+      <div class="bottom-navbar">
+        <a href="admin.php" class="nav-item-bottom"><i class="bi bi-house-door-fill"></i><span>Home</span></a>
+        <a href="ManageRides.php" class="nav-item-bottom"><i class="bi bi-car-front-fill"></i><span>Viagens</span></a>
+        <a href="admin_driver_stats.php" class="nav-item-bottom"><i class="bi bi-bar-chart-fill"></i><span>Stats</span></a>
+        <a href="manageUsers.php" class="nav-item-bottom active"><i class="bi bi-people-fill"></i><span>Staff</span></a>
+        <a href="#" class="nav-item-bottom" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu"><i class="bi bi-grid-fill"></i><span>Mais</span></a>
+      </div>
+
+      <div class="offcanvas offcanvas-bottom" tabindex="-1" id="mobileMenu" style="height: 50vh; border-top-left-radius: 20px; border-top-right-radius: 20px;">
+        <div class="offcanvas-header"><h5 class="offcanvas-title fw-bold">Menu</h5><button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button></div>
+        <div class="offcanvas-body">
+            <div class="row g-3 text-center">
+                <div class="col-4"><a href="ManageNoShows.php" class="d-block p-3 rounded bg-light text-dark text-decoration-none"><i class="bi bi-camera-fill fs-1 text-danger"></i><div class="small mt-2">No Shows</div></a></div>
+                <div class="col-4"><a href="manageStorage.php" class="d-block p-3 rounded bg-light text-dark text-decoration-none"><i class="bi bi-hdd-fill fs-1 text-warning"></i><div class="small mt-2">Storage</div></a></div>
+                <div class="col-4"><a href="logout.php" class="d-block p-3 rounded bg-light text-dark text-decoration-none"><i class="bi bi-box-arrow-right fs-1 text-secondary"></i><div class="small mt-2">Sair</div></a></div>
+            </div>
+        </div>
+      </div>
+
       <main class="app-main">
-        <!--begin::App Content Header-->
         <div class="app-content-header">
           <div class="container-fluid">
             <div class="row">
-              <div class="col-sm-6"><h3 class="mb-0">Gerir Viagens "No Show"</h3></div>
-              <div class="col-sm-6">
-                <ol class="breadcrumb float-sm-end">
-                  <li class="breadcrumb-item"><a href="admin.php">Home</a></li>
-                  <li class="breadcrumb-item active" aria-current="page">No Shows</li>
-                </ol>
+              <div class="col-sm-6"><h3 class="mb-0">Gerir No Shows</h3></div>
+              <div class="col-sm-6 d-none d-sm-block">
+                 <ol class="breadcrumb float-sm-end"><li class="breadcrumb-item"><a href="admin.php">Home</a></li><li class="breadcrumb-item active">No Shows</li></ol>
               </div>
             </div>
           </div>
         </div>
-        <!--end::App Content Header-->
-        
-        <!--begin::App Content-->
+
         <div class="app-content">
           <div class="container-fluid">
-            
-            <!-- Card da Tabela -->
             <div class="card shadow-sm border-0">
-                <div class="card-body">
+                <div class="card-body p-0 p-md-3">
                     <div class="table-responsive">
                         <table id="tabelaNoShows" class="table table-borderless table-hover align-middle" style="width:100%">
                             <thead>
                                 <tr>
-                                    <th>ID Viagem</th>
+                                    <th>ID</th>
                                     <th>Data & Hora</th>
                                     <th>Condutor</th>
                                     <th>Rota</th>
                                     <th class="text-center">Ações</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <!-- Os dados vão ser carregados aqui via AJAX -->
-                            </tbody>
+                            <tbody></tbody>
                         </table>
                     </div>
                 </div>
             </div>
-            
           </div>
-          <!--end::Container-->
         </div>
-        <!--end::App Content-->
       </main>
-      <!--end::App Main-->
-      
-      <!--begin::Footer-->
+
       <footer class="app-footer">
         <div class="float-end d-none d-sm-inline"></div>
         <strong>SyncRide All rights reserved.</strong>
       </footer>
-      <!--end::Footer-->
     </div>
-    <!--end::App Wrapper-->
 
-    <!-- Modal Ver Foto -->
     <div class="modal fade" id="photoModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="photoModalTitle">Foto de No Show - Viagem #</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            <h5 class="modal-title" id="photoModalTitle">Foto</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body text-center">
-            <img src="" id="photoModalImage" alt="Comprovativo de No Show">
+            <img src="" id="photoModalImage" alt="Comprovativo">
           </div>
         </div>
       </div>
     </div>
-    
-    <!-- MODAL DE EMAIL FOI REMOVIDO -->
 
-
-    <!-- =================================== -->
-    <!-- SCRIPTS (jQuery, Bootstrap, AdminLTE) -->
-    <!-- =================================== -->
-    
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    
-    <!-- Toastr JS -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
-    
-    <!-- DataTables JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-    
-    <!-- Bootstrap e AdminLTE JS -->
-    <script
-      src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
-      xintegrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r"
-      crossorigin="anonymous"
-    ></script>
-    <script
-      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js"
-      xintegrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy"
-      crossorigin="anonymous"
-    ></script>
-    <script src="../../dist/js/adminlte.js"></script>
-    
-    <!-- OverlayScrollbars -->
-    <script
-      src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.10.1/browser/overlayscrollbars.browser.es6.min.js"
-      integrity="sha256-dghWARbRe2eLlIJ56wNB+b760ywulqK3DzZYEpsg2fQ="
-      crossorigin="anonymous"
-    ></script>
-    <script>
-      const SELECTOR_SIDEBAR_WRAPPER = '.sidebar-wrapper';
-      const Default = {
-        scrollbarTheme: 'os-theme-light',
-        scrollbarAutoHide: 'leave',
-        scrollbarClickScroll: true,
-      };
-      document.addEventListener('DOMContentLoaded', function () {
-        const sidebarWrapper = document.querySelector(SELECTOR_SIDEBAR_WRAPPER);
-        if (sidebarWrapper && typeof OverlayScrollbarsGlobal?.OverlayScrollbars !== 'undefined') {
-          OverlayScrollbarsGlobal.OverlayScrollbars(sidebarWrapper, {
-            scrollbars: {
-              theme: Default.scrollbarTheme,
-              autoHide: Default.scrollbarAutoHide,
-              clickScroll: Default.scrollbarClickScroll,
-            },
-          });
-        }
-      });
-    </script>
-    
-    <!-- =================================== -->
-    <!-- JAVASCRIPT DA PÁGINA (DataTables e Modais) -->
-    <!-- =================================== -->
-    <script>
-    
-    let tabelaNoShows;
-    let photoModal; // Instância do modal de foto
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/admin-lte@4.0.0-beta1/dist/js/adminlte.min.js"></script>
 
-    $(document).ready(function () {
-        
-        // Inicializar os Modais do Bootstrap
+    <script>
+      let tabelaNoShows;
+      let photoModal;
+
+      $(document).ready(function () {
         photoModal = new bootstrap.Modal(document.getElementById('photoModal'));
 
         tabelaNoShows = $('#tabelaNoShows').DataTable({
-            "processing": true,
-            "serverSide": false, // Usar false se o load_noshows_data.php retornar todos de uma vez
-            "ajax": {
-                "url": "load_noshows_data.php",
-                "type": "GET",
-                "dataSrc": "data"
-            },
+            "processing": true, "serverSide": false, 
+            "ajax": { "url": "load_noshows_data.php", "type": "GET", "dataSrc": "data" },
             "columns": [
-                { "data": "id", "width": "10%" },
-                { "data": "data_hora", "width": "20%" },
-                { "data": "condutor", "width": "20%" },
-                { "data": "rota", "width": "30%" },
+                { "data": "id", "width": "10%" }, 
+                { "data": "data_hora", "width": "20%" }, 
+                { "data": "condutor", "width": "20%" }, 
+                { "data": "rota", "width": "30%" }, 
                 { "data": "acoes", "width": "20%", "orderable": false, "className": "text-center" }
             ],
-            "language": {
-                // ... (traduções do datatables) ...
-                "search": "🔍 Procurar:",
-                "lengthMenu": "Mostrar _MENU_ registos",
-                "info": "A mostrar _START_ a _END_ de _TOTAL_ viagens",
-                "infoEmpty": "Nenhuma viagem 'No Show' encontrada",
-                "infoFiltered": "(filtrado de _MAX_ viagens no total)",
-                "zeroRecords": "Nenhuma viagem encontrada com esse filtro",
-                "paginate": {"next": "Seguinte", "previous": "Anterior"}
-            },
-            "order": [[1, 'desc']], // Ordenar por Data (mais recente primeiro)
-            "pageLength": 10,
-            "drawCallback": function( settings ) {
-                // (Re)ativar os tooltips do Bootstrap5
-                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-                tooltipTriggerList.map(function (tooltipTriggerEl) {
-                    var tooltipInstance = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
-                    if (tooltipInstance) {
-                        return tooltipInstance;
-                    } else {
-                        return new bootstrap.Tooltip(tooltipTriggerEl);
-                    }
-                });
-            }
+            "language": { "search": "", "searchPlaceholder": "Procurar...", "lengthMenu": "_MENU_", "info": "", "paginate": { "next": "→", "previous": "←" }, "zeroRecords": "Nada encontrado" },
+            "order": [[1, 'desc']], "pageLength": 10,
+            "dom": '<"row mb-3"<"col-12"f>><"row"<"col-12"t>><"row mt-3"<"col-12"p>>'
         });
-        
-        // Lógica para a BARRA DE PESQUISA MODERNA (na navbar)
-        $('#table-search-input').on('keyup', function() {
-            tabelaNoShows.search(this.value).draw();
-        });
-        
-        // JS DO FORMULÁRIO DE EMAIL FOI REMOVIDO
-    });
+      });
 
-    // --- FUNÇÕES GLOBAIS PARA OS MODAIS ---
-
-    function openPhotoModal(tripId, photoPath) {
-        $('#photoModalTitle').text('Foto de No Show - Viagem #' + tripId);
+      function openPhotoModal(tripId, photoPath) {
+        $('#photoModalTitle').text('No Show #' + tripId);
         $('#photoModalImage').attr('src', photoPath);
         photoModal.show();
-    }
-    
-    // Toastr (Notificações)
-    toastr.options = {
-        "closeButton": true,
-        "progressBar": true,
-        "positionClass": "toast-top-right",
-        "timeOut": "5000",
-    };
+      }
+
+      toastr.options = { "closeButton": true, "progressBar": true, "positionClass": "toast-top-right", "timeOut": "5000" };
     </script>
-    
   </body>
-  <!--end::Body-->
 </html>

@@ -1,0 +1,39 @@
+@startuml SyncRide — Roadmap
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+skinparam ArrowColor #3B82F6
+skinparam RectangleBorderColor #1E293B
+skinparam RectangleBackgroundColor #F8FAFC
+
+title SyncRide — Next-quarter Roadmap
+
+rectangle "Multi-tenant\n+ Super-admin panel" as MT {
+  card "TenantResolver\n(subdomain or header)"          as MT1
+  card "Per-tenant\nbranding & feature flags"           as MT2
+  card "Super-admin\ndashboard\n(cross-tenant KPIs)"    as MT3
+}
+
+rectangle "XML voucher parsing\nwith car-seat alerts" as XML {
+  card "XmlImporter\n(streaming SAX)"                   as X1
+  card "AgeClassifier\n(infant / child / adult)"        as X2
+  card "CarSeatPolicy\n(blocks allocation\nwithout seat)" as X3
+}
+
+rectangle "RBAC permissions" as RBAC {
+  card "Role registry"        as R1
+  card "Policy resolver"      as R2
+  card "UI gates\n(server-rendered + JS)" as R3
+}
+
+rectangle "Financial module" as FIN {
+  card "Invoice ledger"   as F1
+  card "Driver payout\ncalculation"   as F2
+  card "Margin report\nper tenant"    as F3
+}
+
+MT  --> RBAC : tenants own their roles
+XML --> RBAC : alerts respect role visibility
+XML --> FIN  : extras → priced line items
+RBAC --> FIN : every finance route gated
+
+@enduml

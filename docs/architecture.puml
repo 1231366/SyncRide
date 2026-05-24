@@ -1,0 +1,65 @@
+@startuml SyncRide — current request lifecycle
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+skinparam ArrowColor #3B82F6
+skinparam ComponentBackgroundColor #F8FAFC
+skinparam ComponentBorderColor #1E293B
+
+title SyncRide — Current Request & Cron Lifecycle
+
+actor       "Driver / Admin / Partner"      as User
+actor       "Mobile App (Capacitor)"        as Mobile
+participant "Browser"                       as Browser
+
+box "Web tier (Apache)" #FFFFFF
+participant "public/index.php\nFront controller" as Front
+participant "public/auth/login.php"               as Login
+participant "public/api/*.php"                    as API
+end box
+
+box "Application — App\\" #F1F5F9
+participant "Support\\Session"        as Sess
+participant "Auth\\AuthController"    as Auth
+participant "Auth\\RememberMeService" as Remember
+participant "Support\\Database (PDO)" as DB
+end box
+
+database "MySQL (legacy PT schema)" as MySQL
+participant "PHPMailer / SMTP"      as Mail
+participant "Whapi gateway"         as Whapi
+
+box "Cron tier (CLI)" #FEF3C7
+participant "cron/run.php"  as Runner
+participant "CronRunner"    as Orchestrator
+participant "Jobs\\*Job"     as Jobs
+end box
+
+User -> Browser : visits /SRMT
+Browser -> Front : GET /
+Front -> Sess    : start()
+Front -> Remember: consume() ?
+Remember -> DB   : SELECT Users WHERE remember_token = :hash
+DB -> MySQL
+Remember --> Front : user | null
+Front --> Browser  : render login OR 302 → dashboard
+
+Browser -> Login : POST email + pass
+Login -> Auth    : login()
+Auth -> DB       : SELECT Users WHERE email = :email
+Auth -> Sess     : set user_id, role
+Auth -> Remember : issue() (optional)
+Auth --> Browser : 302 → role dashboard
+
+Mobile -> Login : POST (X-Requested-With: xmlhttprequest)
+Auth --> Mobile : JSON {success, redirect_route}
+
+== Scheduled side ==
+note over Runner: system crontab
+Runner -> Orchestrator : run("daily-report", $secret)
+Orchestrator -> Jobs   : DailyReportJob::run()
+Jobs -> DB             : SELECT tomorrow services
+Jobs -> Mail           : SMTP send
+Orchestrator -> Jobs   : WhatsappAgendaJob::run()
+Jobs -> Whapi          : POST text message
+
+@enduml

@@ -101,6 +101,38 @@ final class LiveLocationRepository
     }
 
     /**
+     * All active tracking rows joined with driver/service/vehicle data.
+     * Used by the admin live-map via tracking-get.php (no ride_id filter).
+     *
+     * @return array<array<string,mixed>>
+     */
+    public function allActiveRides(): array
+    {
+        return $this->db->query('
+            SELECT t.ride_id, t.driver_id, t.latitude, t.longitude, t.speed, t.heading, t.last_update,
+                   COALESCE(u.name, CONCAT("Driver ", t.driver_id)) AS driver_name,
+                   COALESCE(s.NomeCliente, "Unknown") AS NomeCliente,
+                   COALESCE(s.serviceStartPoint, "") AS serviceStartPoint,
+                   COALESCE(s.serviceTargetPoint, "N/A") AS serviceTargetPoint,
+                   s.serviceDate, s.status_id,
+                   v.license_plate AS vehicle_plate
+            FROM RideTracking t
+            LEFT JOIN Users u ON t.driver_id = u.id
+            LEFT JOIN Services s ON t.ride_id = s.ID
+            LEFT JOIN Vehicles v ON u.assigned_vehicle_id = v.id
+        ')->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Deletes the tracking row for a ride+driver (called when driver stops).
+     */
+    public function stopRide(int $rideId, int $driverId): void
+    {
+        $this->db->prepare('DELETE FROM RideTracking WHERE ride_id = :rid AND driver_id = :did')
+            ->execute(['rid' => $rideId, 'did' => $driverId]);
+    }
+
+    /**
      * Latest tracking dot for a given ride, used by the public /track.php
      * page to plot the client-visible position.
      *

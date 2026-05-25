@@ -47,6 +47,19 @@ final class LogRepository
         return $row ? (string) $row['date'] : null;
     }
 
+    /**
+     * All logs mentioning a specific service ID, used for the trip report email.
+     * @return array<array{Action:string,date:string}>
+     */
+    public function forRide(int $rideId): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT Action, date FROM Logs WHERE Action LIKE :pat ORDER BY date ASC"
+        );
+        $stmt->execute(['pat' => "%ID #{$rideId}%"]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function clear(): void
     {
         $this->db->exec('DELETE FROM Logs');

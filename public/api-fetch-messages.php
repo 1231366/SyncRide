@@ -2,7 +2,11 @@
 // api_fetch_messages.php (No diretório raiz)
 session_start();
 header('Content-Type: application/json');
-require __DIR__ . '/../auth/dbconfig.php';
+require __DIR__ . '/../bootstrap.php';
+use App\Support\Database;
+use App\Support\Session;
+if (session_status() === PHP_SESSION_NONE) { Session::start(); }
+$pdo = Database::connection();
 
 $rideId = $_GET['ride_id'] ?? null;
 $userType = $_GET['user_type'] ?? null; // 'client' or 'driver'

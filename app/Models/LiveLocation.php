@@ -18,6 +18,7 @@ final class LiveLocation
         public readonly int $speed,
         public readonly int $heading,
         public readonly string $lastUpdate,
+        public readonly ?string $driverName = null,
     ) {
     }
 
@@ -31,6 +32,7 @@ final class LiveLocation
             speed:      (int) ($row['speed']   ?? 0),
             heading:    (int) ($row['heading'] ?? 0),
             lastUpdate: (string) ($row['last_update'] ?? ''),
+            driverName: $row['name'] ?? null,
         );
     }
 }

@@ -1,7 +1,11 @@
 <?php
 // track.php (SyncRide v3.6 - Manual Rating & Submission Lock - Full Integrity)
 session_start();
-require __DIR__ . '/../auth/dbconfig.php';
+require __DIR__ . '/../bootstrap.php';
+use App\Support\Database;
+use App\Support\Session;
+if (session_status() === PHP_SESSION_NONE) { Session::start(); }
+$pdo = Database::connection();
 
 $rideId = $_GET['id'] ?? null;
 if (!$rideId) die("Error: Ride not specified.");

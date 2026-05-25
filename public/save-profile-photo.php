@@ -1,7 +1,11 @@
 <?php
 // save_profile_photo.php (No diretório raiz)
 session_start();
-require __DIR__ . '/../auth/dbconfig.php';
+require __DIR__ . '/../bootstrap.php';
+use App\Support\Database;
+use App\Support\Session;
+if (session_status() === PHP_SESSION_NONE) { Session::start(); }
+$pdo = Database::connection();
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: index.php");

@@ -6,7 +6,11 @@ header("Access-Control-Allow-Headers: Content-Type");
 
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') { exit; }
 
-require __DIR__ . '/../auth/dbconfig.php';
+require __DIR__ . '/../bootstrap.php';
+use App\Support\Database;
+use App\Support\Session;
+Session::start();
+$pdo = Database::connection();
 
 $data = json_decode(file_get_contents('php://input'), true);
 

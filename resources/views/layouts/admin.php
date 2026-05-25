@@ -92,7 +92,8 @@ $navClass = static function (string $id) use ($active): string {
         <a href="/SRMT/public/admin/users.php"   class="nav-extra flex-col items-center gap-1 <?= $navClass('users') ?>"     ><i data-lucide="users"       class="w-5 h-5"></i><span class="text-[7px] font-black uppercase">Team</span></a>
         <a href="/SRMT/public/admin/driver-stats.php" class="nav-extra flex-col items-center gap-1 <?= $navClass('stats') ?>"><i data-lucide="bar-chart-3" class="w-5 h-5"></i><span class="text-[7px] font-black uppercase">Stats</span></a>
         <a href="/SRMT/public/admin/no-shows.php" class="nav-extra flex-col items-center gap-1 <?= $navClass('no-shows') ?>" ><i data-lucide="alert-triangle" class="w-5 h-5"></i><span class="text-[7px] font-black uppercase">No Show</span></a>
-        <a href="/SRMT/public/admin/storage.php" class="nav-extra flex-col items-center gap-1 <?= $navClass('storage') ?>"   ><i data-lucide="database"    class="w-5 h-5"></i><span class="text-[7px] font-black uppercase">Storage</span></a>
+        <a href="/SRMT/public/admin/storage.php"   class="nav-extra flex-col items-center gap-1 <?= $navClass('storage') ?>"  ><i data-lucide="database"    class="w-5 h-5"></i><span class="text-[7px] font-black uppercase">Storage</span></a>
+        <a href="/SRMT/public/admin/settings.php" class="nav-extra flex-col items-center gap-1 <?= $navClass('settings') ?>"><i data-lucide="settings-2"  class="w-5 h-5"></i><span class="text-[7px] font-black uppercase">Settings</span></a>
     </nav>
 
     <div id="fullMenu" class="fixed inset-0 z-[2000] hidden">
@@ -114,6 +115,7 @@ $navClass = static function (string $id) use ($active): string {
                 <a href="/SRMT/public/admin/driver-stats.php" class="flex items-center gap-4"><i data-lucide="bar-chart-3"></i> Stats</a>
                 <a href="/SRMT/public/admin/no-shows.php"   class="flex items-center gap-4"><i data-lucide="alert-triangle"></i> No-shows</a>
                 <a href="/SRMT/public/admin/storage.php"    class="flex items-center gap-4"><i data-lucide="database"></i> Storage</a>
+                <a href="/SRMT/public/admin/settings.php"  class="flex items-center gap-4 <?= $active === 'settings' ? 'text-blue-500' : '' ?>"><i data-lucide="settings-2"></i> Settings</a>
                 <hr class="border-zinc-800">
                 <a href="/SRMT/public/auth/logout.php"      class="flex items-center gap-4 text-red-500 mt-4"><i data-lucide="log-out"></i> Logout</a>
             </nav>

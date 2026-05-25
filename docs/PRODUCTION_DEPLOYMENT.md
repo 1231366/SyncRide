@@ -7,6 +7,33 @@
 
 ---
 
+## Método Rápido — Script Automatizado (Recomendado)
+
+Se tens acesso SSH ao servidor, **um único comando** faz tudo (backup → git pull → composer → migração):
+
+```bash
+cd /caminho/para/htdocs/SRMT
+bash scripts/deploy.sh
+```
+
+O script:
+- Lê as credenciais automaticamente do `.env`
+- Cria backup comprimido da DB e dos ficheiros em `../backups/`
+- Faz `git pull origin main`
+- Corre `composer install --no-dev`
+- Executa `php database/migrate.php` (com output detalhado)
+- Imprime os próximos passos manuais no final
+
+Após o script terminar, segue os **Passos 4 e 5** abaixo (criar super admin + smoke test) — esses dois passos continuam a requerer interacção manual.
+
+---
+
+## Método Manual (Passo a Passo)
+
+Usa este método se o servidor não permite SSH, ou se preferes controlo total em cada etapa.
+
+---
+
 ## Pré-requisitos
 
 Antes de começar, confirma que tens:
@@ -64,7 +91,14 @@ tar -xzf ~/backups/syncride_files_PRE_MIGRATION_*.tar.gz -C /
 
 ## PASSO 2 — Migração do Schema da Base de Dados
 
-> Este bloco SQL é **idempotente** — pode ser corrido mais do que uma vez sem danos. Usa `IF NOT EXISTS` e `ON DUPLICATE KEY` em todo o lado.
+> **Método rápido (recomendado):** O script `database/migrate.php` faz tudo automaticamente — corre-o via CLI ou abre-o no browser. O `deploy.sh` do Passo 1 chama-o automaticamente.
+>
+> ```bash
+> php database/migrate.php
+> # ou abrir no browser: http://teu-servidor/SRMT/database/migrate.php
+> ```
+>
+> **Método manual** (se não tens PHP acessível via CLI):
 
 Liga ao MySQL:
 
@@ -182,7 +216,19 @@ ls database/
 
 ## PASSO 4 — Criar o Super Admin de Produção
 
-> O super admin tem `role=0` e **não tem `company_id`** — vê todos os tenants. Cria-o directamente via MySQL (o script `create-superadmin.php` já foi apagado no passo anterior).
+> **Método rápido:** Usa o script `database/create-superadmin.php` **antes** de o apagar:
+>
+> ```bash
+> # Via CLI:
+> php database/create-superadmin.php "Nome Completo" email@exemplo.com password123
+>
+> # Via browser:
+> # http://teu-servidor/SRMT/database/create-superadmin.php
+> ```
+>
+> **Método manual** (se já apagaste o script):
+
+O super admin tem `role=0` e **não tem `company_id`** — vê todos os tenants.
 
 ```sql
 -- Substituir os valores antes de correr
@@ -207,7 +253,15 @@ php -r "echo password_hash('TuaPasswordSegura2025!', PASSWORD_BCRYPT) . PHP_EOL;
 
 ## PASSO 5 — Smoke Tests
 
-Corre este checklist em ordem. Cada item deve passar antes de avançar.
+> **Método rápido:** Abre `scripts/smoke-test.php` no browser — faz todas as verificações abaixo automaticamente e mostra um relatório visual:
+>
+> ```
+> http://teu-servidor/SRMT/scripts/smoke-test.php
+> ```
+>
+> O relatório verifica: ligação à DB, tabelas e colunas existem, 0 orphans, Company ID=1, super admin existe, ficheiros sensíveis apagados, APP_ENV=production, endpoints de API protegidos.
+
+Checklist manual (caso o browser não esteja disponível):
 
 ### 5.1 Integridade da Base de Dados
 

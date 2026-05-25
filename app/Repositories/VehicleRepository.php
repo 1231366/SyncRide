@@ -32,6 +32,27 @@ final class VehicleRepository
         return array_map(Vehicle::fromRow(...), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
+    /**
+     * Returns all vehicles joined with their assigned driver, scoped to this company.
+     * Each row includes assigned_driver_name and assigned_driver_user_id.
+     *
+     * @return array<array<string,mixed>>
+     */
+    public function allWithDriver(): array
+    {
+        $clause = $this->companyId !== null ? 'AND v.company_id = :company_id' : '';
+        $sql    = "
+            SELECT v.*, u.name AS assigned_driver_name, u.id AS assigned_driver_user_id
+            FROM Vehicles v
+            LEFT JOIN Users u ON u.assigned_vehicle_id = v.id
+            WHERE 1=1 {$clause}
+            ORDER BY v.status DESC, v.brand ASC
+        ";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($this->companyBindings());
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     /** @return array<Vehicle> */
     public function active(): array
     {

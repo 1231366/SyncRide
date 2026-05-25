@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\BaseController;
-use App\Support\Database;
-use PDO;
+use App\Repositories\ExpenseRepository;
+use App\Repositories\ServiceRepository;
+use App\Repositories\UserRepository;
 
 final class AiSyncController extends BaseController
 {
@@ -21,27 +22,40 @@ final class AiSyncController extends BaseController
 
         if ($userMsg === '') { exit; }
 
-        $db       = Database::connection();
-        $db->exec('SET NAMES utf8mb4');
-        $month    = (int) date('m');
-        $year     = (int) date('Y');
+        $month     = (int) date('m');
+        $year      = (int) date('Y');
+        $yearMonth = sprintf('%04d-%02d', $year, $month);
         $adminName = (string) ($_SESSION['name'] ?? 'Admin');
 
-        $today        = $db->query("SELECT s.serviceStartTime, s.NomeCliente, s.FlightNumber, s.serviceStartPoint, s.serviceTargetPoint, (SELECT name FROM Users JOIN Services_Rides ON Users.id = Services_Rides.UserID WHERE Services_Rides.RideID = s.ID LIMIT 1) as driver FROM Services s WHERE s.serviceDate = CURDATE() ORDER BY s.serviceStartTime ASC")->fetchAll(PDO::FETCH_ASSOC);
-        $leaderboard  = $db->query("SELECT u.name, COUNT(sr.RideID) as total_all_time, SUM(CASE WHEN MONTH(s.serviceDate) = {$month} AND YEAR(s.serviceDate) = {$year} THEN 1 ELSE 0 END) as total_this_month, AVG(s.driver_rating) as rating FROM Users u LEFT JOIN Services_Rides sr ON u.id = sr.UserID LEFT JOIN Services s ON sr.RideID = s.ID WHERE u.role = 2 GROUP BY u.id ORDER BY total_this_month DESC")->fetchAll(PDO::FETCH_ASSOC);
-        $team         = $db->query('SELECT name, role, phone FROM Users ORDER BY role ASC')->fetchAll(PDO::FETCH_ASSOC);
-        $expenses     = $db->query("SELECT SUM(amount) FROM Expenses WHERE MONTH(date) = {$month} AND YEAR(date) = {$year}")->fetchColumn() ?: 0;
-        $upcoming     = $db->query("SELECT serviceDate, serviceStartTime, NomeCliente FROM Services WHERE serviceDate > CURDATE() ORDER BY serviceDate ASC LIMIT 10")->fetchAll(PDO::FETCH_ASSOC);
+        $services = ServiceRepository::default();
+        $users    = UserRepository::default();
+        $expenses = ExpenseRepository::default();
+
+        $today      = $services->todayWithDriver();
+        $leaderboard = $services->driverLeaderboardDetailed($month, $year);
+        $team        = array_map(
+            static fn($u) => ['name' => $u->name, 'role' => $u->role, 'phone' => $u->phone],
+            $users->all()
+        );
+        $expensesMonth = $expenses->totalForMonth($yearMonth);
+        $upcoming      = array_map(
+            static fn(array $r) => [
+                'serviceDate'      => $r['serviceDate'],
+                'serviceStartTime' => $r['serviceStartTime'],
+                'NomeCliente'      => $r['NomeCliente'],
+            ],
+            $services->upcoming(10)
+        );
 
         $context = json_encode([
-            'system_datetime'  => date('d/m/Y H:i'),
-            'current_month'    => date('F'),
-            'admin_name'       => $adminName,
-            'today_agenda'     => $today,
+            'system_datetime'    => date('d/m/Y H:i'),
+            'current_month'      => date('F'),
+            'admin_name'         => $adminName,
+            'today_agenda'       => $today,
             'driver_performance' => $leaderboard,
-            'team'             => $team,
-            'expenses_month'   => $expenses . '€',
-            'upcoming_bookings' => $upcoming,
+            'team'               => $team,
+            'expenses_month'     => $expensesMonth . '€',
+            'upcoming_bookings'  => $upcoming,
         ], JSON_UNESCAPED_UNICODE);
 
         $systemPrompt = "You are SyncAI, the personal AI assistant for {$adminName} at SyncRide. "

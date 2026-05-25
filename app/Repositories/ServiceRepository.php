@@ -39,6 +39,53 @@ final class ServiceRepository
         return $row ? Service::fromRow($row) : null;
     }
 
+    public function countAllTime(): int
+    {
+        $sql  = 'SELECT COUNT(*) FROM Services WHERE 1=1 ' . $this->sc('AND');
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($this->cb());
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function countThisWeek(): int
+    {
+        $sql  = 'SELECT COUNT(*) FROM Services WHERE WEEK(serviceDate, 1) = WEEK(CURDATE(), 1) ' . $this->sc('AND');
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($this->cb());
+        return (int) $stmt->fetchColumn();
+    }
+
+    /**
+     * Next upcoming rides (today from now on, or future dates).
+     * @return array<array<string,mixed>>
+     */
+    public function upcoming(int $limit = 3): array
+    {
+        $sql  = "SELECT * FROM Services
+                 WHERE ((serviceDate > CURDATE()) OR (serviceDate = CURDATE() AND serviceStartTime >= CURTIME()))
+                 " . $this->sc('AND') . "
+                 ORDER BY serviceDate ASC, serviceStartTime ASC
+                 LIMIT {$limit}";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($this->cb());
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** @return array<int,int> 12-element array for the current year, scoped to company. */
+    public function monthlyThisYear(): array
+    {
+        $sql  = 'SELECT MONTH(serviceDate) AS m, COUNT(*) AS c FROM Services
+                 WHERE YEAR(serviceDate) = YEAR(CURDATE()) ' . $this->sc('AND') . '
+                 GROUP BY m';
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($this->cb());
+        $result = array_fill(0, 12, 0);
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $result[(int) $row['m'] - 1] = (int) $row['c'];
+        }
+        return $result;
+    }
+
     /** @return array<Service> */
     public function byDate(string $date): array
     {
@@ -732,6 +779,51 @@ final class ServiceRepository
             'company_id'   => $cid,
         ]);
         return (int) $this->db->lastInsertId();
+    }
+
+    // ── AI context helpers ─────────────────────────────────────────────────
+
+    /**
+     * Today's schedule with driver name — used by AiSyncController.
+     * @return array<array<string,mixed>>
+     */
+    public function todayWithDriver(): array
+    {
+        $clause = $this->companyId !== null ? 'AND s.company_id = :company_id' : '';
+        $stmt   = $this->db->prepare("
+            SELECT s.serviceStartTime, s.NomeCliente, s.FlightNumber,
+                   s.serviceStartPoint, s.serviceTargetPoint, u.name AS driver
+            FROM Services s
+            LEFT JOIN Services_Rides sr ON sr.RideID = s.ID
+            LEFT JOIN Users u ON u.id = sr.UserID
+            WHERE s.serviceDate = CURDATE() {$clause}
+            ORDER BY s.serviceStartTime ASC
+        ");
+        $stmt->execute($this->cb());
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Driver performance for AI: all-time total, this-month total, avg rating.
+     * @return array<array<string,mixed>>
+     */
+    public function driverLeaderboardDetailed(int $month, int $year): array
+    {
+        $ucsc = $this->companyId !== null ? 'AND u.company_id = :company_id' : '';
+        $stmt = $this->db->prepare("
+            SELECT u.name,
+                   COUNT(sr.RideID) AS total_all_time,
+                   SUM(CASE WHEN MONTH(s.serviceDate) = :month AND YEAR(s.serviceDate) = :year THEN 1 ELSE 0 END) AS total_this_month,
+                   AVG(s.driver_rating) AS rating
+            FROM Users u
+            LEFT JOIN Services_Rides sr ON u.id = sr.UserID
+            LEFT JOIN Services s ON sr.RideID = s.ID
+            WHERE u.role = 2 {$ucsc}
+            GROUP BY u.id, u.name
+            ORDER BY total_this_month DESC
+        ");
+        $stmt->execute(array_merge(['month' => $month, 'year' => $year], $this->cb()));
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     // ── Scoping helpers ────────────────────────────────────────────────────

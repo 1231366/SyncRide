@@ -10,7 +10,6 @@ use App\Repositories\LogRepository;
 use App\Repositories\UserRepository;
 use App\Repositories\VehicleRepository;
 use DateTimeImmutable;
-use PDO;
 
 /**
  * Fleet management: list vehicles, create/edit/delete, assign a driver.
@@ -141,14 +140,7 @@ final class FleetController extends BaseController
     /** Decorates Vehicles with their assigned driver + paperwork alert. */
     private function loadVehiclesWithMeta(): array
     {
-        $stmt = $this->db()->query('
-            SELECT v.*, u.name AS assigned_driver_name, u.id AS assigned_driver_user_id
-            FROM Vehicles v
-            LEFT JOIN Users u ON u.assigned_vehicle_id = v.id
-            ORDER BY v.status DESC, v.brand ASC
-        ');
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
+        $rows  = $this->vehicles->allWithDriver();
         $today = new DateTimeImmutable('today');
         return array_map(function (array $row) use ($today): array {
             $alert = false;

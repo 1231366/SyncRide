@@ -26,9 +26,13 @@ final class MaintenanceController extends BaseController
         $this->logs = LogRepository::default();
     }
 
-    /** GET /admin/backup.php — stream a `.sql` dump. */
+    /** GET /admin/backup.php — stream a `.sql` dump (super-admin only). */
     public function backup(): never
     {
+        // Full DB dump exposes all tenants — restrict to super-admin (role 0).
+        if ((int) ($_SESSION['role'] ?? -1) !== 0) {
+            $this->abort(403, 'Backup is restricted to super-admin.');
+        }
         $dump = $this->exportDatabase($this->db());
         $this->logs->record('Database backup generated');
 

@@ -1,0 +1,10 @@
+# Bloqueia listagem de directorias
+Options -Indexes
+
+# Charset UTF-8 por omissão
+AddDefaultCharset UTF-8
+
+# Protege ficheiros de configuração caso cheguem aqui
+<FilesMatch "\.(env|json|lock|md|sh|sql)$">
+    Require all denied
+</FilesMatch>

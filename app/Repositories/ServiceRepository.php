@@ -253,4 +253,155 @@ final class ServiceRepository
             'total'       => (int) $r['total'],
         ], $rows);
     }
+
+    /**
+     * Raw rows for the admin rides DataTable, filtered by status context.
+     *
+     * Returns associative arrays (not models) because we need joined
+     * partner/driver names in one shot.
+     *
+     * @return array<array<string,mixed>>
+     */
+    public function listForAdmin(string $filter): array
+    {
+        $cols = 's.ID, s.serviceDate, s.serviceStartTime, s.paxADT, s.paxCHD,
+                 s.serviceStartPoint, s.serviceTargetPoint, s.FlightNumber,
+                 s.NomeCliente, s.ClientNumber, s.serviceType, s.total_price,
+                 s.has_key, s.partner_id, s.status_pedido';
+
+        $sql = match ($filter) {
+            'requests' => "SELECT {$cols}, NULL AS driverName, p.name AS partner_name
+                FROM Services s
+                LEFT JOIN Users p ON s.partner_id = p.ID
+                WHERE s.status_pedido = 'pendente'
+                ORDER BY s.serviceDate ASC, s.serviceStartTime ASC",
+
+            'today' => "SELECT {$cols}, u.name AS driverName, p.name AS partner_name
+                FROM Services s
+                LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
+                LEFT JOIN Users u ON sr.UserID = u.ID
+                LEFT JOIN Users p ON s.partner_id = p.ID
+                WHERE s.serviceDate = CURDATE()
+                  AND (s.status_pedido = 'aprovado' OR s.status_pedido IS NULL)
+                ORDER BY s.serviceStartTime ASC",
+
+            'pending' => "SELECT {$cols}, NULL AS driverName, p.name AS partner_name
+                FROM Services s
+                LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
+                LEFT JOIN Users p ON s.partner_id = p.ID
+                WHERE sr.UserID IS NULL
+                  AND (s.status_pedido = 'aprovado' OR s.status_pedido IS NULL)
+                ORDER BY s.serviceDate, s.serviceStartTime",
+
+            'assigned' => "SELECT {$cols}, u.name AS driverName, p.name AS partner_name
+                FROM Services s
+                INNER JOIN Services_Rides sr ON s.ID = sr.RideID
+                INNER JOIN Users u ON sr.UserID = u.ID
+                LEFT JOIN Users p ON s.partner_id = p.ID
+                WHERE (s.status_pedido = 'aprovado' OR s.status_pedido IS NULL)
+                ORDER BY s.serviceDate, s.serviceStartTime",
+
+            default => "SELECT {$cols}, u.name AS driverName, p.name AS partner_name
+                FROM Services s
+                LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
+                LEFT JOIN Users u ON sr.UserID = u.ID
+                LEFT JOIN Users p ON s.partner_id = p.ID
+                WHERE (s.status_pedido = 'aprovado' OR s.status_pedido IS NULL)
+                ORDER BY s.serviceDate, s.serviceStartTime",
+        };
+
+        return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function countPendingRequests(): int
+    {
+        return (int) $this->db->query(
+            "SELECT COUNT(*) FROM Services WHERE status_pedido = 'pendente'"
+        )->fetchColumn();
+    }
+
+    public function countToday(): int
+    {
+        return (int) $this->db->query(
+            "SELECT COUNT(*) FROM Services
+             WHERE serviceDate = CURDATE()
+               AND (status_pedido = 'aprovado' OR status_pedido IS NULL)"
+        )->fetchColumn();
+    }
+
+    public function countUnassigned(): int
+    {
+        return (int) $this->db->query(
+            "SELECT COUNT(*) FROM Services s
+             LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
+             WHERE sr.UserID IS NULL
+               AND (s.status_pedido = 'aprovado' OR s.status_pedido IS NULL)"
+        )->fetchColumn();
+    }
+
+    public function update(int $id, array $data): void
+    {
+        $this->db->prepare('
+            UPDATE Services
+            SET serviceDate        = :date,
+                serviceStartTime   = :time,
+                serviceStartPoint  = :pickup,
+                serviceTargetPoint = :dropoff,
+                paxADT             = :adults,
+                paxCHD             = :children,
+                FlightNumber       = :flight,
+                NomeCliente        = :client,
+                ClientNumber       = :phone,
+                total_price        = :price
+            WHERE ID = :id
+        ')->execute([
+            'date'     => $data['serviceDate'],
+            'time'     => $data['serviceStartTime'],
+            'pickup'   => $data['serviceStartPoint'],
+            'dropoff'  => $data['serviceTargetPoint'],
+            'adults'   => (int) ($data['paxADT'] ?? 0),
+            'children' => (int) ($data['paxCHD'] ?? 0),
+            'flight'   => $data['FlightNumber'] ?? null,
+            'client'   => $data['NomeCliente']  ?? null,
+            'phone'    => $data['ClientNumber'] ?? null,
+            'price'    => (float) ($data['total_price'] ?? 0),
+            'id'       => $id,
+        ]);
+    }
+
+    public function deleteBulk(array $ids): void
+    {
+        if (empty($ids)) {
+            return;
+        }
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        $this->db->beginTransaction();
+        try {
+            $this->db->prepare("DELETE FROM Services_Rides WHERE RideID IN ({$ph})")->execute($ids);
+            $this->db->prepare("DELETE FROM Services WHERE ID IN ({$ph})")->execute($ids);
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
+    public function setApprovalStatus(int $id, string $status): void
+    {
+        $this->db->prepare('UPDATE Services SET status_pedido = :s WHERE ID = :id')
+            ->execute(['s' => $status, 'id' => $id]);
+    }
+
+    /** Returns the five driver-progress timestamps for the logs modal. */
+    public function getTimestamps(int $id): ?array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT ts_start_pickup, ts_arrived_pickup, ts_with_client,
+                    ts_start_trip, ts_completed
+             FROM Services WHERE ID = :id'
+        );
+        $stmt->execute(['id' => $id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
 }

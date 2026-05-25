@@ -118,6 +118,25 @@ final class UsersController extends BaseController
         $this->redirect('/SRMT/public/admin/users.php?success=user_deleted');
     }
 
+    /** GET /admin/delete.php?id=X — legacy direct-link delete for users. */
+    public function destroyLink(): void
+    {
+        $id = (int) ($this->input('id') ?? 0);
+        if ($id <= 0) {
+            $this->abort(400, 'Missing user id.');
+        }
+        if ($id === $this->userId()) {
+            $this->abort(403, 'You cannot delete your own account.');
+        }
+        if ($this->users->find($id) === null) {
+            $this->abort(404, 'User not found.');
+        }
+
+        $this->users->delete($id);
+        $this->logs->record("Admin deleted user #{$id}");
+        $this->redirect('/SRMT/public/admin/users.php?success=user_deleted');
+    }
+
     private function validate(array $data, bool $isUpdate = false): void
     {
         $required = $isUpdate ? ['name', 'email', 'role'] : ['name', 'email', 'role', 'password'];

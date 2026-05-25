@@ -21,7 +21,8 @@ final class LiveLocationsController extends BaseController
     {
         header('Content-Type: application/json');
 
-        if (!isset($_SESSION['user_id'], $_SESSION['role']) || (int) $_SESSION['role'] !== 1) {
+        $role = isset($_SESSION['role']) ? (int) $_SESSION['role'] : -1;
+        if (!isset($_SESSION['user_id']) || !in_array($role, [0, 1], true)) {
             http_response_code(403);
             $this->json(['success' => false, 'message' => 'Forbidden'], 403);
         }

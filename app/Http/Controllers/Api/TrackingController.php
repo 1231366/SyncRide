@@ -18,8 +18,8 @@ final class TrackingController extends BaseController
 
     /**
      * GET /api/tracking-get.php
-     * - ?ride_id=N → single ride tracking (public, for client track page)
-     * - no ride_id  → all active rides (admin live-map)
+     * - ?ride_id=N → single ride tracking (public, for client track page — no auth needed)
+     * - no ride_id  → all active rides (admin live-map — requires admin session)
      */
     public function get(): never
     {
@@ -29,8 +29,15 @@ final class TrackingController extends BaseController
         $rideId = isset($_GET['ride_id']) ? (int) $_GET['ride_id'] : null;
 
         if ($rideId !== null) {
+            // Public endpoint — clients follow a tracking link without a session.
             $data = $this->locations->trackingFor($rideId);
             $this->json(['success' => true, 'data' => $data]);
+        }
+
+        // All-rides view is admin-only — guard it here since the shim is unauthenticated.
+        $role = isset($_SESSION['role']) ? (int) $_SESSION['role'] : -1;
+        if (!isset($_SESSION['user_id']) || !in_array($role, [0, 1], true)) {
+            $this->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
 
         $this->json(['success' => true, 'data' => $this->locations->allActiveRides()]);
@@ -47,7 +54,8 @@ final class TrackingController extends BaseController
 
         $payload  = $this->jsonBody();
         $rideId   = (int) ($payload['ride_id'] ?? 0);
-        $driverId = (int) ($_SESSION['user_id'] ?? $payload['driver_id'] ?? 0);
+        // Always use the authenticated session identity — never trust the payload driver_id.
+        $driverId = isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : 0;
 
         if ($driverId === 0) {
             $this->json(['success' => false, 'error' => 'Unauthorized: driver_id missing'], 401);

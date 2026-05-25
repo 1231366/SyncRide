@@ -29,10 +29,11 @@ final class LocationController extends BaseController
         $this->cors();
 
         $payload  = $this->jsonBody();
-        $rideId   = (int) ($payload['ride_id']   ?? 0);
-        $driverId = (int) ($payload['driver_id'] ?? ($_SESSION['user_id'] ?? 0));
-        $lat      = (float) ($payload['lat']     ?? 0);
-        $lng      = (float) ($payload['lng']     ?? 0);
+        $rideId   = (int) ($payload['ride_id'] ?? 0);
+        // driver_id must come from the authenticated session — never trust the payload.
+        $driverId = isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : 0;
+        $lat      = (float) ($payload['lat']   ?? 0);
+        $lng      = (float) ($payload['lng']   ?? 0);
 
         if ($rideId === 0 || $lat === 0.0 || $lng === 0.0) {
             $this->json(['success' => false, 'error' => 'Incomplete data'], 422);

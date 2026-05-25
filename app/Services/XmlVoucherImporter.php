@@ -24,13 +24,15 @@ use SimpleXMLElement;
  */
 final class XmlVoucherImporter
 {
-    public function __construct(private readonly PDO $db)
-    {
+    public function __construct(
+        private readonly PDO  $db,
+        private readonly ?int $companyId = null,
+    ) {
     }
 
     public static function default(): self
     {
-        return new self(\App\Support\Database::connection());
+        return new self(\App\Support\Database::connection(), \App\Support\Session::companyId());
     }
 
     /**
@@ -52,14 +54,14 @@ final class XmlVoucherImporter
         $insertWithId = $this->db->prepare('
             INSERT INTO Services (ID, serviceDate, serviceStartTime, paxADT, paxCHD,
                                   serviceStartPoint, serviceTargetPoint, FlightNumber,
-                                  NomeCliente, ClientNumber, serviceType)
-            VALUES (:ID, :sd, :st, :pa, :pc, :sp, :tp, :fn, :nc, :cn, :stype)
+                                  NomeCliente, ClientNumber, serviceType, company_id)
+            VALUES (:ID, :sd, :st, :pa, :pc, :sp, :tp, :fn, :nc, :cn, :stype, :cid)
         ');
         $insertWithoutId = $this->db->prepare('
             INSERT INTO Services (serviceDate, serviceStartTime, paxADT, paxCHD,
                                   serviceStartPoint, serviceTargetPoint, FlightNumber,
-                                  NomeCliente, ClientNumber, serviceType)
-            VALUES (:sd, :st, :pa, :pc, :sp, :tp, :fn, :nc, :cn, :stype)
+                                  NomeCliente, ClientNumber, serviceType, company_id)
+            VALUES (:sd, :st, :pa, :pc, :sp, :tp, :fn, :nc, :cn, :stype, :cid)
         ');
 
         $inserted = 0;
@@ -94,6 +96,7 @@ final class XmlVoucherImporter
                     ':nc'    => $client,
                     ':cn'    => $phone,
                     ':stype' => $type,
+                    ':cid'   => $this->companyId,
                 ];
 
                 try {

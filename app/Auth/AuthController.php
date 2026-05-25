@@ -71,10 +71,12 @@ final class AuthController
             }
 
             if ($isAjax) {
+                $safeUser = $user;
+                unset($safeUser['password'], $safeUser['remember_token']);
                 echo json_encode([
                     'success'        => true,
                     'message'        => 'Login OK',
-                    'user'           => $user,
+                    'user'           => $safeUser,
                     'redirect_route' => $redirect,
                 ]);
                 return;

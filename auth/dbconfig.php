@@ -32,6 +32,10 @@ if (!isset($_SESSION['user_id']) && isset($_COOKIE['remember_me'])) {
             $_SESSION['role']               = (int) $user['role'];
             $_SESSION['name']               = $user['name'];
             $_SESSION['profile_photo_path'] = $user['profile_photo_path'] ?? null;
+            // Must mirror AuthController::openSession() — missing this leaks all-tenant data.
+            $_SESSION['company_id']         = isset($user['company_id']) && $user['company_id'] !== null
+                ? (int) $user['company_id']
+                : null;
         }
     } catch (Throwable $e) {
         error_log('remember_me bridge failure: ' . $e->getMessage());

@@ -70,8 +70,14 @@ final class UsersController extends BaseController
         if ($id <= 0) {
             $this->abort(400, 'Missing user id.');
         }
-        if ($this->users->find($id) === null) {
+        $existing = $this->users->find($id);
+        if ($existing === null) {
             $this->abort(404, 'User not found.');
+        }
+        // Prevent cross-tenant BOLA: super-admin (null) may edit any user.
+        $sessionCompanyId = \App\Support\Session::companyId();
+        if ($sessionCompanyId !== null && $existing->companyId !== $sessionCompanyId) {
+            $this->abort(403, 'Forbidden.');
         }
 
         $payload = [
@@ -105,8 +111,13 @@ final class UsersController extends BaseController
         if ($id === $this->userId()) {
             $this->abort(403, 'You cannot delete your own account.');
         }
-        if ($this->users->find($id) === null) {
+        $target = $this->users->find($id);
+        if ($target === null) {
             $this->abort(404, 'User not found.');
+        }
+        $sessionCompanyId = \App\Support\Session::companyId();
+        if ($sessionCompanyId !== null && $target->companyId !== $sessionCompanyId) {
+            $this->abort(403, 'Forbidden.');
         }
 
         $this->users->delete($id);
@@ -128,8 +139,13 @@ final class UsersController extends BaseController
         if ($id === $this->userId()) {
             $this->abort(403, 'You cannot delete your own account.');
         }
-        if ($this->users->find($id) === null) {
+        $target = $this->users->find($id);
+        if ($target === null) {
             $this->abort(404, 'User not found.');
+        }
+        $sessionCompanyId = \App\Support\Session::companyId();
+        if ($sessionCompanyId !== null && $target->companyId !== $sessionCompanyId) {
+            $this->abort(403, 'Forbidden.');
         }
 
         $this->users->delete($id);

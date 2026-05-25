@@ -14,24 +14,29 @@ use PDO;
  */
 final class LiveLocationRepository
 {
-    public function __construct(private readonly PDO $db)
-    {
+    public function __construct(
+        private readonly PDO  $db,
+        private readonly ?int $companyId = null,
+    ) {
     }
 
     public static function default(): self
     {
-        return new self(Database::connection());
+        return new self(Database::connection(), \App\Support\Session::companyId());
     }
 
-    /** @return array<LiveLocation> latest dot for every active driver. */
+    /** @return array<LiveLocation> latest dot for active drivers scoped to this company. */
     public function allDrivers(): array
     {
-        $stmt = $this->db->query('
+        $clause = $this->companyId !== null ? 'AND u.company_id = :cid' : '';
+        $sql    = "
             SELECT l.*, u.name
             FROM DriverLiveLocation l
             JOIN Users u ON l.driver_id = u.id
-            WHERE u.role = 2
-        ');
+            WHERE u.role = 2 {$clause}
+        ";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($this->companyId !== null ? ['cid' => $this->companyId] : []);
         return array_map(LiveLocation::fromRow(...), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 

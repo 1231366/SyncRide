@@ -37,6 +37,16 @@ final class LogRepository
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function lastBackupDate(): ?string
+    {
+        $stmt = $this->db->prepare(
+            "SELECT date FROM Logs WHERE Action = 'Database backup generated' ORDER BY date DESC LIMIT 1"
+        );
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? (string) $row['date'] : null;
+    }
+
     public function clear(): void
     {
         $this->db->exec('DELETE FROM Logs');

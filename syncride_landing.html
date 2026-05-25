@@ -1,0 +1,1709 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SyncRide — O Ecossistema de Gestão de Transferes</title>
+    <meta name="description" content="Elimine o caos das folhas de cálculo. Automatize 100% da operação de transferes com agendas via WhatsApp, app para condutores, portal de operadores e faturação automática.">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #090D16;
+            --bg2: #0D1220;
+            --bg3: #111827;
+            --surface: rgba(255, 255, 255, 0.04);
+            --surface2: rgba(255, 255, 255, 0.07);
+            --border: rgba(255, 255, 255, 0.08);
+            --border2: rgba(255, 255, 255, 0.14);
+            --blue: #3B82F6;
+            --blue-bright: #60A5FA;
+            --cyan: #22D3EE;
+            --text: #F0F4FF;
+            --text2: #94A3B8;
+            --text3: #64748B;
+            --radius: 16px;
+            --radius-sm: 10px;
+            --radius-lg: 24px;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow-x: hidden;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border2);
+            border-radius: 3px;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+            pointer-events: none;
+            opacity: 0.4;
+        }
+
+        .orb {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(120px);
+            z-index: 0;
+        }
+
+        .orb-1 {
+            width: 700px;
+            height: 700px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, transparent 70%);
+            top: -200px;
+            left: -200px;
+        }
+
+        .orb-2 {
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(34, 211, 238, 0.08) 0%, transparent 70%);
+            top: 400px;
+            right: -100px;
+        }
+
+        .orb-3 {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.06) 0%, transparent 70%);
+            bottom: 200px;
+            left: 30%;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        section {
+            position: relative;
+            z-index: 1;
+        }
+
+        .grid-bg {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
+        }
+
+        /* NAVIGATION */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 16px 0;
+            transition: all 0.3s ease;
+        }
+
+        nav.scrolled {
+            background: rgba(9, 13, 22, 0.88);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 20px;
+            letter-spacing: -0.5px;
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--blue), var(--cyan));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -1px;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text2);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--text);
+        }
+
+        .nav-cta {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn-ghost {
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text2);
+            border: 1px solid var(--border2);
+            background: transparent;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-ghost:hover {
+            color: var(--text);
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+
+        .btn-primary {
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            background: var(--blue);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.35);
+        }
+
+        .btn-primary:hover {
+            background: var(--blue-bright);
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.55);
+            transform: translateY(-1px);
+        }
+
+        /* HERO */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 120px 0 80px;
+            overflow:hidden;
+        }
+
+        .hero-inner {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+            align-items: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 100px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            color: var(--blue-bright);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 28px;
+        }
+
+        .hero-badge-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--cyan);
+            animation: pulse-dot 2s infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+
+        .hero-title {
+            font-size: clamp(40px, 5vw, 64px);
+            font-weight: 800;
+            letter-spacing: -2px;
+            line-height: 1.05;
+            margin-bottom: 24px;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #fff 0%, var(--blue-bright) 50%, var(--cyan) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-sub {
+            font-size: 18px;
+            color: var(--text2);
+            line-height: 1.7;
+            margin-bottom: 40px;
+            font-weight: 400;
+            max-width: 520px;
+        }
+
+        .hero-ctas {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .btn-hero-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--blue), #1D4ED8);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.4), 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .btn-hero-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 50px rgba(59, 130, 246, 0.6), 0 8px 30px rgba(0,0,0,0.4);
+        }
+
+        .btn-hero-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 500;
+            background: var(--surface);
+            border: 1px solid var(--border2);
+            color: var(--text);
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-hero-secondary:hover {
+            background: var(--surface2);
+            border-color: rgba(255,255,255,0.2);
+        }
+
+        /* MOCKUP INTERFACE */
+        .dashboard-frame {
+            background: rgba(13, 18, 32, 0.9);
+            border: 1px solid var(--border2);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 40px 100px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(-1deg); }
+            50% { transform: translateY(-12px) rotate(-1deg); }
+        }
+
+        .dash-header {
+            background: rgba(255, 255, 255, 0.04);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dash-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dash-dot.r { background: #FF5F57; }
+        .dash-dot.y { background: #FFBD2E; }
+        .dash-dot.g { background: #28C840; }
+
+        .dash-title {
+            margin-left: 8px;
+            font-size: 12px;
+            color: var(--text3);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .dash-body { padding: 20px; }
+
+        .dash-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .dash-stat {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px;
+        }
+
+        .dash-stat-label {
+            font-size: 11px;
+            color: var(--text3);
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .dash-stat-val { font-size: 22px; font-weight: 700; letter-spacing: -1px; }
+        .dash-stat-val.blue { color: var(--blue-bright); }
+        .dash-stat-val.cyan { color: var(--cyan); }
+        .dash-stat-val.green { color: #4ADE80; }
+        .dash-stat-change { font-size: 11px; color: #4ADE80; margin-top: 4px; }
+
+        .dash-map {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 16px;
+            height: 140px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .map-label {
+            font-size: 11px;
+            color: var(--text3);
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+
+        .map-road { position: absolute; border-radius: 2px; background: rgba(255,255,255,0.06); }
+        .map-road.h { height: 2px; }
+        .map-road.v { width: 2px; }
+
+        .vehicle-dot {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--blue);
+            box-shadow: 0 0 12px var(--blue);
+            animation: move-vehicle 8s ease-in-out infinite;
+        }
+
+        .vehicle-dot.v2 {
+            background: var(--cyan);
+            box-shadow: 0 0 12px var(--cyan);
+            animation-delay: -3s;
+            animation-duration: 6s;
+        }
+
+        @keyframes move-vehicle {
+            0% { left: 20%; top: 40%; }
+            25% { left: 50%; top: 25%; }
+            50% { left: 75%; top: 55%; }
+            75% { left: 45%; top: 70%; }
+            100% { left: 20%; top: 40%; }
+        }
+
+        .dash-jobs { display: flex; flex-direction: column; gap: 8px; }
+        .dash-job {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+
+        .job-status { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+        .job-status.active { background: #4ADE80; box-shadow: 0 0 6px #4ADE80; }
+        .job-status.pending { background: var(--blue-bright); box-shadow: 0 0 6px var(--blue); }
+        .job-text { font-size: 12px; color: var(--text2); flex: 1; }
+        .job-time { font-size: 11px; color: var(--text3); font-family: 'JetBrains Mono', monospace; }
+
+        .hero-badge-float {
+            position: absolute;
+            background: rgba(13, 18, 32, 0.95);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            border-radius: 12px;
+            padding: 12px 16px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+            animation: float-badge 5s ease-in-out infinite;
+        }
+
+        @keyframes float-badge {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .badge-whatsapp { bottom: -20px; left: -30px; animation-delay: -2s; }
+        .badge-report { top: -20px; right: -20px; animation-delay: -1s; }
+
+        /* SECTIONS METRICS */
+        .section-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--blue-bright);
+            margin-bottom: 16px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .section-label::before {
+            content: '';
+            width: 20px;
+            height: 1px;
+            background: var(--blue-bright);
+        }
+
+        .section-title {
+            font-size: clamp(32px, 4vw, 52px);
+            font-weight: 800;
+            letter-spacing: -1.5px;
+            line-height: 1.1;
+            margin-bottom: 20px;
+        }
+
+        .section-sub {
+            font-size: 18px;
+            color: var(--text2);
+            max-width: 580px;
+            line-height: 1.7;
+        }
+
+        /* TECH TICKER */
+        .tech-bar {
+            padding: 24px 0;
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .tech-bar::before, .tech-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100px;
+            z-index: 2;
+        }
+
+        .tech-bar::before { left: 0; background: linear-gradient(90deg, var(--bg), transparent); }
+        .tech-bar::after { right: 0; background: linear-gradient(-90deg, var(--bg), transparent); }
+
+        .tech-scroll {
+            display: flex;
+            gap: 48px;
+            animation: scroll-left 30s linear infinite;
+            width: max-content;
+        }
+
+        @keyframes scroll-left {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        .tech-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+            color: var(--text3);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .tech-item span { color: var(--text2); }
+
+        /* BENTO GRID */
+        .bento { padding: 100px 0; }
+        .bento-header { text-align: center; margin-bottom: 60px; }
+
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 16px;
+        }
+
+        .bento-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s, transform 0.3s;
+            backdrop-filter: blur(10px);
+        }
+
+        .bento-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.04) 0%, transparent 60%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .bento-card:hover {
+            border-color: rgba(59, 130, 246, 0.35);
+            transform: translateY(-2px);
+        }
+
+        .bento-card:hover::before { opacity: 1; }
+
+        .bc-1 { grid-column: span 7; }
+        .bc-2 { grid-column: span 5; }
+        .bc-3 { grid-column: span 5; }
+        .bc-4 { grid-column: span 7; }
+        
+        .card-num {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 12px;
+        }
+
+        .card-num.blue { color: var(--blue-bright); }
+        .card-num.green { color: #4ADE80; }
+        .card-num.cyan { color: var(--cyan); }
+        .card-num.orange { color: #FB923C; }
+
+        .bento-card h3 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 12px; }
+        .bento-card p { font-size: 15px; color: var(--text2); line-height: 1.65; }
+
+        .card-glow {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(60px);
+            z-index: 0;
+        }
+
+        .card-glow.blue { width: 200px; height: 200px; background: rgba(59,130,246,0.08); right: -50px; bottom: -50px; }
+        .card-glow.green { width: 200px; height: 200px; background: rgba(74,222,128,0.06); left: -50px; bottom: -50px; }
+        .card-glow.cyan { width: 200px; height: 200px; background: rgba(34,211,238,0.06); right: -50px; top: -50px; }
+
+        /* INTERFACES PREVIEWS */
+        .wa-preview {
+            margin-top: 24px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .wa-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: #4ADE80; font-weight: 600; }
+        .wa-msg { color: var(--text2); line-height: 1.8; }
+        .wa-msg .hl { color: var(--cyan); }
+        .wa-time { color: var(--text3); font-size: 11px; margin-top: 8px; text-align: right; }
+        
+        .wa-sent-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid rgba(74, 222, 128, 0.2);
+            border-radius: 100px;
+            padding: 4px 10px;
+            font-size: 11px;
+            color: #4ADE80;
+            margin-top: 12px;
+            animation: blink-badge 3s infinite;
+        }
+
+        @keyframes blink-badge { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        .wa-sent-dot { width: 5px; height: 5px; border-radius: 50%; background: #4ADE80; }
+
+        .track-visual {
+            margin-top: 24px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            height: 120px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .track-line {
+            position: absolute;
+            top: 50%; left: 15%; right: 15%; height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(34,211,238,0.3), var(--cyan), rgba(34,211,238,0.3), transparent);
+            transform: translateY(-50%);
+        }
+
+        .track-pulse {
+            position: absolute;
+            top: 50%; left: 50%; width: 14px; height: 14px; border-radius: 50%;
+            background: var(--cyan);
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 16px var(--cyan);
+            animation: track-move 4s ease-in-out infinite;
+        }
+
+        .track-pulse::after {
+            content: ''; position: absolute; inset: -4px; border-radius: 50%;
+            border: 2px solid rgba(34, 211, 238, 0.4);
+            animation: pulse-ring 2s ease-out infinite;
+        }
+
+        @keyframes track-move { 0%, 100% { left: 20%; } 50% { left: 80%; } }
+        @keyframes pulse-ring { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(2.5); opacity: 0; } }
+        .track-city { position: absolute; font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--text3); }
+        .track-city.from { left: 12%; bottom: 12px; }
+        .track-city.to { right: 12%; bottom: 12px; }
+
+        .noshow-visual { margin-top: 20px; display: flex; flex-direction: column; gap: 8px; position: relative; z-index: 1; }
+        .noshow-step { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 13px; }
+        .noshow-step-text { color: var(--text2); flex: 1; }
+        .noshow-step-tag { padding: 2px 8px; border-radius: 100px; font-size: 11px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        
+        .tag-red { background: rgba(239,68,68,0.1); color: #F87171; border: 1px solid rgba(239,68,68,0.2); }
+        .tag-green { background: rgba(74,222,128,0.1); color: #4ADE80; border: 1px solid rgba(74,222,128,0.2); }
+        .tag-blue { background: rgba(59,130,246,0.1); color: var(--blue-bright); border: 1px solid rgba(59,130,246,0.2); }
+        .tag-orange { background: rgba(251,146,60,0.1); color: #FB923C; border: 1px solid rgba(251,146,60,0.2); }
+
+        .report-visual { margin-top: 20px; display: flex; gap: 10px; align-items: flex-start; position: relative; z-index: 1; }
+        .report-doc { background: rgba(255,255,255,0.06); border: 1px solid var(--border2); border-radius: 8px; padding: 12px; flex: 1; font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+        .report-doc-header { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; color: var(--text2); font-weight: 600; font-size: 12px; }
+        .report-doc-line { height: 2px; background: var(--border); border-radius: 1px; margin-bottom: 4px; }
+        .report-doc-line.w80 { width: 80%; }
+        .report-doc-line.w60 { width: 60%; }
+        .report-doc-line.w40 { width: 40%; }
+        .report-doc-line.blue { background: rgba(59,130,246,0.3); }
+        .report-arrow { display: flex; align-items: center; color: var(--blue-bright); font-size: 20px; padding-top: 30px; }
+
+        .driver-app { margin-top: 20px; background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; position: relative; z-index: 1; }
+        .driver-app-bar { background: rgba(255,255,255,0.06); padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+        .driver-app-bar-title { font-size: 13px; font-weight: 600; }
+        .driver-app-body { padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+        .driver-trip { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+        .driver-trip-route { font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+        .driver-trip-route strong { color: var(--text); }
+        .driver-trip-actions { display: flex; gap: 8px; }
+        .driver-btn { flex: 1; padding: 7px; border-radius: 7px; font-size: 11px; font-weight: 600; border: none; cursor: pointer; text-align: center; }
+        .driver-btn.start { background: linear-gradient(135deg, var(--blue), #1D4ED8); color: #fff; }
+        .driver-btn.waze { background: rgba(74,222,128,0.15); border: 1px solid rgba(74,222,128,0.3); color: #4ADE80; }
+
+        .ops-grid { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; position: relative; z-index: 1; }
+        .ops-card { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+        .ops-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .ops-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+        .ops-avatar.h { background: rgba(251,146,60,0.2); color: #FB923C; }
+        .ops-avatar.r { background: rgba(167,139,250,0.2); color: #A78BFA; }
+        .ops-card-name { font-size: 12px; font-weight: 600; }
+        .ops-card-sub { font-size: 11px; color: var(--text3); }
+        .ops-request { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2); border-radius: 6px; padding: 8px; font-size: 11px; color: var(--text2); }
+        .ops-req-label { font-size: 10px; color: var(--blue-bright); font-weight: 600; margin-bottom: 3px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* ROADMAP PLAN */
+        .roadmap {
+            padding: 100px 0;
+            background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 50%, var(--bg) 100%);
+        }
+
+        .roadmap-inner { display: grid; grid-template-columns: 1fr 2fr; gap: 80px; align-items: start; }
+        .roadmap-items { display: flex; flex-direction: column; gap: 24px; }
+        
+        .roadmap-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 28px;
+            transition: border-color 0.3s, background 0.3s;
+            cursor: default;
+            position: relative; overflow: hidden;
+        }
+
+        .roadmap-item.active { border-color: rgba(59, 130, 246, 0.4); background: rgba(59, 130, 246, 0.06); }
+        .roadmap-item:hover { border-color: rgba(59,130,246,0.3); }
+        .ri-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
+        .ri-badge { padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .ri-badge.soon { background: rgba(59,130,246,0.1); color: var(--blue-bright); border: 1px solid rgba(59,130,246,0.25); }
+        
+        .roadmap-item h4 { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 8px; }
+        .roadmap-item p { font-size: 14px; color: var(--text2); line-height: 1.65; }
+
+        /* PRICING */
+        .pricing { padding: 100px 0; }
+        .pricing-header { text-align: center; margin-bottom: 16px; }
+        
+        .toggle-wrap { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 60px; }
+        .toggle-label { font-size: 14px; color: var(--text3); font-weight: 500; transition: color 0.2s; }
+        .toggle-label.active { color: var(--text); }
+        
+        .toggle-switch {
+            width: 48px; height: 26px; border-radius: 100px; background: var(--surface2); border: 1px solid var(--border2);
+            cursor: pointer; position: relative; transition: background 0.3s;
+        }
+
+        .toggle-switch.on { background: var(--blue); border-color: var(--blue); }
+        .toggle-thumb { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform 0.3s; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+        .toggle-switch.on .toggle-thumb { transform: translateX(22px); }
+        .toggle-save { padding: 3px 10px; border-radius: 100px; font-size: 12px; font-weight: 600; background: rgba(74,222,128,0.1); color: #4ADE80; border: 1px solid rgba(74,222,128,0.25); }
+
+        .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .plan { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 36px 32px; position: relative; overflow: hidden; transition: transform 0.3s; }
+        .plan:hover { transform: translateY(-4px); }
+        .plan.featured { border-color: rgba(59, 130, 246, 0.45); background: rgba(59, 130, 246, 0.06); }
+        .plan.featured::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--blue), var(--cyan)); }
+        
+        .plan-badge { position: absolute; top: 20px; right: 20px; padding: 4px 12px; border-radius: 100px; font-size: 12px; font-weight: 600; background: linear-gradient(135deg, var(--blue), var(--cyan)); color: #fff; }
+        .plan-name { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text2); margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; }
+        .plan-price { display: flex; align-items: baseline; gap: 4px; margin-bottom: 4px; }
+        .plan-price-num { font-size: 52px; font-weight: 800; letter-spacing: -2px; }
+        .plan-price-currency { font-size: 20px; color: var(--text2); margin-top: 4px; }
+        .plan-price-period { font-size: 14px; color: var(--text3); }
+        .plan-desc { font-size: 14px; color: var(--text3); margin-bottom: 28px; }
+        
+        .plan-features { list-style: none; display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+        .plan-features li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; color: var(--text2); }
+        .feat-check { color: #4ADE80; flex-shrink: 0; margin-top: 1px; }
+        .feat-x { color: var(--text3); flex-shrink: 0; margin-top: 1px; }
+        
+        .plan-cta { display: block; text-align: center; padding: 13px 24px; border-radius: 10px; font-size: 15px; font-weight: 600; text-decoration: none; cursor: pointer; border: none; transition: all 0.25s; width: 100%; }
+        .plan-cta.outline { background: transparent; border: 1px solid var(--border2); color: var(--text); }
+        .plan-cta.outline:hover { background: var(--surface2); }
+        .plan-cta.filled { background: linear-gradient(135deg, var(--blue), #1D4ED8); color: #fff; box-shadow: 0 0 24px rgba(59, 130, 246, 0.35); }
+        .plan-cta.filled:hover { box-shadow: 0 0 40px rgba(59, 130, 246, 0.55); transform: translateY(-1px); }
+
+        .pricing-trust { display: flex; justify-content: center; gap: 40px; margin-top: 48px; flex-wrap: wrap; }
+        .trust-item { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text3); }
+        .trust-item-icon { color: #4ADE80; }
+
+        .pro-nudge {
+            background: rgba(59, 130, 246, 0.07); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 12px;
+            padding: 16px 20px; margin-bottom: 28px; display: flex; align-items: center; gap: 12px;
+        }
+
+        .pro-nudge-icon { font-size: 18px; flex-shrink: 0; }
+        .pro-nudge-text { font-size: 13px; color: var(--text2); line-height: 1.5; }
+        .pro-nudge-text strong { color: var(--blue-bright); }
+
+        /* PERFORMANCE STATS */
+        .stats-section { padding: 60px 0; }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+        .stat-block { background: var(--bg); padding: 40px 32px; text-align: center; }
+        .stat-num { font-size: 48px; font-weight: 800; letter-spacing: -2px; background: linear-gradient(135deg, #fff, var(--blue-bright)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .stat-label { font-size: 14px; color: var(--text3); margin-top: 8px; }
+
+        /* CHECKOUT PANEL */
+        .submit-section { padding: 100px 0; background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%); }
+        .form-wrap { max-width: 680px; margin: 0 auto; }
+        .form-card { background: rgba(13, 18, 32, 0.8); border: 1px solid var(--border2); border-radius: var(--radius-lg); padding: 48px; backdrop-filter: blur(20px); box-shadow: 0 40px 80px rgba(0,0,0,0.4); }
+        .form-title { font-size: 28px; font-weight: 800; letter-spacing: -1px; margin-bottom: 8px; }
+        .form-sub { font-size: 15px; color: var(--text2); margin-bottom: 36px; }
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 8px; letter-spacing: 0.3px; }
+        
+        .form-input, .form-select {
+            width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border2); border-radius: 10px;
+            color: var(--text); font-size: 15px; font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.2s, box-shadow 0.2s; appearance: none;
+        }
+
+        .form-input:focus, .form-select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+        .form-input::placeholder { color: var(--text3); }
+        .form-select option { background: #0D1220; color: var(--text); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        
+        .form-plan-select { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .plan-opt { border: 1px solid var(--border2); border-radius: 10px; padding: 14px; cursor: pointer; transition: all 0.2s; text-align: center; }
+        .plan-opt:hover { border-color: rgba(59,130,246,0.4); }
+        .plan-opt.selected { border-color: var(--blue); background: rgba(59,130,246,0.08); }
+        .plan-opt-name { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+        .plan-opt-price { font-size: 20px; font-weight: 800; letter-spacing: -1px; }
+        .plan-opt-price span { font-size: 12px; font-weight: 400; color: var(--text3); }
+        .plan-opt.featured-opt { border-color: rgba(59,130,246,0.4); }
+        
+        .form-divider { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+        .payment-section-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+        .card-icons { display: flex; gap: 8px; margin-bottom: 20px; }
+        .card-icon-pill { background: rgba(255,255,255,0.08); border: 1px solid var(--border2); border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 700; color: var(--text2); }
+        
+        .card-input-wrap { display: grid; grid-template-columns: 1fr 100px 80px; gap: 0; }
+        .card-input-wrap .form-input { border-radius: 0; }
+        .card-input-wrap .form-input:first-child { border-radius: 10px 0 0 10px; }
+        .card-input-wrap .form-input:last-child { border-radius: 0 10px 10px 0; }
+        
+        .form-submit {
+            width: 100%; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 700;
+            background: linear-gradient(135deg, var(--blue), #1D4ED8); color: #fff; border: none; cursor: pointer;
+            transition: all 0.3s; box-shadow: 0 0 30px rgba(59, 130, 246, 0.4); margin-top: 8px;
+        }
+
+        .form-submit:hover { box-shadow: 0 0 50px rgba(59, 130, 246, 0.6); transform: translateY(-2px); }
+        .form-footer-note { text-align: center; font-size: 13px; color: var(--text3); margin-top: 16px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .stripe-badge { display: inline-flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 600; color: var(--text3); }
+        
+        .form-success { display: none; text-align: center; padding: 40px 0; }
+        .form-success-icon { font-size: 56px; margin-bottom: 16px; }
+        .form-success-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 8px; }
+        .form-success-sub { font-size: 15px; color: var(--text2); }
+
+        /* BOTTOM HERO */
+        .cta-final { padding: 100px 0; text-align: center; position: relative; }
+        .cta-final-glow { position: absolute; width: 600px; height: 400px; background: radial-gradient(ellipse, rgba(59,130,246,0.12) 0%, transparent 70%); left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+        .cta-final h2 { font-size: clamp(36px, 5vw, 56px); font-weight: 800; letter-spacing: -2px; margin-bottom: 20px; }
+        .cta-final p { font-size: 18px; color: var(--text2); margin-bottom: 40px; }
+
+        /* FOOTER STRUCTURE */
+        footer { border-top: 1px solid var(--border); padding: 48px 0; }
+        .footer-links a { color: var(--text3); text-decoration: none; font-size: 14px; transition: color 0.2s; }
+        .footer-links a:hover { color: var(--text2); }
+
+        /* SCROLL REVEAL ENGINE */
+        .reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.7s ease, transform 0.7s ease; }
+        .reveal.visible { opacity: 1; transform: translateY(0); }
+        .reveal-delay-1 { transition-delay: 0.1s; }
+        .reveal-delay-2 { transition-delay: 0.2s; }
+        .reveal-delay-3 { transition-delay: 0.3s; }
+        .reveal-delay-4 { transition-delay: 0.4s; }
+
+        /* MEDIA ADAPTATION */
+        @media (max-width: 900px) {
+            .hero-inner { grid-template-columns: 1fr; }
+            .hero-visual { display: none; }
+            .bento-grid { grid-template-columns: 1fr; }
+            .bc-1, .bc-2, .bc-3, .bc-4 { grid-column: span 1; }
+            .pricing-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .roadmap-inner { grid-template-columns: 1fr; }
+            .nav-links { display: none; }
+            .form-row { grid-template-columns: 1fr; }
+            .card-input-wrap { grid-template-columns: 1fr; }
+            .card-input-wrap .form-input { border-radius: 10px!important; margin-bottom: 8px; }
+            .form-plan-select { grid-template-columns: 1fr; }
+            .ops-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+
+    <nav id="nav">
+        <div class="nav-inner">
+            <a href="#" class="logo">
+                <div class="logo-icon">SR</div>
+                SyncRide
+            </a>
+            <ul class="nav-links">
+                <li><a href="#ecosystem">Ecossistema</a></li>
+                <li><a href="#operadores">Operadores</a></li>
+                <li><a href="#roadmap">Roadmap</a></li>
+                <li><a href="#pricing">Preços</a></li>
+            </ul>
+            <div class="nav-cta">
+                <a href="#" class="btn-ghost">Entrar</a>
+                <a href="#checkout" class="btn-primary">Começar Agora</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="grid-bg"></div>
+        <div class="container">
+            <div class="hero-inner">
+                <div>
+                    <div class="hero-badge reveal">
+                        <span class="hero-badge-dot"></span>
+                        Ecossistema completo — condutores, gestores e operadores
+                    </div>
+                    <h1 class="hero-title reveal reveal-delay-1">
+                        O Ecossistema<br>
+                        <span class="gradient-text">Definitivo</span><br>
+                        para Frotas.
+                    </h1>
+                    <p class="hero-sub reveal reveal-delay-2">
+                        Gestores, condutores e operadores parceiros — todos ligados num único sistema. Agendas automáticas, app mobile para motoristas e portal de pedidos para hostels e agências. O caos das folhas de cálculo acabou.
+                    </p>
+                    <div class="hero-ctas reveal reveal-delay-3">
+                        <a href="#checkout" class="btn-hero-primary">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1L15 8L8 15M1 8H15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            Começar Teste Gratuito
+                        </a>
+                        <a href="#ecosystem" class="btn-hero-secondary">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M6.5 5.5L10.5 8L6.5 10.5V5.5Z" fill="currentColor"/></svg>
+                            Ver o Ecossistema
+                        </a>
+                    </div>
+                </div>
+
+                <div class="hero-visual reveal reveal-delay-4">
+                    <div style="position:relative">
+                        <div class="hero-badge-float badge-whatsapp">
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <span style="font-size:20px">📱</span>
+                                <div>
+                                    <div style="font-size:12px;font-weight:600;color:#4ADE80">✓ Agendas Enviadas</div>
+                                    <div style="font-size:11px;color:var(--text3)">23 motoristas · 19:00</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="hero-badge-float badge-report">
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <span style="font-size:18px">📊</span>
+                                <div>
+                                    <div style="font-size:12px;font-weight:600;color:var(--blue-bright)">Relatório Enviado</div>
+                                    <div style="font-size:11px;color:var(--text3)">PDF · Agência XL Tours</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="dashboard-frame">
+                            <div class="dash-header">
+                                <div class="dash-dot r"></div><div class="dash-dot y"></div><div class="dash-dot g"></div>
+                                <span class="dash-title">syncride.app/admin</span>
+                            </div>
+                            <div class="dash-body">
+                                <div class="dash-stats">
+                                    <div class="dash-stat"><div class="dash-stat-label">Ativos</div><div class="dash-stat-val blue">24</div><div class="dash-stat-change">↑ 8 hoje</div></div>
+                                    <div class="dash-stat"><div class="dash-stat-label">Receita</div><div class="dash-stat-val cyan">€8.4k</div><div class="dash-stat-change">↑ 12% mês</div></div>
+                                    <div class="dash-stat"><div class="dash-stat-label">SLA</div><div class="dash-stat-val green">99.2%</div><div class="dash-stat-change">↑ Nominal</div></div>
+                                </div>
+                                <div class="dash-map">
+                                    <div class="map-label">Frota em Tempo Real</div>
+                                    <div class="map-road h" style="top:35%;left:0;right:0"></div>
+                                    <div class="map-road h" style="top:65%;left:0;right:0"></div>
+                                    <div class="map-road v" style="left:30%;top:0;bottom:0"></div>
+                                    <div class="map-road v" style="left:65%;top:0;bottom:0"></div>
+                                    <div class="vehicle-dot"></div>
+                                    <div class="vehicle-dot v2"></div>
+                                    <div class="track-city from">FCO</div>
+                                    <div class="track-city to" style="right:12%;bottom:12px">ROM</div>
+                                </div>
+                                <div class="dash-jobs">
+                                    <div class="dash-job"><div class="job-status active"></div><span class="job-text">Transfer #1847 — FCO T3 → Hotel Excelsior</span><span class="job-time">14:30</span></div>
+                                    <div class="dash-job"><div class="job-status pending"></div><span class="job-text">Transfer #1848 — Hotel Borghese → Termini</span><span class="job-time">16:00</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="tech-bar">
+        <div class="tech-scroll">
+            <div class="tech-item">🚗 <span>App do Condutor</span></div>
+            <div class="tech-item">🗺️ <span>Navegação Waze</span></div>
+            <div class="tech-item">📡 <span>WhatsApp Gateway</span></div>
+            <div class="tech-item">💳 <span>Stripe Payments</span></div>
+            <div class="tech-item">📍 <span>GPS Realtime</span></div>
+            <div class="tech-item">🏨 <span>Portal Operadores</span></div>
+            <div class="tech-item">📄 <span>Relatórios PDF Auto</span></div>
+            <div class="tech-item">📧 <span>Faturação Automática</span></div>
+            <div class="tech-item">🛡️ <span>Proteção No-Show</span></div>
+            <div class="tech-item">🚗 <span>App do Condutor</span></div>
+            <div class="tech-item">🗺️ <span>Navegação Waze</span></div>
+            <div class="tech-item">📡 <span>WhatsApp Gateway</span></div>
+            <div class="tech-item">💳 <span>Stripe Payments</span></div>
+            <div class="tech-item">📍 <span>GPS Realtime</span></div>
+            <div class="tech-item">🏨 <span>Portal Operadores</span></div>
+            <div class="tech-item">📄 <span>Relatórios PDF Auto</span></div>
+            <div class="tech-item">📧 <span>Faturação Automática</span></div>
+            <div class="tech-item">🛡️ <span>Proteção No-Show</span></div>
+        </div>
+    </div>
+
+    <section class="stats-section">
+        <div class="container">
+            <div class="stats-grid reveal">
+                <div class="stat-block"><div class="stat-num">100%</div><div class="stat-label">Operação Automatizada</div></div>
+                <div class="stat-block"><div class="stat-num">19:00</div><div class="stat-label">Agendas Enviadas Automaticamente</div></div>
+                <div class="stat-block"><div class="stat-num">0</div><div class="stat-label">Chamadas de Suporte com Tracking</div></div>
+                <div class="stat-block"><div class="stat-num">3</div><div class="stat-label">Portais Ligados num Ecossistema</div></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="bento" id="ecosystem">
+        <div class="container">
+            <div class="bento-header reveal">
+                <div class="section-label">O Ecossistema</div>
+                <h2 class="section-title">Não é um software.<br>É um <span class="gradient-text">ecossistema vivo.</span></h2>
+                <p class="section-sub" style="margin:0 auto;text-align:center">Cada peça comunica com as outras em tempo real. O gestor vê tudo. O condutor sabe o que fazer. O operador parceiro faz os pedidos sem te ligar.</p>
+            </div>
+
+            <div class="bento-grid">
+                <div class="bento-card bc-1 reveal">
+                    <div class="card-glow blue"></div>
+                    <div class="card-num blue">01 — Despacho Autónomo</div>
+                    <h3>A agenda chega ao motorista.<br>Sem o gestor tocar em nada.</h3>
+                    <p>O sistema analisa todos os serviços agendados, aloca os condutores ideais e às <strong style="color:var(--text)">19h em ponto</strong> dispara a agenda completa do dia seguinte para o WhatsApp de cada motorista — automaticamente, todos os dias.</p>
+                    <div class="wa-preview">
+                        <div class="wa-header"><span>💬</span> WhatsApp — João Silva</div>
+                        <div class="wa-msg">
+                            Boa tarde João 👋 A tua agenda de amanhã:<br>
+                            <span class="hl">08:30</span> — FCO T3 → Villa Borghese (4 pax)<br>
+                            <span class="hl">11:00</span> — Termini → FCO T1 (2 pax)<br>
+                            <span class="hl">15:45</span> — Hotel Excelsior → Ciampino
+                        </div>
+                        <div class="wa-time">Hoje, 19:00 ✓✓</div>
+                        <div class="wa-sent-badge"><div class="wa-sent-dot"></div> Enviado para 23 motoristas</div>
+                    </div>
+                </div>
+
+                <div class="bento-card bc-2 reveal reveal-delay-1">
+                    <div class="card-glow cyan"></div>
+                    <div class="card-num cyan">02 — App do Condutor</div>
+                    <h3>O motorista abre a app.<br>Inicia a viagem. Vai para o Waze.</h3>
+                    <p>Cada condutor tem acesso à sua própria app mobile. Vê a agenda, inicia a viagem com um toque e navega diretamente pelo Waze até ao destino. <strong style="color:var(--text)">Zero chamadas. Zero confusão. Zero erros.</strong></p>
+                    <div class="driver-app">
+                        <div class="driver-app-bar">
+                            <span class="driver-app-bar-title">SyncRide Driver</span>
+                            <span style="font-size:11px;color:#4ADE80;font-family:'JetBrains Mono',monospace">● Online</span>
+                        </div>
+                        <div class="driver-app-body">
+                            <div class="driver-trip">
+                                <div class="driver-trip-route">08:30 · <strong>FCO T3</strong> → <strong>Villa Borghese</strong> · 4 pax</div>
+                                <div class="driver-trip-actions">
+                                    <div class="driver-btn start">▶ Iniciar Viagem</div>
+                                    <div class="driver-btn waze">🗺 Waze</div>
+                                </div>
+                            </div>
+                            <div class="driver-trip">
+                                <div class="driver-trip-route">11:00 · <strong>Termini</strong> → <strong>FCO T1</strong> · 2 pax</div>
+                                <div class="driver-trip-actions">
+                                    <div class="driver-btn start" style="background:rgba(255,255,255,0.06);color:var(--text3)">Aguarda</div>
+                                    <div class="driver-btn waze" style="opacity:0.4">🗺 Waze</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bento-card bc-3 reveal reveal-delay-2">
+                    <div class="card-num" style="color:var(--cyan)">03 — Tracking & Links Públicos</div>
+                    <h3>A frota inteira.<br>Visível em tempo real.</h3>
+                    <p>Coordenadas GPS em tempo real no painel central. Links públicos de rastreio partilhados com clientes e agências. Volume de chamadas de suporte reduzido a <strong style="color:var(--text)">zero</strong>.</p>
+                    <div class="track-visual">
+                        <div class="track-line"></div>
+                        <div class="track-pulse"></div>
+                        <span class="track-city from">ORIGEM</span>
+                        <span class="track-city to">DESTINO</span>
+                    </div>
+                    <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+                        <span class="noshow-step-tag tag-blue">🔗 Link Público Ativo</span>
+                        <span class="noshow-step-tag tag-green">📍 GPS em Tempo Real</span>
+                    </div>
+                </div>
+
+                <div class="bento-card bc-4 reveal reveal-delay-3">
+                    <div class="card-glow green"></div>
+                    <div class="card-num green">04 — Relatórios & Faturação Automática</div>
+                    <h3>Viagem terminada.<br>Fatura fechada. Email enviado.</h3>
+                    <p>Assim que o transfer é concluído, o ecossistema gera PDFs operacionais, compila vouchers e envia e-mails de faturação diretamente para agências e clientes. <strong style="color:var(--text)">Sem intervenção humana. Sem atrasos.</strong></p>
+                    <div class="report-visual">
+                        <div class="report-doc">
+                            <div class="report-doc-header">📄 Relatório_1847.pdf</div>
+                            <div class="report-doc-line w80 blue"></div>
+                            <div class="report-doc-line w60"></div>
+                            <div class="report-doc-line w80"></div>
+                            <div class="report-doc-line w40 blue"></div>
+                        </div>
+                        <div class="report-arrow">→</div>
+                        <div class="report-doc">
+                            <div class="report-doc-header">✉️ agencia@xltours.com</div>
+                            <div class="report-doc-line w60"></div>
+                            <div class="report-doc-line w80 blue"></div>
+                            <div class="report-doc-line w40"></div>
+                            <div class="report-doc-line w60"></div>
+                        </div>
+                    </div>
+                    <div style="margin-top:16px;display:flex;gap:8px">
+                        <span class="noshow-step-tag tag-green">✓ Enviado automaticamente</span>
+                        <span class="noshow-step-tag tag-blue">0 intervenção humana</span>
+                    </div>
+                </div>
+
+                <div class="bento-card reveal" style="grid-column: span 6;">
+                    <div class="card-num" style="color:#F87171">05 — Proteção No-Show</div>
+                    <h3>Não apareceram? O dinheiro está protegido.</h3>
+                    <p>O motorista regista a falha na app com fotos e logs instantâneos. O sistema sinaliza imediatamente para cobrança incontestável.</p>
+                    <div class="noshow-visual" style="margin-top:16px">
+                        <div class="noshow-step"><span>📵</span><span class="noshow-step-text">Cliente não compareceu</span><span class="noshow-step-tag tag-red">No-Show</span></div>
+                        <div class="noshow-step"><span>📸</span><span class="noshow-step-text">Foto + timestamp registado na app</span><span class="noshow-step-tag tag-blue">Prova Criada</span></div>
+                        <div class="noshow-step"><span>💶</span><span class="noshow-step-text">Cobrança emitida à agência automaticamente</span><span class="noshow-step-tag tag-green">Pago</span></div>
+                    </div>
+                </div>
+
+                <div class="bento-card reveal reveal-delay-1" id="operadores" style="grid-column: span 6;">
+                    <div class="card-num orange">06 — Portal de Operadores</div>
+                    <h3>Hostels e agências fazem pedidos<br>diretamente no sistema.</h3>
+                    <p>Cada operador parceiro — hostel, agência, empresa — tem acesso ao seu próprio portal para submeter pedidos de transfer. Sem emails. Sem WhatsApps. Sem chamadas. <strong style="color:var(--text)">O pedido entra, o sistema trata do resto.</strong></p>
+                    <div class="ops-grid">
+                        <div class="ops-card">
+                            <div class="ops-card-header">
+                                <div class="ops-avatar h">H</div>
+                                <div><div class="ops-card-name">Hostel Bairro Alto</div><div class="ops-card-sub">Operador Parceiro</div></div>
+                            </div>
+                            <div class="ops-request">
+                                <div class="ops-req-label">Novo Pedido</div>
+                                Aeroporto LIS → Hostel · 4 pax · 22 Jun 09:00
+                            </div>
+                        </div>
+                        <div class="ops-card">
+                            <div class="ops-card-header">
+                                <div class="ops-avatar r">R</div>
+                                <div><div class="ops-card-name">Roma Transfers</div><div class="ops-card-sub">Agência Parceira</div></div>
+                            </div>
+                            <div class="ops-request">
+                                <div class="ops-req-label">Novo Pedido</div>
+                                FCO T1 → Hotel Excelsior · 2 pax · 22 Jun 14:30
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="roadmap" id="roadmap">
+        <div class="container">
+            <div class="roadmap-inner">
+                <div>
+                    <div class="section-label reveal">Em Expansão</div>
+                    <h2 class="section-title reveal">O futuro<br>que já está<br>a chegar.</h2>
+                    <p class="section-sub reveal">Construído para crescer contigo. Cada nova funcionalidade é mais valor entregue sem esforço da tua parte.</p>
+                </div>
+                <div class="roadmap-items">
+                    <div class="roadmap-item active reveal">
+                        <div class="ri-top">
+                            <h4>🧠 Importação Inteligente de Manifests</h4>
+                            <span class="ri-badge soon">Em Breve</span>
+                        </div>
+                        <p>Importação direta de listas de passageiros de agências, com classificação automática — bebés, crianças, adultos. O sistema alerta de imediato quando é necessária cadeira de segurança. Zero erros de alocação. Zero responsabilidade perdida.</p>
+                    </div>
+                    <div class="roadmap-item reveal reveal-delay-1">
+                        <div class="ri-top">
+                            <h4>💰 Módulo Financeiro Avançado</h4>
+                            <span class="ri-badge soon">Em Breve</span>
+                        </div>
+                        <p>Ledger de faturas automatizado, cálculo de margem de lucro por cliente e processamento automático de pagamentos a condutores. O financeiro a correr sem contabilista e sem erros.</p>
+                    </div>
+                    <div class="roadmap-item reveal reveal-delay-2">
+                        <div class="ri-top">
+                            <h4>🌍 Gestão de Múltiplas Empresas</h4>
+                            <span class="ri-badge soon">Em Breve</span>
+                        </div>
+                        <p>Geres mais do que uma empresa de transferes? Um único painel central, dados completamente separados, branding próprio para cada operação. Escala sem limite.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="pricing" id="pricing">
+        <div class="container">
+            <div class="pricing-header">
+                <div class="section-label reveal" style="justify-content:center">Preços</div>
+                <h2 class="section-title reveal">Preço justo.<br><span class="gradient-text">ROI imediato.</span></h2>
+                <p class="section-sub reveal" style="margin:0 auto;text-align:center">Menos do que um jantar de equipa por mês. Mais do que qualquer colaborador consegue entregar.</p>
+            </div>
+
+            <div class="toggle-wrap reveal">
+                <span class="toggle-label active" id="label-monthly">Mensal</span>
+                <div class="toggle-switch" id="billing-toggle" onclick="toggleBilling()">
+                    <div class="toggle-thumb"></div>
+                </div>
+                <span class="toggle-label" id="label-annual">Anual</span>
+                <span class="toggle-save">Poupa 20%</span>
+            </div>
+
+            <div class="pricing-grid">
+                <div class="plan reveal">
+                    <div class="plan-name">Starter</div>
+                    <div class="plan-price">
+                        <span class="plan-price-currency">€</span>
+                        <span class="plan-price-num" id="price-starter">35</span>
+                        <span class="plan-price-period">/mês</span>
+                    </div>
+                    <div class="plan-desc">Para começar a operar com automação real. Até 5 condutores e 2 operadores parceiros.</div>
+                    <ul class="plan-features">
+                        <li><span class="feat-check">✓</span> Até 5 condutores</li>
+                        <li><span class="feat-check">✓</span> Até 2 operadores parceiros</li>
+                        <li><span class="feat-check">✓</span> Agendas automáticas via WhatsApp</li>
+                        <li><span class="feat-check">✓</span> App mobile para condutores</li>
+                        <li><span class="feat-check">✓</span> Tracking GPS em tempo real</li>
+                        <li><span class="feat-check">✓</span> Relatórios PDF automáticos</li>
+                        <li><span class="feat-x">✗</span> <span style="color:var(--text3)">Links de tracking ilimitados</span></li>
+                        <li><span class="feat-x">✗</span> <span style="color:var(--text3)">Faturação automática às agências</span></li>
+                        <li><span class="feat-x">✗</span> <span style="color:var(--text3)">Proteção No-Show avançada</span></li>
+                    </ul>
+                    <a href="#checkout" class="plan-cta outline" onclick="selectPlan('starter')">Começar Grátis — 14 dias</a>
+                </div>
+
+                <div class="plan featured reveal reveal-delay-1">
+                    <div class="plan-badge">Recomendado</div>
+                    <div class="pro-nudge">
+                        <span class="pro-nudge-icon">💡</span>
+                        <div class="pro-nudge-text">Por <strong>€24/mês a mais</strong>, tens faturação automática, proteção no-show e condutores ilimitados — funcionalidades que se pagam na primeira viagem não cobrada.</div>
+                    </div>
+                    <div class="plan-name">Pro</div>
+                    <div class="plan-price">
+                        <span class="plan-price-currency">€</span>
+                        <span class="plan-price-num" id="price-pro">59</span>
+                        <span class="plan-price-period">/mês</span>
+                    </div>
+                    <div class="plan-desc">Para operadores que querem o ecossistema completo sem limitações.</div>
+                    <ul class="plan-features">
+                        <li><span class="feat-check">✓</span> Condutores ilimitados</li>
+                        <li><span class="feat-check">✓</span> Operadores parceiros ilimitados</li>
+                        <li><span class="feat-check">✓</span> Tudo do Starter</li>
+                        <li><span class="feat-check">✓</span> Faturação automática às agências</li>
+                        <li><span class="feat-check">✓</span> Proteção No-Show com evidência</li>
+                        <li><span class="feat-check">✓</span> Links de tracking públicos ilimitados</li>
+                        <li><span class="feat-check">✓</span> Importação de manifests de agências</li>
+                        <li><span class="feat-check">✓</span> Suporte prioritário 24/7</li>
+                    </ul>
+                    <a href="#checkout" class="plan-cta filled" onclick="selectPlan('pro')">Começar com Pro</a>
+                </div>
+
+                <div class="plan reveal reveal-delay-2">
+                    <div class="plan-name">Enterprise</div>
+                    <div class="plan-price">
+                        <span class="plan-price-num" style="font-size:36px; padding-top:8px;">Custom</span>
+                    </div>
+                    <div class="plan-desc">Para grupos com múltiplas operações e necessidades específicas.</div>
+                    <ul class="plan-features">
+                        <li><span class="feat-check">✓</span> Tudo do Pro</li>
+                        <li><span class="feat-check">✓</span> Múltiplas empresas num painel</li>
+                        <li><span class="feat-check">✓</span> Branding personalizado por operação</li>
+                        <li><span class="feat-check">✓</span> Módulo financeiro avançado</li>
+                        <li><span class="feat-check">✓</span> SLA garantido 99.9%</li>
+                        <li><span class="feat-check">✓</span> Onboarding dedicado</li>
+                        <li><span class="feat-check">✓</span> Contrato à medida</li>
+                    </ul>
+                    <a href="mailto:hello@syncride.app" class="plan-cta outline">Falar com a Equipa</a>
+                </div>
+            </div>
+
+            <div class="pricing-trust reveal">
+                <div class="trust-item"><span class="trust-item-icon">✓</span> Faturação segura via Stripe</div>
+                <div class="trust-item"><span class="trust-item-icon">✓</span> Cancele quando quiser</div>
+                <div class="trust-item"><span class="trust-item-icon">✓</span> 14 dias grátis, sem cartão</div>
+                <div class="trust-item"><span class="trust-item-icon">✓</span> Suporte 24/7 incluído</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="submit-section" id="checkout">
+        <div class="container">
+            <div class="form-wrap">
+                <div style="text-align:center; margin-bottom:40px;">
+                    <div class="section-label reveal" style="justify-content:center">Começar Agora</div>
+                    <h2 class="section-title reveal">14 dias grátis.<br><span class="gradient-text">Sem compromisso.</span></h2>
+                    <p class="section-sub reveal" style="margin:0 auto;text-align:center">Configura o teu ecossistema em minutos. Cancela quando quiseres.</p>
+                </div>
+
+                <div class="form-card reveal">
+                    <div id="form-body">
+                        <div id="step-account">
+                            <div class="form-title">Criar conta</div>
+                            <div class="form-sub">Começa o teu período gratuito de 14 dias — sem cartão agora.</div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">Nome</label>
+                                    <input type="text" class="form-input" placeholder="Tiago Silva" id="inp-name">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Empresa</label>
+                                    <input type="text" class="form-input" placeholder="Lisboa Transfers Lda." id="inp-company">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Email de trabalho</label>
+                                <input type="email" class="form-input" placeholder="tiago@empresa.com" id="inp-email">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Telefone / WhatsApp</label>
+                                <input type="tel" class="form-input" placeholder="+351 912 345 678" id="inp-phone">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Escolhe o teu plano</label>
+                                <div class="form-plan-select" id="plan-selector">
+                                    <div class="plan-opt" onclick="selectPlanForm('starter')" id="opt-starter">
+                                        <div class="plan-opt-name">Starter</div>
+                                        <div class="plan-opt-price" id="opt-price-starter">€35<span>/mês</span></div>
+                                    </div>
+                                    <div class="plan-opt featured-opt" onclick="selectPlanForm('pro')" id="opt-pro">
+                                        <div class="plan-opt-name" style="color:var(--blue-bright)">Pro ⭐</div>
+                                        <div class="plan-opt-price" id="opt-price-pro">€59<span>/mês</span></div>
+                                    </div>
+                                    <div class="plan-opt" onclick="selectPlanForm('enterprise')" id="opt-enterprise">
+                                        <div class="plan-opt-name">Enterprise</div>
+                                        <div class="plan-opt-price" style="font-size:16px; padding-top:3px;">Custom</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="form-submit" onclick="goToPayment()">
+                                Continuar para Pagamento →
+                            </button>
+                            <p class="form-footer-note">
+                                🔒 Os teus dados estão seguros · <span class="stripe-badge">⚡ Stripe</span>
+                            </p>
+                        </div>
+
+                        <div id="step-payment" style="display:none">
+                            <div style="display:flex; align-items:center; gap:12px; margin-bottom:28px;">
+                                <button onclick="backToAccount()" style="background:var(--surface); border:1px solid var(--border2); color:var(--text2); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:13px">← Voltar</button>
+                                <div>
+                                    <div class="form-title" style="font-size:22px">Informação de Pagamento</div>
+                                    <div id="payment-plan-label" style="font-size:13px; color:var(--blue-bright)">Plano Pro · €59/mês</div>
+                                </div>
+                            </div>
+
+                            <div id="trial-banner" style="background:rgba(74,222,128,0.08); border:1px solid rgba(74,222,128,0.25); border-radius:10px; padding:14px 18px; margin-bottom:24px; font-size:14px; color:#4ADE80; display:flex; align-items:center; gap:10px">
+                                <span style="font-size:18px">🎉</span>
+                                <span><strong>14 dias completamente grátis.</strong> Só cobramos depois do período de teste. Cancelas a qualquer momento.</span>
+                            </div>
+
+                            <div class="payment-section-title">
+                                <span class="lock">🔒</span> Dados do Cartão
+                                <div class="card-icons" style="margin: 0 0 0 auto;">
+                                    <span class="card-icon-pill">VISA</span>
+                                    <span class="card-icon-pill">MC</span>
+                                    <span class="card-icon-pill">AMEX</span>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Titular do Cartão</label>
+                                <input type="text" class="form-input" placeholder="Tiago Silva" id="inp-cardholder">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Número do Cartão</label>
+                                <div class="card-input-wrap">
+                                    <input type="text" class="form-input" placeholder="1234 5678 9012 3456" id="inp-cardnum" maxlength="19" oninput="formatCard(this)">
+                                    <input type="text" class="form-input" placeholder="MM/AA" id="inp-expiry" maxlength="5" oninput="formatExpiry(this)">
+                                    <input type="text" class="form-input" placeholder="CVV" id="inp-cvv" maxlength="4" style="border-radius:0 10px 10px 0;">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">País de Faturação</label>
+                                <select class="form-select" id="inp-country">
+                                    <option value="">Selecionar país...</option>
+                                    <option value="PT" selected>🇵🇹 Portugal</option>
+                                    <option value="ES">🇪🇸 Espanha</option>
+                                    <option value="FR">🇫🇷 França</option>
+                                    <option value="IT">🇮🇹 Itália</option>
+                                    <option value="GB">🇬🇧 Reino Unido</option>
+                                    <option value="DE">🇩🇪 Alemanha</option>
+                                    <option value="OTHER">Outro...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Código Postal</label>
+                                <input type="text" class="form-input" placeholder="1000-001" id="inp-postal" style="width:180px">
+                            </div>
+
+                            <hr class="form-divider">
+
+                            <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px; margin-bottom:24px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                    <span style="font-size:14px; color:var(--text2);" id="summary-plan-name">Plano Pro</span>
+                                    <span style="font-size:14px; color:var(--text2);" id="summary-plan-price">€59/mês</span>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                    <span style="font-size:14px; color:var(--text2);">Período de teste (14 dias)</span>
+                                    <span style="font-size:14px; color:#4ADE80;">Grátis</span>
+                                </div>
+                                <hr style="border:none; border-top:1px solid var(--border); margin:12px 0;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="font-size:15px; font-weight:700;">Cobrado hoje</span>
+                                    <span style="font-size:18px; font-weight:800; color:#4ADE80;">€0,00</span>
+                                </div>
+                                <div style="font-size:12px; color:var(--text3); margin-top:6px;" id="summary-after">Depois do teste: €59/mês — cancelável a qualquer momento</div>
+                            </div>
+
+                            <button class="form-submit" onclick="submitCheckout()" id="submit-btn">
+                                🚀 Começar os 14 Dias Grátis
+                            </button>
+                            <p class="form-footer-note">
+                                🔒 Pagamento processado com encriptação SSL · <span class="stripe-badge">⚡ Stripe</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="form-success" id="form-success">
+                        <div class="form-success-icon">🚀</div>
+                        <div class="form-success-title">Estás dentro, <span id="success-name">Tiago</span>!</div>
+                        <div class="form-success-sub">Verifica o teu email — enviámos as instruções de acesso ao SyncRide. O teu ecossistema está pronto a arrancar.</div>
+                        <div style="margin-top:28px; padding:16px 24px; background:rgba(74,222,128,0.08); border:1px solid rgba(74,222,128,0.25); border-radius:10px; font-size:14px; color:#4ADE80;">
+                            ✓ 14 dias grátis activos · Sem cobranças até <span id="trial-end"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta-final">
+        <div class="cta-final-glow"></div>
+        <div class="container">
+            <div class="section-label reveal" style="justify-content:center">Pronto para escalar?</div>
+            <h2 class="reveal"><span class="gradient-text">Elimina o caos.</span><br>Automatiza tudo.</h2>
+            <p class="reveal">A tua operação de transferes nunca mais vai precisar de uma folha de cálculo.</p>
+            <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;" class="reveal">
+                <a href="#checkout" class="btn-hero-primary">
+                    Começar Gratuitamente — 14 Dias
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1L13 7L7 13M1 7H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </a>
+                <a href="mailto:hello@syncride.app" class="btn-hero-secondary">Falar com a Equipa</a>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:24px;">
+                <div>
+                    <a href="#" style="display:flex; align-items:center; gap:10px; font-weight:700; font-size:18px; color:var(--text); text-decoration:none;">
+                        <div class="logo-icon" style="width:28px; height:28px; font-size:12px;">SR</div>
+                        SyncRide
+                    </a>
+                    <p style="font-size:13px; color:var(--text3); margin-top:6px;">O ecossistema definitivo para frotas e transferes.</p>
+                </div>
+                <div class="footer-links" style="display:flex; gap:32px;">
+                    <a href="#">Termos</a>
+                    <a href="#">Privacidade</a>
+                    <a href="#">Documentação</a>
+                    <a href="#">Status</a>
+                </div>
+                <div style="font-size:13px; color:var(--text3);">
+                    © 2026 SyncRide · Built by <span style="color:var(--blue-bright);">Tiago Silva</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Nav smooth scroll tracking
+        window.addEventListener('scroll', () => {
+            document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 20);
+        });
+
+        // Intersection Observer Core Logic
+        const revEls = document.querySelectorAll('.reveal');
+        const obs = new IntersectionObserver(entries => {
+            entries.forEach(e => {
+                if (e.isIntersecting) e.target.classList.add('visible');
+            });
+        }, { threshold: 0.1 });
+
+        revEls.forEach(el => obs.observe(el));
+        
+        setTimeout(() => {
+            document.querySelectorAll('.hero .reveal').forEach(el => el.classList.add('visible'));
+        }, 100);
+
+        // Billing Ledger Architecture
+        const prices = {
+            monthly: { starter: 35, pro: 59 },
+            annual: { starter: 28, pro: 47 }
+        };
+        let isAnnual = false;
+        let selectedPlan = 'pro';
+
+        function toggleBilling() {
+            isAnnual = !isAnnual;
+            const t = document.getElementById('billing-toggle');
+            t.classList.toggle('on', isAnnual);
+            document.getElementById('label-monthly').classList.toggle('active', !isAnnual);
+            document.getElementById('label-annual').classList.toggle('active', isAnnual);
+            
+            const p = isAnnual ? prices.annual : prices.monthly;
+            document.getElementById('price-starter').textContent = p.starter;
+            document.getElementById('price-pro').textContent = p.pro;
+            
+            document.getElementById('opt-price-starter').innerHTML = '€' + p.starter + '<span>/mês</span>';
+            document.getElementById('opt-price-pro').innerHTML = '€' + p.pro + '<span>/mês</span>';
+            
+            updatePaymentSummary();
+        }
+
+        function selectPlan(plan) {
+            selectedPlan = plan;
+            selectPlanForm(plan);
+            document.getElementById('checkout').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function selectPlanForm(plan) {
+            selectedPlan = plan;
+            ['starter', 'pro', 'enterprise'].forEach(p => {
+                const el = document.getElementById('opt-' + p);
+                if (el) el.classList.toggle('selected', p === plan);
+            });
+            updatePaymentSummary();
+        }
+
+        function updatePaymentSummary() {
+            const p = isAnnual ? prices.annual : prices.monthly;
+            const names = { starter: 'Starter', pro: 'Pro', enterprise: 'Enterprise' };
+            const planName = names[selectedPlan] || 'Pro';
+            
+            let priceStr = selectedPlan === 'enterprise' ? 'Custom' : '€' + (selectedPlan === 'starter' ? p.starter : p.pro) + '/mês';
+            
+            const lbl = document.getElementById('payment-plan-label');
+            const sn = document.getElementById('summary-plan-name');
+            const sp = document.getElementById('summary-plan-price');
+            const sa = document.getElementById('summary-after');
+            
+            if (lbl) lbl.textContent = 'Plano ' + planName + ' · ' + priceStr;
+            if (sn) sn.textContent = 'Plano ' + planName;
+            if (sp) sp.textContent = priceStr;
+            if (sa && selectedPlan !== 'enterprise') sa.textContent = 'Depois do teste: ' + priceStr + ' — cancelável a qualquer momento';
+        }
+
+        // Init Form Pipeline Default State
+        selectPlanForm('pro');
+
+        function goToPayment() {
+            const name = document.getElementById('inp-name').value.trim();
+            const email = document.getElementById('inp-email').value.trim();
+            if (!name || !email) {
+                alert('Por favor preenche o nome e email para continuar.');
+                return;
+            }
+            document.getElementById('step-account').style.display = 'none';
+            document.getElementById('step-payment').style.display = 'block';
+            updatePaymentSummary();
+        }
+
+        function backToAccount() {
+            document.getElementById('step-payment').style.display = 'none';
+            document.getElementById('step-account').style.display = 'block';
+        }
+
+        // Card Sanitize Rules
+        function formatCard(el) {
+            let v = el.value.replace(/\D/g, '').substring(0, 16);
+            el.value = v.replace(/(.{4})/g, '$1 ').trim();
+        }
+
+        function formatExpiry(el) {
+            let v = el.value.replace(/\D/g, '');
+            if (v.length >= 2) v = v.substring(0, 2) + '/' + v.substring(2, 4);
+            el.value = v;
+        }
+
+        // Submission Simulation
+        function submitCheckout() {
+            const cardholder = document.getElementById('inp-cardholder').value.trim();
+            const cardnum = document.getElementById('inp-cardnum').value.trim();
+            const expiry = document.getElementById('inp-expiry').value.trim();
+            const cvv = document.getElementById('inp-cvv').value.trim();
+            
+            if (!cardholder || cardnum.replace(/\s/g, '').length < 16 || expiry.length < 5 || cvv.length < 3) {
+                alert('Por favor preenche todos os dados do cartão corretamente.');
+                return;
+            }
+            
+            const btn = document.getElementById('submit-btn');
+            btn.textContent = 'A processar...';
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            
+            setTimeout(() => {
+                document.getElementById('form-body').style.display = 'none';
+                const succ = document.getElementById('form-success');
+                succ.style.display = 'block';
+                
+                const nameVal = document.getElementById('inp-name').value.trim().split(' ')[0];
+                document.getElementById('success-name').textContent = nameVal || 'bem-vindo';
+                
+                const trialEnd = new Date();
+                trialEnd.setDate(trialEnd.getDate() + 14);
+                document.getElementById('trial-end').textContent = trialEnd.toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric' });
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

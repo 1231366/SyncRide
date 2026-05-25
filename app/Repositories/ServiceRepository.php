@@ -443,4 +443,196 @@ final class ServiceRepository
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
     }
+
+    // ── Driver-stats page helpers ─────────────────────────────────────────
+
+    /** KPI cards for a single driver across a date range. */
+    public function driverStats(int $driverId, string $startDate, string $endDate): array
+    {
+        $stmt = $this->db->prepare('
+            SELECT
+                (SELECT COUNT(*) FROM Services_Rides sr
+                    JOIN Services s ON sr.RideID = s.ID
+                    WHERE sr.UserID = :uid1 AND s.serviceDate = CURDATE()) AS trips_today,
+                (SELECT AVG(s.driver_rating)
+                    FROM Services s JOIN Services_Rides sr ON s.ID = sr.RideID
+                    WHERE sr.UserID = :uid2 AND s.driver_rating IS NOT NULL) AS avg_rating,
+                (SELECT COUNT(*) FROM Services_Rides sr
+                    JOIN Services s ON sr.RideID = s.ID
+                    WHERE sr.UserID = :uid3 AND s.serviceDate BETWEEN :from1 AND :to1) AS trips_period,
+                (SELECT COUNT(*) FROM Services_Rides sr
+                    WHERE sr.UserID = :uid4) AS trips_total
+        ');
+        $stmt->execute([
+            'uid1' => $driverId, 'uid2' => $driverId,
+            'uid3' => $driverId, 'uid4' => $driverId,
+            'from1' => $startDate, 'to1' => $endDate,
+        ]);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    /** @return array<int,int> 12-element array indexed 0–11 (Jan–Dec). */
+    public function driverMonthly(int $driverId, string $startDate, string $endDate): array
+    {
+        $stmt = $this->db->prepare('
+            SELECT MONTH(s.serviceDate) AS m, COUNT(sr.associationID) AS total
+            FROM Services_Rides sr
+            JOIN Services s ON sr.RideID = s.ID
+            WHERE sr.UserID = :uid AND s.serviceDate BETWEEN :from AND :to
+            GROUP BY m
+        ');
+        $stmt->execute(['uid' => $driverId, 'from' => $startDate, 'to' => $endDate]);
+        $result = array_fill(0, 12, 0);
+        foreach ($stmt->fetchAll(PDO::FETCH_KEY_PAIR) as $month => $total) {
+            $result[(int) $month - 1] = (int) $total;
+        }
+        return $result;
+    }
+
+    /** @return array<array<string,mixed>> */
+    public function driverRecentRides(int $driverId, string $startDate, string $endDate, int $limit = 10): array
+    {
+        $limit = max(1, min(100, $limit));
+        $stmt  = $this->db->prepare("
+            SELECT s.ID, s.serviceDate, s.serviceStartTime,
+                   s.serviceStartPoint, s.serviceTargetPoint
+            FROM Services s
+            JOIN Services_Rides sr ON s.ID = sr.RideID
+            WHERE sr.UserID = :uid AND s.serviceDate BETWEEN :from AND :to
+            ORDER BY s.serviceDate DESC
+            LIMIT {$limit}
+        ");
+        $stmt->execute(['uid' => $driverId, 'from' => $startDate, 'to' => $endDate]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** KPI cards for a single partner. */
+    public function partnerStats(int $partnerId, string $startDate, string $endDate): array
+    {
+        $stmt = $this->db->prepare('
+            SELECT
+                (SELECT COUNT(*) FROM Services WHERE partner_id = :pid1 AND serviceDate = CURDATE()) AS trips_today,
+                (SELECT COUNT(*) FROM Services WHERE partner_id = :pid2 AND serviceDate BETWEEN :from AND :to) AS trips_period,
+                (SELECT COUNT(*) FROM Services WHERE partner_id = :pid3) AS trips_total
+        ');
+        $stmt->execute([
+            'pid1' => $partnerId, 'pid2' => $partnerId, 'pid3' => $partnerId,
+            'from' => $startDate, 'to' => $endDate,
+        ]);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    /** @return array<int,int> 12-element array. */
+    public function partnerMonthly(int $partnerId, string $startDate, string $endDate): array
+    {
+        $stmt = $this->db->prepare('
+            SELECT MONTH(serviceDate) AS m, COUNT(ID) AS total
+            FROM Services WHERE partner_id = :pid AND serviceDate BETWEEN :from AND :to
+            GROUP BY m
+        ');
+        $stmt->execute(['pid' => $partnerId, 'from' => $startDate, 'to' => $endDate]);
+        $result = array_fill(0, 12, 0);
+        foreach ($stmt->fetchAll(PDO::FETCH_KEY_PAIR) as $month => $total) {
+            $result[(int) $month - 1] = (int) $total;
+        }
+        return $result;
+    }
+
+    /** @return array<array<string,mixed>> */
+    public function partnerRecentRides(int $partnerId, string $startDate, string $endDate, int $limit = 10): array
+    {
+        $limit = max(1, min(100, $limit));
+        $stmt  = $this->db->prepare("
+            SELECT ID, serviceDate, serviceStartTime,
+                   serviceStartPoint, serviceTargetPoint
+            FROM Services
+            WHERE partner_id = :pid AND serviceDate BETWEEN :from AND :to
+            ORDER BY serviceDate DESC
+            LIMIT {$limit}
+        ");
+        $stmt->execute(['pid' => $partnerId, 'from' => $startDate, 'to' => $endDate]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** Global KPI cards for the overview (no driver/partner filter). */
+    public function overviewStats(string $startDate, string $endDate): array
+    {
+        $driverCount  = (int) $this->db->query('SELECT COUNT(*) FROM Users WHERE role = 2')->fetchColumn();
+        $todayCount   = (int) $this->db->query("SELECT COUNT(*) FROM Services WHERE serviceDate = CURDATE()")->fetchColumn();
+        $stmt         = $this->db->prepare('SELECT COUNT(*) FROM Services WHERE serviceDate BETWEEN :from AND :to');
+        $stmt->execute(['from' => $startDate, 'to' => $endDate]);
+        $periodCount  = (int) $stmt->fetchColumn();
+        $totalCount   = (int) $this->db->query('SELECT COUNT(*) FROM Services')->fetchColumn();
+
+        return compact('driverCount', 'todayCount', 'periodCount', 'totalCount');
+    }
+
+    /** @return array<int,int> 12-element array for the overview monthly chart. */
+    public function monthlyByPeriod(string $startDate, string $endDate): array
+    {
+        $stmt = $this->db->prepare('
+            SELECT MONTH(serviceDate) AS m, COUNT(ID) AS total
+            FROM Services WHERE serviceDate BETWEEN :from AND :to
+            GROUP BY m
+        ');
+        $stmt->execute(['from' => $startDate, 'to' => $endDate]);
+        $result = array_fill(0, 12, 0);
+        foreach ($stmt->fetchAll(PDO::FETCH_KEY_PAIR) as $month => $total) {
+            $result[(int) $month - 1] = (int) $total;
+        }
+        return $result;
+    }
+
+    /**
+     * Top drivers by ride count in period, including avg rating.
+     * @return array<array{id:int,name:string,trips_period:int,avg_rating:float|null}>
+     */
+    public function driverLeaderboard(string $startDate, string $endDate, int $limit = 5): array
+    {
+        $limit = max(1, min(50, $limit));
+        $stmt  = $this->db->prepare("
+            SELECT u.id, u.name,
+                (SELECT COUNT(*) FROM Services_Rides sr
+                    JOIN Services s ON sr.RideID = s.ID
+                    WHERE sr.UserID = u.id AND s.serviceDate BETWEEN :from1 AND :to1) AS trips_period,
+                (SELECT AVG(s.driver_rating)
+                    FROM Services s JOIN Services_Rides sr ON s.ID = sr.RideID
+                    WHERE sr.UserID = u.id AND s.driver_rating IS NOT NULL) AS avg_rating
+            FROM Users u
+            WHERE u.role = 2
+            ORDER BY trips_period DESC
+            LIMIT {$limit}
+        ");
+        $stmt->execute(['from1' => $startDate, 'to1' => $endDate]);
+        return array_map(static fn(array $r): array => [
+            'id'           => (int) $r['id'],
+            'name'         => (string) $r['name'],
+            'trips_period' => (int) $r['trips_period'],
+            'avg_rating'   => $r['avg_rating'] !== null ? (float) $r['avg_rating'] : null,
+        ], $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    /**
+     * Top partners by ride count in period.
+     * @return array<array{id:int,name:string,trips_period:int}>
+     */
+    public function partnerLeaderboard(string $startDate, string $endDate, int $limit = 5): array
+    {
+        $limit = max(1, min(50, $limit));
+        $stmt  = $this->db->prepare("
+            SELECT u.id, u.name,
+                (SELECT COUNT(*) FROM Services s WHERE s.partner_id = u.id
+                    AND s.serviceDate BETWEEN :from AND :to) AS trips_period
+            FROM Users u
+            WHERE u.role = 3
+            ORDER BY trips_period DESC
+            LIMIT {$limit}
+        ");
+        $stmt->execute(['from' => $startDate, 'to' => $endDate]);
+        return array_map(static fn(array $r): array => [
+            'id'           => (int) $r['id'],
+            'name'         => (string) $r['name'],
+            'trips_period' => (int) $r['trips_period'],
+        ], $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
 }

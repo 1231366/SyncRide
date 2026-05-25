@@ -42,6 +42,30 @@ final class RidesController extends BaseController
         $this->json(['data' => $data]);
     }
 
+    /** POST /partner/api-update-ride.php */
+    public function update(): never
+    {
+        $partnerId = (int) ($_SESSION['user_id'] ?? 0);
+        $rideId    = (int) ($_POST['ride_id'] ?? 0);
+
+        if ($rideId <= 0) {
+            $this->json(['success' => false, 'error' => 'Missing ride id.'], 422);
+        }
+
+        $date = trim((string) ($_POST['date'] ?? ''));
+        $time = trim((string) ($_POST['time'] ?? ''));
+        if ($date === '' || $time === '') {
+            $this->json(['success' => false, 'error' => 'Date and time are required.'], 422);
+        }
+
+        $ok = $this->services->updateForPartner($partnerId, $rideId, $_POST);
+        if (!$ok) {
+            $this->json(['success' => false, 'error' => 'Update not allowed: ride already in progress or not yours.'], 403);
+        }
+
+        $this->json(['success' => true]);
+    }
+
     /** POST /partner/api-create-ride.php */
     public function store(): never
     {

@@ -68,6 +68,8 @@ final class RidesController extends BaseController
             'serviceStartTime'   => $time,
             'paxADT'             => (int) $this->input('paxADT', 0),
             'paxCHD'             => (int) $this->input('paxCHD', 0),
+            'NumCriancas'        => (int) $this->input('NumCriancas', 0),
+            'NumBebes'           => (int) $this->input('NumBebes', 0),
             'serviceStartPoint'  => $this->input('serviceStartPoint'),
             'serviceTargetPoint' => $this->input('serviceTargetPoint'),
             'serviceType'        => (int) $this->input('serviceType', 1),
@@ -114,6 +116,8 @@ final class RidesController extends BaseController
             'serviceTargetPoint' => $this->input('edit_destination'),
             'paxADT'             => (int) $this->input('edit_paxADT', 0),
             'paxCHD'             => (int) $this->input('edit_paxCHD', 0),
+            'NumCriancas'        => (int) $this->input('edit_NumCriancas', 0),
+            'NumBebes'           => (int) $this->input('edit_NumBebes', 0),
             'FlightNumber'       => $this->input('edit_flightNumber') ?: null,
             'NomeCliente'        => $this->input('edit_clientName')   ?: null,
             'ClientNumber'       => $this->input('edit_clientNumber') ?: null,
@@ -250,6 +254,8 @@ final class RidesController extends BaseController
                 : $this->actionsNormal($row),
             'client_name'   => htmlspecialchars((string) ($row['NomeCliente']   ?? '')),
             'flight_number' => htmlspecialchars((string) ($row['FlightNumber']  ?? '')),
+            'num_criancas'  => (int) ($row['NumCriancas'] ?? 0),
+            'num_bebes'     => (int) ($row['NumBebes']    ?? 0),
         ];
     }
 
@@ -279,12 +285,13 @@ final class RidesController extends BaseController
         $assignBtn  = $row['driverName'] ? 'btn-info'             : 'btn-primary';
 
         $editCall = sprintf(
-            "editTravel(%d,'%sT%s','%s','%s','%s',%d,%d,'%s','%s','%s',%d,'%s')",
+            "editTravel(%d,'%sT%s','%s','%s','%s',%d,%d,%d,%d,'%s','%s','%s',%d,'%s')",
             $id,
             $row['serviceDate'],
             substr((string) $row['serviceStartTime'], 0, 5),
             $driverName, $pickup, $dropoff,
             (int) $row['paxADT'], (int) $row['paxCHD'],
+            (int) ($row['NumCriancas'] ?? 0), (int) ($row['NumBebes'] ?? 0),
             $flight, $client, $phone,
             (int) $row['serviceType'],
             $price

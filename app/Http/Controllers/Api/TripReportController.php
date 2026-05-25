@@ -7,17 +7,20 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\BaseController;
 use App\Repositories\LogRepository;
 use App\Repositories\ServiceRepository;
+use App\Repositories\TenantSettingsRepository;
 use PHPMailer\PHPMailer\PHPMailer;
 
 final class TripReportController extends BaseController
 {
-    private ServiceRepository $services;
-    private LogRepository     $logs;
+    private ServiceRepository        $services;
+    private LogRepository            $logs;
+    private TenantSettingsRepository $tenantSettings;
 
     public function __construct()
     {
-        $this->services = ServiceRepository::default();
-        $this->logs     = LogRepository::default();
+        $this->services        = ServiceRepository::default();
+        $this->logs            = LogRepository::default();
+        $this->tenantSettings  = TenantSettingsRepository::default();
     }
 
     /** GET /api/final-trip-report.php?ride_id=N */
@@ -25,6 +28,10 @@ final class TripReportController extends BaseController
     {
         header('Content-Type: application/json');
         ini_set('display_errors', '0');
+
+        if (!$this->tenantSettings->tripReportEnabled()) {
+            $this->json(['success' => false, 'message' => 'Trip reports are disabled for this tenant.']);
+        }
 
         $rideId = (int) ($_GET['ride_id'] ?? 0);
         if ($rideId === 0) {
@@ -86,6 +93,12 @@ final class TripReportController extends BaseController
             $mail->addAddress((string) $ride['partner_email'], (string) $ride['partner_name']);
         } else {
             $mail->addAddress('transfers.pt@mtsglobe.com');
+        }
+
+        foreach ($this->tenantSettings->tripReportRecipients() as $ccEmail) {
+            if (filter_var($ccEmail, FILTER_VALIDATE_EMAIL)) {
+                $mail->addCC($ccEmail);
+            }
         }
 
         $mail->isHTML(true);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\View;
+use App\Repositories\TenantSettingsRepository;
 use App\Support\Database;
 use App\Support\Session;
 use PDO;
@@ -27,10 +28,19 @@ abstract class BaseController
     /**
      * Render a template, automatically wrapped in the layout the
      * template declared (or unwrapped if it declared none).
+     * Injects ui_theme globally so every layout can read it.
      */
     protected function view(string $template, array $data = []): void
     {
+        $data['ui_theme'] ??= $this->settings()->uiTheme();
         View::render($template, $data);
+    }
+
+    /** Lazily-instantiated TenantSettings repo (one instance per request). */
+    protected function settings(): TenantSettingsRepository
+    {
+        static $repo = null;
+        return $repo ??= TenantSettingsRepository::default();
     }
 
     /**

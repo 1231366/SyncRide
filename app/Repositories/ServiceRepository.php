@@ -156,10 +156,11 @@ final class ServiceRepository
         $cid  = isset($data['company_id']) ? (int) $data['company_id'] : $this->companyId;
         $stmt = $this->db->prepare('
             INSERT INTO Services
-                (serviceDate, serviceStartTime, paxADT, paxCHD, serviceStartPoint, serviceTargetPoint,
+                (serviceDate, serviceStartTime, paxADT, paxCHD, NumCriancas, NumBebes,
+                 serviceStartPoint, serviceTargetPoint,
                  FlightNumber, NomeCliente, ClientNumber, serviceType, partner_id, total_price, status_pedido, company_id)
             VALUES
-                (:date, :time, :adults, :children, :pickup, :dropoff,
+                (:date, :time, :adults, :children, :ncr, :nbe, :pickup, :dropoff,
                  :flight, :client, :phone, :type, :partner, :price, :approval, :company_id)
         ');
         $stmt->execute([
@@ -167,6 +168,8 @@ final class ServiceRepository
             'time'       => $data['serviceStartTime'],
             'adults'     => (int) $data['paxADT'],
             'children'   => (int) $data['paxCHD'],
+            'ncr'        => (int) ($data['NumCriancas'] ?? 0),
+            'nbe'        => (int) ($data['NumBebes']    ?? 0),
             'pickup'     => $data['serviceStartPoint'],
             'dropoff'    => $data['serviceTargetPoint'],
             'flight'     => $data['FlightNumber']  ?? null,
@@ -380,6 +383,7 @@ final class ServiceRepository
             UPDATE Services
             SET serviceDate=:date, serviceStartTime=:time, serviceStartPoint=:pickup,
                 serviceTargetPoint=:dropoff, paxADT=:adults, paxCHD=:children,
+                NumCriancas=:ncr, NumBebes=:nbe,
                 FlightNumber=:flight, NomeCliente=:client, ClientNumber=:phone, total_price=:price
             WHERE ID = :id
         ')->execute([
@@ -389,6 +393,8 @@ final class ServiceRepository
             'dropoff'  => $data['serviceTargetPoint'],
             'adults'   => (int) ($data['paxADT'] ?? 0),
             'children' => (int) ($data['paxCHD'] ?? 0),
+            'ncr'      => (int) ($data['NumCriancas'] ?? 0),
+            'nbe'      => (int) ($data['NumBebes']    ?? 0),
             'flight'   => $data['FlightNumber'] ?? null,
             'client'   => $data['NomeCliente']  ?? null,
             'phone'    => $data['ClientNumber'] ?? null,
@@ -649,7 +655,8 @@ final class ServiceRepository
     {
         $sql    = 'SELECT s.ID AS ServiceID, s.serviceDate, s.serviceStartTime,
                           s.serviceStartPoint, s.serviceTargetPoint,
-                          s.paxADT, s.paxCHD, s.FlightNumber, s.NomeCliente,
+                          s.paxADT, s.paxCHD, s.NumCriancas, s.NumBebes,
+                          s.FlightNumber, s.NomeCliente,
                           s.ClientNumber, s.serviceType, s.total_price, s.has_key,
                           s.partner_id, COALESCE(s.status_id, 0) AS status_id,
                           u.name AS AgencyName, u.phone AS AgencyPhone
@@ -779,6 +786,46 @@ final class ServiceRepository
             'company_id'   => $cid,
         ]);
         return (int) $this->db->lastInsertId();
+    }
+
+    /**
+     * Update a partner-owned ride only if it belongs to the partner and the
+     * driver has not yet started the trip (status_id = 0 or NULL).
+     * Returns true on success, false if the ownership/state guard rejects it.
+     */
+    public function updateForPartner(int $partnerId, int $rideId, array $data): bool
+    {
+        $check = $this->db->prepare(
+            'SELECT COUNT(*) FROM Services WHERE ID = :id AND partner_id = :pid AND COALESCE(status_id, 0) = 0'
+        );
+        $check->execute(['id' => $rideId, 'pid' => $partnerId]);
+        if ((int) $check->fetchColumn() === 0) {
+            return false;
+        }
+
+        $this->db->prepare('
+            UPDATE Services
+            SET serviceDate=:date, serviceStartTime=:time,
+                serviceStartPoint=:pickup, serviceTargetPoint=:dropoff,
+                paxADT=:adt, paxCHD=:chd,
+                FlightNumber=:flight, NomeCliente=:client,
+                ClientNumber=:phone
+            WHERE ID = :id AND partner_id = :pid AND COALESCE(status_id, 0) = 0
+        ')->execute([
+            'date'   => $data['date'],
+            'time'   => $data['time'],
+            'pickup' => $data['pickup'],
+            'dropoff'=> $data['dropoff'],
+            'adt'    => (int) ($data['pax_adt']      ?? 1),
+            'chd'    => (int) ($data['pax_chd']      ?? 0),
+            'flight' => $data['flight']       ?? '',
+            'client' => $data['client_name']  ?? '',
+            'phone'  => $data['client_phone'] ?? '',
+            'id'     => $rideId,
+            'pid'    => $partnerId,
+        ]);
+
+        return true;
     }
 
     // ── AI context helpers ─────────────────────────────────────────────────

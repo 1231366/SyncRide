@@ -224,6 +224,10 @@ $userPhotoSrc = isset($_SESSION['profile_photo_path']) && $_SESSION['profile_pho
                             </div>
                         </div>
                         <div class="d-flex flex-wrap gap-2 mt-2" id="modalBadgesContainer"></div>
+                        <div id="modalPassengerAlert" style="display:none;background:rgba(234,179,8,0.12);border:1px solid rgba(234,179,8,0.35);" class="mt-2 p-2 rounded-3 d-flex align-items-center gap-2">
+                            <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
+                            <span id="modalPassengerAlertText" class="small fw-semibold text-warning"></span>
+                        </div>
                         <div id="whatsappContainer" style="display:none;"></div>
                     </div>
                 </div>
@@ -466,7 +470,7 @@ function renderList(data) {
             if (v.AgencyName) extraBadges += `<span class="ride-badge bg-info bg-opacity-10 text-info border border-info border-opacity-25"><i class="bi bi-building-fill"></i> ${v.AgencyName}</span>`;
             extraBadges += `<span class="ride-badge ${v.has_key == 1 ? 'bg-success bg-opacity-10 text-success border border-success border-opacity-25' : 'bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25'}"><i class="bi bi-key-fill"></i> ${v.has_key == 1 ? 'Key' : 'No Key'}</span>`;
         }
-        el.innerHTML += `<div class="ride-card open-modal" data-id="${v.ServiceID}" data-start="${v.serviceStartPoint}" data-end="${v.serviceTargetPoint}" data-time="${v.serviceStartTime.substr(0,5)}" data-date="${v.serviceDate}" data-paxadt="${v.paxADT||0}" data-paxchd="${v.paxCHD||0}" data-flight="${v.FlightNumber||''}" data-client="${v.NomeCliente||''}" data-clientnumber="${v.ClientNumber||''}" data-price="${v.total_price||''}" data-haskey="${v.has_key||0}" data-partnerid="${v.partner_id||0}" data-agencyname="${v.AgencyName||''}" data-agencyphone="${v.AgencyPhone||''}">
+        el.innerHTML += `<div class="ride-card open-modal" data-id="${v.ServiceID}" data-start="${v.serviceStartPoint}" data-end="${v.serviceTargetPoint}" data-time="${v.serviceStartTime.substr(0,5)}" data-date="${v.serviceDate}" data-paxadt="${v.paxADT||0}" data-paxchd="${v.paxCHD||0}" data-numcriancas="${v.NumCriancas||0}" data-numbebes="${v.NumBebes||0}" data-flight="${v.FlightNumber||''}" data-client="${v.NomeCliente||''}" data-clientnumber="${v.ClientNumber||''}" data-price="${v.total_price||''}" data-haskey="${v.has_key||0}" data-partnerid="${v.partner_id||0}" data-agencyname="${v.AgencyName||''}" data-agencyphone="${v.AgencyPhone||''}">
             <div class="ride-header"><div class="ride-time">${v.serviceStartTime.substr(0,5)}</div><div class="ride-badges-container"><span class="ride-badge ${badgeClass}">${isPriv?'Private':'Shared'}</span>${extraBadges}</div></div>
             <div class="card-timeline"><div class="ct-point"><div class="ct-dot dot-pickup"></div><span class="ct-text">${v.serviceStartPoint}</span></div><div class="ct-point"><div class="ct-dot dot-dropoff"></div><span class="ct-text">${v.serviceTargetPoint}</span></div></div>
             ${v.total_price > 0 ? `<div class="price-tag"><i class="bi bi-cash"></i> ${parseFloat(v.total_price).toFixed(2)}€</div>` : ''}</div>`;
@@ -499,6 +503,16 @@ function renderList(data) {
             const tl = document.getElementById('trackFlightLink');
             if (d.flight && d.flight.trim()) { tl.style.display = 'inline-flex'; document.getElementById('modalFlight').textContent = d.flight; tl.href = 'https://www.flightradar24.com/data/flights/' + d.flight.replace(/\s/g,''); }
             else { tl.style.display = 'none'; }
+            const passengerAlert = document.getElementById('modalPassengerAlert');
+            const criancas = parseInt(d.numcriancas || 0, 10);
+            const bebes    = parseInt(d.numbebes    || 0, 10);
+            if (criancas > 0 || bebes > 0) {
+                const parts = [];
+                if (criancas > 0) parts.push(`${criancas} criança${criancas > 1 ? 's' : ''}`);
+                if (bebes    > 0) parts.push(`${bebes} bebé${bebes > 1 ? 's' : ''}`);
+                document.getElementById('modalPassengerAlertText').textContent = parts.join(' · ');
+                passengerAlert.style.display = 'flex';
+            } else { passengerAlert.style.display = 'none'; }
             updateButtonUI(localTripStatus[d.id]); new bootstrap.Modal(m).show();
         });
     });

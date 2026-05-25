@@ -53,15 +53,17 @@ final class XmlVoucherImporter
         ');
         $insertWithId = $this->db->prepare('
             INSERT INTO Services (ID, serviceDate, serviceStartTime, paxADT, paxCHD,
+                                  NumCriancas, NumBebes,
                                   serviceStartPoint, serviceTargetPoint, FlightNumber,
                                   NomeCliente, ClientNumber, serviceType, company_id)
-            VALUES (:ID, :sd, :st, :pa, :pc, :sp, :tp, :fn, :nc, :cn, :stype, :cid)
+            VALUES (:ID, :sd, :st, :pa, :pc, :ncr, :nbe, :sp, :tp, :fn, :nc, :cn, :stype, :cid)
         ');
         $insertWithoutId = $this->db->prepare('
             INSERT INTO Services (serviceDate, serviceStartTime, paxADT, paxCHD,
+                                  NumCriancas, NumBebes,
                                   serviceStartPoint, serviceTargetPoint, FlightNumber,
                                   NomeCliente, ClientNumber, serviceType, company_id)
-            VALUES (:sd, :st, :pa, :pc, :sp, :tp, :fn, :nc, :cn, :stype, :cid)
+            VALUES (:sd, :st, :pa, :pc, :ncr, :nbe, :sp, :tp, :fn, :nc, :cn, :stype, :cid)
         ');
 
         $inserted = 0;
@@ -81,15 +83,18 @@ final class XmlVoucherImporter
                     continue;
                 }
 
-                $pickup  = $this->resolvePickup($group, $item);
-                $dropoff = $this->resolveDropoff($group, $item);
-                $phone   = $this->extractPhone((string) ($item->remarks ?? ''));
+                $pickup   = $this->resolvePickup($group, $item);
+                $dropoff  = $this->resolveDropoff($group, $item);
+                $remarks  = (string) ($item->remarks ?? '');
+                $phone    = $this->extractPhone($remarks);
 
                 $params = [
                     ':sd'    => $serviceDate,
                     ':st'    => $serviceTime,
                     ':pa'    => (int) $item->paxADT,
                     ':pc'    => (int) $item->paxCHD,
+                    ':ncr'   => $this->extractNumCriancas($remarks),
+                    ':nbe'   => $this->extractNumBebes($remarks),
                     ':sp'    => $pickup,
                     ':tp'    => $dropoff,
                     ':fn'    => $flight,
@@ -157,5 +162,35 @@ final class XmlVoucherImporter
             return trim($m[1]);
         }
         return 'N/A';
+    }
+
+    /**
+     * Extracts child count from the remarks free-text.
+     * Matches patterns like "2 criança", "2 crianças", "2 chd", "2 child", "2 children".
+     */
+    private function extractNumCriancas(string $remarks): int
+    {
+        if (preg_match('/(\d+)\s*crian[çc]a/ui', $remarks, $m)) {
+            return (int) $m[1];
+        }
+        if (preg_match('/(\d+)\s*(?:chd|child(?:ren)?)/ui', $remarks, $m)) {
+            return (int) $m[1];
+        }
+        return 0;
+    }
+
+    /**
+     * Extracts infant count from the remarks free-text.
+     * Matches patterns like "1 bebé", "1 bebe", "1 infant", "1 baby", "1 babies".
+     */
+    private function extractNumBebes(string $remarks): int
+    {
+        if (preg_match('/(\d+)\s*beb[eé]/ui', $remarks, $m)) {
+            return (int) $m[1];
+        }
+        if (preg_match('/(\d+)\s*(?:infant|bab(?:y|ies))/ui', $remarks, $m)) {
+            return (int) $m[1];
+        }
+        return 0;
     }
 }

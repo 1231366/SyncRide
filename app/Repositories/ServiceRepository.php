@@ -6,6 +6,7 @@ namespace App\Repositories;
 
 use App\Models\Service;
 use App\Support\Database;
+use App\Support\Session;
 use PDO;
 use RuntimeException;
 
@@ -13,18 +14,21 @@ use RuntimeException;
  * Data-access layer for the `Services` table and its join with
  * `Services_Rides` (driver assignment).
  *
- * Method names are English; SQL keeps the production column names
- * (NomeCliente, FlightNumber, serviceDate, …).
+ * Every listing/count method is automatically scoped to the company
+ * that is stored in the active session. Super-admin (companyId=null)
+ * sees all companies. Find-by-ID methods are intentionally unscoped.
  */
 final class ServiceRepository
 {
-    public function __construct(private readonly PDO $db)
-    {
+    public function __construct(
+        private readonly PDO  $db,
+        private readonly ?int $companyId = null,
+    ) {
     }
 
     public static function default(): self
     {
-        return new self(Database::connection());
+        return new self(Database::connection(), Session::companyId());
     }
 
     public function find(int $id): ?Service
@@ -38,53 +42,41 @@ final class ServiceRepository
     /** @return array<Service> */
     public function byDate(string $date): array
     {
-        $stmt = $this->db->prepare('
-            SELECT * FROM Services
-            WHERE serviceDate = :date
-            ORDER BY serviceStartTime
-        ');
-        $stmt->execute(['date' => $date]);
+        $sql  = 'SELECT * FROM Services WHERE serviceDate = :date ' . $this->sc('AND') . ' ORDER BY serviceStartTime';
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array_merge(['date' => $date], $this->cb()));
         return array_map(Service::fromRow(...), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
     /** @return array<Service> */
     public function byDateRange(string $from, string $to): array
     {
-        $stmt = $this->db->prepare('
-            SELECT * FROM Services
-            WHERE serviceDate BETWEEN :from AND :to
-            ORDER BY serviceDate, serviceStartTime
-        ');
-        $stmt->execute(['from' => $from, 'to' => $to]);
+        $sql  = 'SELECT * FROM Services WHERE serviceDate BETWEEN :from AND :to ' . $this->sc('AND') . ' ORDER BY serviceDate, serviceStartTime';
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array_merge(['from' => $from, 'to' => $to], $this->cb()));
         return array_map(Service::fromRow(...), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
     /** @return array<Service> rides assigned to a given driver, optionally for a given date. */
     public function forDriver(int $driverId, ?string $date = null): array
     {
-        $sql = '
-            SELECT s.*
-            FROM Services s
-            JOIN Services_Rides sr ON sr.RideID = s.ID
-            WHERE sr.UserID = :uid
-        ';
-        $params = ['uid' => $driverId];
+        $sql    = 'SELECT s.* FROM Services s JOIN Services_Rides sr ON sr.RideID = s.ID WHERE sr.UserID = :uid ' . $this->sc('AND', 's');
+        $params = array_merge(['uid' => $driverId], $this->cb());
         if ($date !== null) {
             $sql .= ' AND s.serviceDate = :date';
             $params['date'] = $date;
         }
         $sql .= ' ORDER BY s.serviceDate, s.serviceStartTime';
-
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         return array_map(Service::fromRow(...), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
-    /** @return array<Service> rides owned by a partner (status_pedido='aprovado' filter optional). */
+    /** @return array<Service> rides owned by a partner. */
     public function forPartner(int $partnerId, bool $approvedOnly = false): array
     {
-        $sql = 'SELECT * FROM Services WHERE partner_id = :pid';
-        $params = ['pid' => $partnerId];
+        $sql    = 'SELECT * FROM Services WHERE partner_id = :pid ' . $this->sc('AND');
+        $params = array_merge(['pid' => $partnerId], $this->cb());
         if ($approvedOnly) {
             $sql .= " AND status_pedido = 'aprovado'";
         }
@@ -94,11 +86,11 @@ final class ServiceRepository
         return array_map(Service::fromRow(...), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
-    /** @return array<Service> no-show rides, most recent first. */
+    /** @return array<Service> no-show rides. */
     public function noShows(?string $from = null, ?string $to = null): array
     {
-        $sql = 'SELECT * FROM Services WHERE noShowStatus = 1';
-        $params = [];
+        $sql    = 'SELECT * FROM Services WHERE noShowStatus = 1 ' . $this->sc('AND');
+        $params = $this->cb();
         if ($from !== null) { $sql .= ' AND serviceDate >= :from'; $params['from'] = $from; }
         if ($to   !== null) { $sql .= ' AND serviceDate <= :to';   $params['to']   = $to; }
         $sql .= ' ORDER BY serviceDate DESC, serviceStartTime';
@@ -114,31 +106,31 @@ final class ServiceRepository
                 throw new RuntimeException("ServiceRepository::create — missing field: {$required}");
             }
         }
-
+        $cid  = isset($data['company_id']) ? (int) $data['company_id'] : $this->companyId;
         $stmt = $this->db->prepare('
             INSERT INTO Services
                 (serviceDate, serviceStartTime, paxADT, paxCHD, serviceStartPoint, serviceTargetPoint,
-                 FlightNumber, NomeCliente, ClientNumber, serviceType, partner_id, total_price, status_pedido)
+                 FlightNumber, NomeCliente, ClientNumber, serviceType, partner_id, total_price, status_pedido, company_id)
             VALUES
                 (:date, :time, :adults, :children, :pickup, :dropoff,
-                 :flight, :client, :phone, :type, :partner, :price, :approval)
+                 :flight, :client, :phone, :type, :partner, :price, :approval, :company_id)
         ');
         $stmt->execute([
-            'date'     => $data['serviceDate'],
-            'time'     => $data['serviceStartTime'],
-            'adults'   => (int) $data['paxADT'],
-            'children' => (int) $data['paxCHD'],
-            'pickup'   => $data['serviceStartPoint'],
-            'dropoff'  => $data['serviceTargetPoint'],
-            'flight'   => $data['FlightNumber']   ?? null,
-            'client'   => $data['NomeCliente']    ?? null,
-            'phone'    => $data['ClientNumber']   ?? null,
-            'type'     => (int) ($data['serviceType']   ?? 1),
-            'partner'  => isset($data['partner_id']) ? (int) $data['partner_id'] : null,
-            'price'    => isset($data['total_price']) ? (float) $data['total_price'] : null,
-            'approval' => $data['status_pedido']  ?? 'aprovado',
+            'date'       => $data['serviceDate'],
+            'time'       => $data['serviceStartTime'],
+            'adults'     => (int) $data['paxADT'],
+            'children'   => (int) $data['paxCHD'],
+            'pickup'     => $data['serviceStartPoint'],
+            'dropoff'    => $data['serviceTargetPoint'],
+            'flight'     => $data['FlightNumber']  ?? null,
+            'client'     => $data['NomeCliente']   ?? null,
+            'phone'      => $data['ClientNumber']  ?? null,
+            'type'       => (int) ($data['serviceType']  ?? 1),
+            'partner'    => isset($data['partner_id']) ? (int) $data['partner_id'] : null,
+            'price'      => isset($data['total_price'])  ? (float) $data['total_price'] : null,
+            'approval'   => $data['status_pedido'] ?? 'aprovado',
+            'company_id' => $cid,
         ]);
-
         return $this->find((int) $this->db->lastInsertId())
             ?? throw new RuntimeException('ServiceRepository::create — reload failed');
     }
@@ -153,23 +145,18 @@ final class ServiceRepository
             Service::STATUS_COMPLETED   => 'ts_completed',
             default                     => null,
         };
-
-        if ($ts !== null) {
-            $sql = "UPDATE Services SET status_id = :st, {$ts} = NOW() WHERE ID = :id";
-        } else {
-            $sql = 'UPDATE Services SET status_id = :st WHERE ID = :id';
-        }
+        $sql = $ts !== null
+            ? "UPDATE Services SET status_id = :st, {$ts} = NOW() WHERE ID = :id"
+            : 'UPDATE Services SET status_id = :st WHERE ID = :id';
         $this->db->prepare($sql)->execute(['st' => $statusId, 'id' => $id]);
     }
 
     public function markNoShow(int $id, ?string $photoPath, ?string $lat, ?string $lng): void
     {
-        $stmt = $this->db->prepare('
-            UPDATE Services
-            SET noShowStatus = 1, noShowPhotoPath = :photo, noShowLat = :lat, noShowLng = :lng
+        $this->db->prepare('
+            UPDATE Services SET noShowStatus = 1, noShowPhotoPath = :photo, noShowLat = :lat, noShowLng = :lng
             WHERE ID = :id
-        ');
-        $stmt->execute(['photo' => $photoPath, 'lat' => $lat, 'lng' => $lng, 'id' => $id]);
+        ')->execute(['photo' => $photoPath, 'lat' => $lat, 'lng' => $lng, 'id' => $id]);
     }
 
     public function setTripType(int $id, int $type): void
@@ -195,8 +182,15 @@ final class ServiceRepository
     {
         $this->db->beginTransaction();
         try {
-            $this->db->exec('DELETE FROM Services_Rides');
-            $this->db->exec('DELETE FROM Services');
+            $rideSql = 'SELECT ID FROM Services WHERE 1=1 ' . $this->sc('AND');
+            $stmt    = $this->db->prepare($rideSql);
+            $stmt->execute($this->cb());
+            $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            if ($ids !== []) {
+                $ph = implode(',', array_fill(0, count($ids), '?'));
+                $this->db->prepare("DELETE FROM Services_Rides WHERE RideID IN ({$ph})")->execute($ids);
+                $this->db->prepare("DELETE FROM Services WHERE ID IN ({$ph})")->execute($ids);
+            }
             $this->db->commit();
         } catch (\Throwable $e) {
             $this->db->rollBack();
@@ -204,15 +198,12 @@ final class ServiceRepository
         }
     }
 
-    /** Assign a driver to a ride; replaces any existing assignment. */
     public function assignDriver(int $serviceId, int $driverId): void
     {
         $this->db->beginTransaction();
         try {
-            $this->db->prepare('DELETE FROM Services_Rides WHERE RideID = :rid')
-                ->execute(['rid' => $serviceId]);
-            $this->db->prepare('INSERT INTO Services_Rides (RideID, UserID) VALUES (:rid, :uid)')
-                ->execute(['rid' => $serviceId, 'uid' => $driverId]);
+            $this->db->prepare('DELETE FROM Services_Rides WHERE RideID = :rid')->execute(['rid' => $serviceId]);
+            $this->db->prepare('INSERT INTO Services_Rides (RideID, UserID) VALUES (:rid, :uid)')->execute(['rid' => $serviceId, 'uid' => $driverId]);
             $this->db->commit();
         } catch (\Throwable $e) {
             $this->db->rollBack();
@@ -220,7 +211,6 @@ final class ServiceRepository
         }
     }
 
-    /** Returns assigned driver id for a ride, or null if unassigned. */
     public function assignedDriver(int $serviceId): ?int
     {
         $stmt = $this->db->prepare('SELECT UserID FROM Services_Rides WHERE RideID = :rid LIMIT 1');
@@ -229,130 +219,121 @@ final class ServiceRepository
         return $id === false ? null : (int) $id;
     }
 
-    /**
-     * Count rides per driver in a date range, for ranking tables.
-     *
-     * @return array<array{driver_id:int,driver_name:string,total:int}>
-     */
+    /** @return array<array{driver_id:int,driver_name:string,total:int}> */
     public function rankByDriver(string $from, string $to): array
     {
-        $stmt = $this->db->prepare('
-            SELECT u.id AS driver_id, u.name AS driver_name, COUNT(*) AS total
-            FROM Services s
-            JOIN Services_Rides sr ON sr.RideID = s.ID
-            JOIN Users u           ON u.id = sr.UserID
-            WHERE s.serviceDate BETWEEN :from AND :to
-            GROUP BY u.id, u.name
-            ORDER BY total DESC
-        ');
-        $stmt->execute(['from' => $from, 'to' => $to]);
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $sql    = 'SELECT u.id AS driver_id, u.name AS driver_name, COUNT(*) AS total
+                   FROM Services s
+                   JOIN Services_Rides sr ON sr.RideID = s.ID
+                   JOIN Users u           ON u.id = sr.UserID
+                   WHERE s.serviceDate BETWEEN :from AND :to ' . $this->sc('AND', 's') . '
+                   GROUP BY u.id, u.name ORDER BY total DESC';
+        $stmt   = $this->db->prepare($sql);
+        $stmt->execute(array_merge(['from' => $from, 'to' => $to], $this->cb()));
         return array_map(static fn(array $r): array => [
             'driver_id'   => (int) $r['driver_id'],
             'driver_name' => (string) $r['driver_name'],
             'total'       => (int) $r['total'],
-        ], $rows);
+        ], $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
-    /**
-     * Raw rows for the admin rides DataTable, filtered by status context.
-     *
-     * Returns associative arrays (not models) because we need joined
-     * partner/driver names in one shot.
-     *
-     * @return array<array<string,mixed>>
-     */
+    /** @return array<array<string,mixed>> */
     public function listForAdmin(string $filter): array
     {
         $cols = 's.ID, s.serviceDate, s.serviceStartTime, s.paxADT, s.paxCHD,
                  s.serviceStartPoint, s.serviceTargetPoint, s.FlightNumber,
                  s.NomeCliente, s.ClientNumber, s.serviceType, s.total_price,
                  s.has_key, s.partner_id, s.status_pedido';
+        $csc  = $this->sc('AND', 's');
+        $cb   = $this->cb();
 
-        $sql = match ($filter) {
-            'requests' => "SELECT {$cols}, NULL AS driverName, p.name AS partner_name
-                FROM Services s
-                LEFT JOIN Users p ON s.partner_id = p.ID
-                WHERE s.status_pedido = 'pendente'
-                ORDER BY s.serviceDate ASC, s.serviceStartTime ASC",
-
-            'today' => "SELECT {$cols}, u.name AS driverName, p.name AS partner_name
-                FROM Services s
-                LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
-                LEFT JOIN Users u ON sr.UserID = u.ID
-                LEFT JOIN Users p ON s.partner_id = p.ID
-                WHERE s.serviceDate = CURDATE()
-                  AND (s.status_pedido = 'aprovado' OR s.status_pedido IS NULL)
-                ORDER BY s.serviceStartTime ASC",
-
-            'pending' => "SELECT {$cols}, NULL AS driverName, p.name AS partner_name
-                FROM Services s
-                LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
-                LEFT JOIN Users p ON s.partner_id = p.ID
-                WHERE sr.UserID IS NULL
-                  AND (s.status_pedido = 'aprovado' OR s.status_pedido IS NULL)
-                ORDER BY s.serviceDate, s.serviceStartTime",
-
-            'assigned' => "SELECT {$cols}, u.name AS driverName, p.name AS partner_name
-                FROM Services s
-                INNER JOIN Services_Rides sr ON s.ID = sr.RideID
-                INNER JOIN Users u ON sr.UserID = u.ID
-                LEFT JOIN Users p ON s.partner_id = p.ID
-                WHERE (s.status_pedido = 'aprovado' OR s.status_pedido IS NULL)
-                ORDER BY s.serviceDate, s.serviceStartTime",
-
-            default => "SELECT {$cols}, u.name AS driverName, p.name AS partner_name
-                FROM Services s
-                LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
-                LEFT JOIN Users u ON sr.UserID = u.ID
-                LEFT JOIN Users p ON s.partner_id = p.ID
-                WHERE (s.status_pedido = 'aprovado' OR s.status_pedido IS NULL)
-                ORDER BY s.serviceDate, s.serviceStartTime",
+        [$sql, $params] = match ($filter) {
+            'requests' => [
+                "SELECT {$cols}, NULL AS driverName, p.name AS partner_name
+                 FROM Services s LEFT JOIN Users p ON s.partner_id = p.ID
+                 WHERE s.status_pedido = 'pendente' {$csc}
+                 ORDER BY s.serviceDate ASC, s.serviceStartTime ASC",
+                $cb,
+            ],
+            'today' => [
+                "SELECT {$cols}, u.name AS driverName, p.name AS partner_name
+                 FROM Services s
+                 LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
+                 LEFT JOIN Users u ON sr.UserID = u.ID
+                 LEFT JOIN Users p ON s.partner_id = p.ID
+                 WHERE s.serviceDate = CURDATE()
+                   AND (s.status_pedido = 'aprovado' OR s.status_pedido IS NULL) {$csc}
+                 ORDER BY s.serviceStartTime ASC",
+                $cb,
+            ],
+            'pending' => [
+                "SELECT {$cols}, NULL AS driverName, p.name AS partner_name
+                 FROM Services s
+                 LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
+                 LEFT JOIN Users p ON s.partner_id = p.ID
+                 WHERE sr.UserID IS NULL
+                   AND (s.status_pedido = 'aprovado' OR s.status_pedido IS NULL) {$csc}
+                 ORDER BY s.serviceDate, s.serviceStartTime",
+                $cb,
+            ],
+            'assigned' => [
+                "SELECT {$cols}, u.name AS driverName, p.name AS partner_name
+                 FROM Services s
+                 INNER JOIN Services_Rides sr ON s.ID = sr.RideID
+                 INNER JOIN Users u ON sr.UserID = u.ID
+                 LEFT JOIN Users p ON s.partner_id = p.ID
+                 WHERE (s.status_pedido = 'aprovado' OR s.status_pedido IS NULL) {$csc}
+                 ORDER BY s.serviceDate, s.serviceStartTime",
+                $cb,
+            ],
+            default => [
+                "SELECT {$cols}, u.name AS driverName, p.name AS partner_name
+                 FROM Services s
+                 LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
+                 LEFT JOIN Users u ON sr.UserID = u.ID
+                 LEFT JOIN Users p ON s.partner_id = p.ID
+                 WHERE (s.status_pedido = 'aprovado' OR s.status_pedido IS NULL) {$csc}
+                 ORDER BY s.serviceDate, s.serviceStartTime",
+                $cb,
+            ],
         };
 
-        return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function countPendingRequests(): int
     {
-        return (int) $this->db->query(
-            "SELECT COUNT(*) FROM Services WHERE status_pedido = 'pendente'"
-        )->fetchColumn();
+        $sql  = "SELECT COUNT(*) FROM Services WHERE status_pedido = 'pendente' " . $this->sc('AND');
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($this->cb());
+        return (int) $stmt->fetchColumn();
     }
 
     public function countToday(): int
     {
-        return (int) $this->db->query(
-            "SELECT COUNT(*) FROM Services
-             WHERE serviceDate = CURDATE()
-               AND (status_pedido = 'aprovado' OR status_pedido IS NULL)"
-        )->fetchColumn();
+        $sql  = "SELECT COUNT(*) FROM Services WHERE serviceDate = CURDATE() AND (status_pedido = 'aprovado' OR status_pedido IS NULL) " . $this->sc('AND');
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($this->cb());
+        return (int) $stmt->fetchColumn();
     }
 
     public function countUnassigned(): int
     {
-        return (int) $this->db->query(
-            "SELECT COUNT(*) FROM Services s
-             LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
-             WHERE sr.UserID IS NULL
-               AND (s.status_pedido = 'aprovado' OR s.status_pedido IS NULL)"
-        )->fetchColumn();
+        $sql  = "SELECT COUNT(*) FROM Services s LEFT JOIN Services_Rides sr ON s.ID = sr.RideID WHERE sr.UserID IS NULL AND (s.status_pedido = 'aprovado' OR s.status_pedido IS NULL) " . $this->sc('AND', 's');
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($this->cb());
+        return (int) $stmt->fetchColumn();
     }
 
     public function update(int $id, array $data): void
     {
         $this->db->prepare('
             UPDATE Services
-            SET serviceDate        = :date,
-                serviceStartTime   = :time,
-                serviceStartPoint  = :pickup,
-                serviceTargetPoint = :dropoff,
-                paxADT             = :adults,
-                paxCHD             = :children,
-                FlightNumber       = :flight,
-                NomeCliente        = :client,
-                ClientNumber       = :phone,
-                total_price        = :price
+            SET serviceDate=:date, serviceStartTime=:time, serviceStartPoint=:pickup,
+                serviceTargetPoint=:dropoff, paxADT=:adults, paxCHD=:children,
+                FlightNumber=:flight, NomeCliente=:client, ClientNumber=:phone, total_price=:price
             WHERE ID = :id
         ')->execute([
             'date'     => $data['serviceDate'],
@@ -371,9 +352,7 @@ final class ServiceRepository
 
     public function deleteBulk(array $ids): void
     {
-        if (empty($ids)) {
-            return;
-        }
+        if (empty($ids)) return;
         $ph = implode(',', array_fill(0, count($ids), '?'));
         $this->db->beginTransaction();
         try {
@@ -392,38 +371,30 @@ final class ServiceRepository
             ->execute(['s' => $status, 'id' => $id]);
     }
 
-    /**
-     * No-show records with driver name for the admin DataTable.
-     *
-     * @return array<array<string,mixed>>
-     */
+    /** @return array<array<string,mixed>> */
     public function listNoShowsForAdmin(): array
     {
-        return $this->db->query("
-            SELECT s.ID, s.serviceDate, s.serviceStartTime,
-                   s.serviceStartPoint, s.serviceTargetPoint,
-                   s.noShowPhotoPath, u.name AS driverName
-            FROM Services s
-            LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
-            LEFT JOIN Users u ON sr.UserID = u.ID
-            WHERE s.noShowStatus = 1
-            ORDER BY s.serviceDate DESC, s.serviceStartTime DESC
-        ")->fetchAll(PDO::FETCH_ASSOC);
+        $sql  = "SELECT s.ID, s.serviceDate, s.serviceStartTime,
+                        s.serviceStartPoint, s.serviceTargetPoint,
+                        s.noShowPhotoPath, u.name AS driverName
+                 FROM Services s
+                 LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
+                 LEFT JOIN Users u ON sr.UserID = u.ID
+                 WHERE s.noShowStatus = 1 " . $this->sc('AND', 's') . "
+                 ORDER BY s.serviceDate DESC, s.serviceStartTime DESC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($this->cb());
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /**
-     * Returns the service row joined with partner email/name for email dispatch.
-     *
-     * @return array<string,mixed>|null
-     */
+    /** @return array<string,mixed>|null */
     public function findWithPartner(int $id): ?array
     {
         $stmt = $this->db->prepare("
             SELECT s.NomeCliente, s.serviceStartPoint, s.serviceTargetPoint,
                    s.serviceDate, s.partner_id,
                    u.email AS partner_email, u.name AS partner_name
-            FROM Services s
-            LEFT JOIN Users u ON s.partner_id = u.id
+            FROM Services s LEFT JOIN Users u ON s.partner_id = u.id
             WHERE s.ID = :id
         ");
         $stmt->execute(['id' => $id]);
@@ -431,57 +402,49 @@ final class ServiceRepository
         return $row ?: null;
     }
 
-    /** Returns the five driver-progress timestamps for the logs modal. */
     public function getTimestamps(int $id): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT ts_start_pickup, ts_arrived_pickup, ts_with_client,
-                    ts_start_trip, ts_completed
-             FROM Services WHERE ID = :id'
+            'SELECT ts_start_pickup, ts_arrived_pickup, ts_with_client, ts_start_trip, ts_completed FROM Services WHERE ID = :id'
         );
         $stmt->execute(['id' => $id]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
     }
 
-    // ── Driver-stats page helpers ─────────────────────────────────────────
+    // ── Driver-stats helpers ───────────────────────────────────────────────
 
-    /** KPI cards for a single driver across a date range. */
     public function driverStats(int $driverId, string $startDate, string $endDate): array
     {
-        $stmt = $this->db->prepare('
+        $csc = $this->sc('AND', 's');
+        $cb  = $this->cb();
+        $stmt = $this->db->prepare("
             SELECT
-                (SELECT COUNT(*) FROM Services_Rides sr
-                    JOIN Services s ON sr.RideID = s.ID
-                    WHERE sr.UserID = :uid1 AND s.serviceDate = CURDATE()) AS trips_today,
-                (SELECT AVG(s.driver_rating)
-                    FROM Services s JOIN Services_Rides sr ON s.ID = sr.RideID
-                    WHERE sr.UserID = :uid2 AND s.driver_rating IS NOT NULL) AS avg_rating,
-                (SELECT COUNT(*) FROM Services_Rides sr
-                    JOIN Services s ON sr.RideID = s.ID
-                    WHERE sr.UserID = :uid3 AND s.serviceDate BETWEEN :from1 AND :to1) AS trips_period,
-                (SELECT COUNT(*) FROM Services_Rides sr
-                    WHERE sr.UserID = :uid4) AS trips_total
-        ');
-        $stmt->execute([
-            'uid1' => $driverId, 'uid2' => $driverId,
-            'uid3' => $driverId, 'uid4' => $driverId,
-            'from1' => $startDate, 'to1' => $endDate,
-        ]);
+                (SELECT COUNT(*) FROM Services_Rides sr JOIN Services s ON sr.RideID = s.ID
+                    WHERE sr.UserID = :uid1 AND s.serviceDate = CURDATE() {$csc}) AS trips_today,
+                (SELECT AVG(s.driver_rating) FROM Services s JOIN Services_Rides sr ON s.ID = sr.RideID
+                    WHERE sr.UserID = :uid2 AND s.driver_rating IS NOT NULL {$csc}) AS avg_rating,
+                (SELECT COUNT(*) FROM Services_Rides sr JOIN Services s ON sr.RideID = s.ID
+                    WHERE sr.UserID = :uid3 AND s.serviceDate BETWEEN :from1 AND :to1 {$csc}) AS trips_period,
+                (SELECT COUNT(*) FROM Services_Rides sr JOIN Services s ON sr.RideID = s.ID
+                    WHERE sr.UserID = :uid4 {$csc}) AS trips_total
+        ");
+        $stmt->execute(array_merge(
+            ['uid1' => $driverId, 'uid2' => $driverId, 'uid3' => $driverId, 'uid4' => $driverId, 'from1' => $startDate, 'to1' => $endDate],
+            $cb
+        ));
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
     }
 
     /** @return array<int,int> 12-element array indexed 0–11 (Jan–Dec). */
     public function driverMonthly(int $driverId, string $startDate, string $endDate): array
     {
-        $stmt = $this->db->prepare('
-            SELECT MONTH(s.serviceDate) AS m, COUNT(sr.associationID) AS total
-            FROM Services_Rides sr
-            JOIN Services s ON sr.RideID = s.ID
-            WHERE sr.UserID = :uid AND s.serviceDate BETWEEN :from AND :to
-            GROUP BY m
-        ');
-        $stmt->execute(['uid' => $driverId, 'from' => $startDate, 'to' => $endDate]);
+        $sql  = 'SELECT MONTH(s.serviceDate) AS m, COUNT(sr.associationID) AS total
+                 FROM Services_Rides sr JOIN Services s ON sr.RideID = s.ID
+                 WHERE sr.UserID = :uid AND s.serviceDate BETWEEN :from AND :to ' . $this->sc('AND', 's') . '
+                 GROUP BY m';
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array_merge(['uid' => $driverId, 'from' => $startDate, 'to' => $endDate], $this->cb()));
         $result = array_fill(0, 12, 0);
         foreach ($stmt->fetchAll(PDO::FETCH_KEY_PAIR) as $month => $total) {
             $result[(int) $month - 1] = (int) $total;
@@ -493,44 +456,36 @@ final class ServiceRepository
     public function driverRecentRides(int $driverId, string $startDate, string $endDate, int $limit = 10): array
     {
         $limit = max(1, min(100, $limit));
-        $stmt  = $this->db->prepare("
-            SELECT s.ID, s.serviceDate, s.serviceStartTime,
-                   s.serviceStartPoint, s.serviceTargetPoint
-            FROM Services s
-            JOIN Services_Rides sr ON s.ID = sr.RideID
-            WHERE sr.UserID = :uid AND s.serviceDate BETWEEN :from AND :to
-            ORDER BY s.serviceDate DESC
-            LIMIT {$limit}
-        ");
-        $stmt->execute(['uid' => $driverId, 'from' => $startDate, 'to' => $endDate]);
+        $sql   = "SELECT s.ID, s.serviceDate, s.serviceStartTime, s.serviceStartPoint, s.serviceTargetPoint
+                  FROM Services s JOIN Services_Rides sr ON s.ID = sr.RideID
+                  WHERE sr.UserID = :uid AND s.serviceDate BETWEEN :from AND :to " . $this->sc('AND', 's') . "
+                  ORDER BY s.serviceDate DESC LIMIT {$limit}";
+        $stmt  = $this->db->prepare($sql);
+        $stmt->execute(array_merge(['uid' => $driverId, 'from' => $startDate, 'to' => $endDate], $this->cb()));
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /** KPI cards for a single partner. */
     public function partnerStats(int $partnerId, string $startDate, string $endDate): array
     {
-        $stmt = $this->db->prepare('
+        $csc  = $this->sc('AND');
+        $cb   = $this->cb();
+        $stmt = $this->db->prepare("
             SELECT
-                (SELECT COUNT(*) FROM Services WHERE partner_id = :pid1 AND serviceDate = CURDATE()) AS trips_today,
-                (SELECT COUNT(*) FROM Services WHERE partner_id = :pid2 AND serviceDate BETWEEN :from AND :to) AS trips_period,
-                (SELECT COUNT(*) FROM Services WHERE partner_id = :pid3) AS trips_total
-        ');
-        $stmt->execute([
-            'pid1' => $partnerId, 'pid2' => $partnerId, 'pid3' => $partnerId,
-            'from' => $startDate, 'to' => $endDate,
-        ]);
+                (SELECT COUNT(*) FROM Services WHERE partner_id = :pid1 AND serviceDate = CURDATE() {$csc}) AS trips_today,
+                (SELECT COUNT(*) FROM Services WHERE partner_id = :pid2 AND serviceDate BETWEEN :from AND :to {$csc}) AS trips_period,
+                (SELECT COUNT(*) FROM Services WHERE partner_id = :pid3 {$csc}) AS trips_total
+        ");
+        $stmt->execute(array_merge(['pid1' => $partnerId, 'pid2' => $partnerId, 'pid3' => $partnerId, 'from' => $startDate, 'to' => $endDate], $cb));
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
     }
 
     /** @return array<int,int> 12-element array. */
     public function partnerMonthly(int $partnerId, string $startDate, string $endDate): array
     {
-        $stmt = $this->db->prepare('
-            SELECT MONTH(serviceDate) AS m, COUNT(ID) AS total
-            FROM Services WHERE partner_id = :pid AND serviceDate BETWEEN :from AND :to
-            GROUP BY m
-        ');
-        $stmt->execute(['pid' => $partnerId, 'from' => $startDate, 'to' => $endDate]);
+        $sql  = 'SELECT MONTH(serviceDate) AS m, COUNT(ID) AS total FROM Services
+                 WHERE partner_id = :pid AND serviceDate BETWEEN :from AND :to ' . $this->sc('AND') . ' GROUP BY m';
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array_merge(['pid' => $partnerId, 'from' => $startDate, 'to' => $endDate], $this->cb()));
         $result = array_fill(0, 12, 0);
         foreach ($stmt->fetchAll(PDO::FETCH_KEY_PAIR) as $month => $total) {
             $result[(int) $month - 1] = (int) $total;
@@ -542,40 +497,49 @@ final class ServiceRepository
     public function partnerRecentRides(int $partnerId, string $startDate, string $endDate, int $limit = 10): array
     {
         $limit = max(1, min(100, $limit));
-        $stmt  = $this->db->prepare("
-            SELECT ID, serviceDate, serviceStartTime,
-                   serviceStartPoint, serviceTargetPoint
-            FROM Services
-            WHERE partner_id = :pid AND serviceDate BETWEEN :from AND :to
-            ORDER BY serviceDate DESC
-            LIMIT {$limit}
-        ");
-        $stmt->execute(['pid' => $partnerId, 'from' => $startDate, 'to' => $endDate]);
+        $sql   = "SELECT ID, serviceDate, serviceStartTime, serviceStartPoint, serviceTargetPoint
+                  FROM Services WHERE partner_id = :pid AND serviceDate BETWEEN :from AND :to " . $this->sc('AND') . "
+                  ORDER BY serviceDate DESC LIMIT {$limit}";
+        $stmt  = $this->db->prepare($sql);
+        $stmt->execute(array_merge(['pid' => $partnerId, 'from' => $startDate, 'to' => $endDate], $this->cb()));
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /** Global KPI cards for the overview (no driver/partner filter). */
     public function overviewStats(string $startDate, string $endDate): array
     {
-        $driverCount  = (int) $this->db->query('SELECT COUNT(*) FROM Users WHERE role = 2')->fetchColumn();
-        $todayCount   = (int) $this->db->query("SELECT COUNT(*) FROM Services WHERE serviceDate = CURDATE()")->fetchColumn();
-        $stmt         = $this->db->prepare('SELECT COUNT(*) FROM Services WHERE serviceDate BETWEEN :from AND :to');
-        $stmt->execute(['from' => $startDate, 'to' => $endDate]);
-        $periodCount  = (int) $stmt->fetchColumn();
-        $totalCount   = (int) $this->db->query('SELECT COUNT(*) FROM Services')->fetchColumn();
+        $csc  = $this->sc('AND', 's');
+        $ucsc = $this->companyId !== null ? 'AND u.company_id = :company_id' : '';
+        $cb   = $this->cb();
+
+        $driverStmt = $this->db->prepare("SELECT COUNT(*) FROM Users u WHERE u.role = 2 {$ucsc}");
+        $driverStmt->execute($cb);
+        $driverCount = (int) $driverStmt->fetchColumn();
+
+        $todaySql   = "SELECT COUNT(*) FROM Services s WHERE s.serviceDate = CURDATE() {$csc}";
+        $todayStmt  = $this->db->prepare($todaySql);
+        $todayStmt->execute($cb);
+        $todayCount = (int) $todayStmt->fetchColumn();
+
+        $periodSql  = "SELECT COUNT(*) FROM Services s WHERE s.serviceDate BETWEEN :from AND :to {$csc}";
+        $periodStmt = $this->db->prepare($periodSql);
+        $periodStmt->execute(array_merge(['from' => $startDate, 'to' => $endDate], $cb));
+        $periodCount = (int) $periodStmt->fetchColumn();
+
+        $totalSql  = "SELECT COUNT(*) FROM Services s WHERE 1=1 {$csc}";
+        $totalStmt = $this->db->prepare($totalSql);
+        $totalStmt->execute($cb);
+        $totalCount = (int) $totalStmt->fetchColumn();
 
         return compact('driverCount', 'todayCount', 'periodCount', 'totalCount');
     }
 
-    /** @return array<int,int> 12-element array for the overview monthly chart. */
+    /** @return array<int,int> 12-element array. */
     public function monthlyByPeriod(string $startDate, string $endDate): array
     {
-        $stmt = $this->db->prepare('
-            SELECT MONTH(serviceDate) AS m, COUNT(ID) AS total
-            FROM Services WHERE serviceDate BETWEEN :from AND :to
-            GROUP BY m
-        ');
-        $stmt->execute(['from' => $startDate, 'to' => $endDate]);
+        $sql  = 'SELECT MONTH(serviceDate) AS m, COUNT(ID) AS total FROM Services s
+                 WHERE serviceDate BETWEEN :from AND :to ' . $this->sc('AND', 's') . ' GROUP BY m';
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array_merge(['from' => $startDate, 'to' => $endDate], $this->cb()));
         $result = array_fill(0, 12, 0);
         foreach ($stmt->fetchAll(PDO::FETCH_KEY_PAIR) as $month => $total) {
             $result[(int) $month - 1] = (int) $total;
@@ -583,27 +547,24 @@ final class ServiceRepository
         return $result;
     }
 
-    /**
-     * Top drivers by ride count in period, including avg rating.
-     * @return array<array{id:int,name:string,trips_period:int,avg_rating:float|null}>
-     */
+    /** @return array<array{id:int,name:string,trips_period:int,avg_rating:float|null}> */
     public function driverLeaderboard(string $startDate, string $endDate, int $limit = 5): array
     {
         $limit = max(1, min(50, $limit));
+        $csc   = $this->sc('AND', 's');
+        $ucsc  = $this->companyId !== null ? 'AND u.company_id = :company_id' : '';
+        $cb    = $this->cb();
         $stmt  = $this->db->prepare("
             SELECT u.id, u.name,
-                (SELECT COUNT(*) FROM Services_Rides sr
-                    JOIN Services s ON sr.RideID = s.ID
-                    WHERE sr.UserID = u.id AND s.serviceDate BETWEEN :from1 AND :to1) AS trips_period,
-                (SELECT AVG(s.driver_rating)
-                    FROM Services s JOIN Services_Rides sr ON s.ID = sr.RideID
-                    WHERE sr.UserID = u.id AND s.driver_rating IS NOT NULL) AS avg_rating
-            FROM Users u
-            WHERE u.role = 2
+                (SELECT COUNT(*) FROM Services_Rides sr JOIN Services s ON sr.RideID = s.ID
+                    WHERE sr.UserID = u.id AND s.serviceDate BETWEEN :from1 AND :to1 {$csc}) AS trips_period,
+                (SELECT AVG(s.driver_rating) FROM Services s JOIN Services_Rides sr ON s.ID = sr.RideID
+                    WHERE sr.UserID = u.id AND s.driver_rating IS NOT NULL {$csc}) AS avg_rating
+            FROM Users u WHERE u.role = 2 {$ucsc}
             ORDER BY trips_period DESC
             LIMIT {$limit}
         ");
-        $stmt->execute(['from1' => $startDate, 'to1' => $endDate]);
+        $stmt->execute(array_merge(['from1' => $startDate, 'to1' => $endDate], $cb));
         return array_map(static fn(array $r): array => [
             'id'           => (int) $r['id'],
             'name'         => (string) $r['name'],
@@ -612,23 +573,21 @@ final class ServiceRepository
         ], $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
-    /**
-     * Top partners by ride count in period.
-     * @return array<array{id:int,name:string,trips_period:int}>
-     */
+    /** @return array<array{id:int,name:string,trips_period:int}> */
     public function partnerLeaderboard(string $startDate, string $endDate, int $limit = 5): array
     {
         $limit = max(1, min(50, $limit));
+        $csc   = $this->sc('AND');
+        $ucsc  = $this->companyId !== null ? 'AND u.company_id = :company_id' : '';
+        $cb    = $this->cb();
         $stmt  = $this->db->prepare("
             SELECT u.id, u.name,
-                (SELECT COUNT(*) FROM Services s WHERE s.partner_id = u.id
-                    AND s.serviceDate BETWEEN :from AND :to) AS trips_period
-            FROM Users u
-            WHERE u.role = 3
-            ORDER BY trips_period DESC
-            LIMIT {$limit}
+                (SELECT COUNT(*) FROM Services s
+                    WHERE s.partner_id = u.id AND s.serviceDate BETWEEN :from AND :to {$csc}) AS trips_period
+            FROM Users u WHERE u.role = 3 {$ucsc}
+            ORDER BY trips_period DESC LIMIT {$limit}
         ");
-        $stmt->execute(['from' => $startDate, 'to' => $endDate]);
+        $stmt->execute(array_merge(['from' => $startDate, 'to' => $endDate], $cb));
         return array_map(static fn(array $r): array => [
             'id'           => (int) $r['id'],
             'name'         => (string) $r['name'],
@@ -636,28 +595,22 @@ final class ServiceRepository
         ], $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
-    // ── Driver dashboard helpers ──────────────────────────────────────────
+    // ── Driver dashboard helpers ───────────────────────────────────────────
 
-    /**
-     * All rides assigned to a driver, with partner name/phone joined.
-     * Used for the driver dashboard page and its ?api=refresh JSON endpoint.
-     * @return array<array<string,mixed>>
-     */
+    /** @return array<array<string,mixed>> */
     public function driverDashboardRides(int $driverId, ?int $serviceType = null): array
     {
-        $sql = '
-            SELECT s.ID AS ServiceID, s.serviceDate, s.serviceStartTime,
-                   s.serviceStartPoint, s.serviceTargetPoint,
-                   s.paxADT, s.paxCHD, s.FlightNumber, s.NomeCliente,
-                   s.ClientNumber, s.serviceType, s.total_price, s.has_key,
-                   s.partner_id, COALESCE(s.status_id, 0) AS status_id,
-                   u.name AS AgencyName, u.phone AS AgencyPhone
-            FROM Services_Rides sr
-            INNER JOIN Services s ON sr.RideID = s.ID
-            LEFT  JOIN Users u    ON s.partner_id = u.id
-            WHERE sr.UserID = :uid
-        ';
-        $params = ['uid' => $driverId];
+        $sql    = 'SELECT s.ID AS ServiceID, s.serviceDate, s.serviceStartTime,
+                          s.serviceStartPoint, s.serviceTargetPoint,
+                          s.paxADT, s.paxCHD, s.FlightNumber, s.NomeCliente,
+                          s.ClientNumber, s.serviceType, s.total_price, s.has_key,
+                          s.partner_id, COALESCE(s.status_id, 0) AS status_id,
+                          u.name AS AgencyName, u.phone AS AgencyPhone
+                   FROM Services_Rides sr
+                   INNER JOIN Services s ON sr.RideID = s.ID
+                   LEFT  JOIN Users u    ON s.partner_id = u.id
+                   WHERE sr.UserID = :uid ' . $this->sc('AND', 's');
+        $params = array_merge(['uid' => $driverId], $this->cb());
         if ($serviceType !== null) {
             $sql .= ' AND s.serviceType = :stype';
             $params['stype'] = $serviceType;
@@ -670,61 +623,42 @@ final class ServiceRepository
 
     public function driverCountToday(int $driverId): int
     {
-        $stmt = $this->db->prepare('
-            SELECT COUNT(*) FROM Services s
-            JOIN Services_Rides sr ON s.ID = sr.RideID
-            WHERE sr.UserID = :uid AND s.serviceDate = CURDATE()
-        ');
-        $stmt->execute(['uid' => $driverId]);
+        $sql  = 'SELECT COUNT(*) FROM Services s JOIN Services_Rides sr ON s.ID = sr.RideID WHERE sr.UserID = :uid AND s.serviceDate = CURDATE() ' . $this->sc('AND', 's');
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array_merge(['uid' => $driverId], $this->cb()));
         return (int) $stmt->fetchColumn();
     }
 
     public function driverCountWeek(int $driverId): int
     {
-        $stmt = $this->db->prepare('
-            SELECT COUNT(*) FROM Services s
-            JOIN Services_Rides sr ON s.ID = sr.RideID
-            WHERE sr.UserID = :uid
-              AND YEARWEEK(s.serviceDate, 1) = YEARWEEK(CURDATE(), 1)
-        ');
-        $stmt->execute(['uid' => $driverId]);
+        $sql  = 'SELECT COUNT(*) FROM Services s JOIN Services_Rides sr ON s.ID = sr.RideID WHERE sr.UserID = :uid AND YEARWEEK(s.serviceDate, 1) = YEARWEEK(CURDATE(), 1) ' . $this->sc('AND', 's');
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array_merge(['uid' => $driverId], $this->cb()));
         return (int) $stmt->fetchColumn();
     }
 
     public function driverCountAllTime(int $driverId): int
     {
-        $stmt = $this->db->prepare('
-            SELECT COUNT(*) FROM Services s
-            JOIN Services_Rides sr ON s.ID = sr.RideID
-            WHERE sr.UserID = :uid AND s.serviceDate <= CURDATE()
-        ');
-        $stmt->execute(['uid' => $driverId]);
+        $sql  = 'SELECT COUNT(*) FROM Services s JOIN Services_Rides sr ON s.ID = sr.RideID WHERE sr.UserID = :uid AND s.serviceDate <= CURDATE() ' . $this->sc('AND', 's');
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array_merge(['uid' => $driverId], $this->cb()));
         return (int) $stmt->fetchColumn();
     }
 
     public function driverCountLastMonth(int $driverId): int
     {
-        $stmt = $this->db->prepare('
-            SELECT COUNT(*) FROM Services s
-            JOIN Services_Rides sr ON s.ID = sr.RideID
-            WHERE sr.UserID = :uid
-              AND s.serviceDate BETWEEN CURDATE() - INTERVAL 1 MONTH AND CURDATE()
-        ');
-        $stmt->execute(['uid' => $driverId]);
+        $sql  = 'SELECT COUNT(*) FROM Services s JOIN Services_Rides sr ON s.ID = sr.RideID WHERE sr.UserID = :uid AND s.serviceDate BETWEEN CURDATE() - INTERVAL 1 MONTH AND CURDATE() ' . $this->sc('AND', 's');
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array_merge(['uid' => $driverId], $this->cb()));
         return (int) $stmt->fetchColumn();
     }
 
     /** @return array<int> distinct years with rides for this driver, desc. */
     public function driverAvailableYears(int $driverId): array
     {
-        $stmt = $this->db->prepare('
-            SELECT DISTINCT YEAR(s.serviceDate) AS y
-            FROM Services_Rides sr
-            JOIN Services s ON sr.RideID = s.ID
-            WHERE sr.UserID = :uid
-            ORDER BY y DESC
-        ');
-        $stmt->execute(['uid' => $driverId]);
+        $sql  = 'SELECT DISTINCT YEAR(s.serviceDate) AS y FROM Services_Rides sr JOIN Services s ON sr.RideID = s.ID WHERE sr.UserID = :uid ' . $this->sc('AND', 's') . ' ORDER BY y DESC';
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array_merge(['uid' => $driverId], $this->cb()));
         $rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
         return $rows ?: [(int) date('Y')];
     }
@@ -732,15 +666,12 @@ final class ServiceRepository
     /** @return array<int,int> 12-element array (0=Jan) for driver in a year. */
     public function driverMonthlyByYear(int $driverId, int $year): array
     {
-        $stmt = $this->db->prepare('
-            SELECT MONTH(s.serviceDate) AS m, COUNT(sr.RideID) AS total
-            FROM Services_Rides sr
-            JOIN Services s ON sr.RideID = s.ID
-            WHERE sr.UserID = :uid AND YEAR(s.serviceDate) = :year
-              AND s.serviceDate <= CURDATE()
-            GROUP BY m
-        ');
-        $stmt->execute(['uid' => $driverId, 'year' => $year]);
+        $sql  = 'SELECT MONTH(s.serviceDate) AS m, COUNT(sr.RideID) AS total
+                 FROM Services_Rides sr JOIN Services s ON sr.RideID = s.ID
+                 WHERE sr.UserID = :uid AND YEAR(s.serviceDate) = :year AND s.serviceDate <= CURDATE() ' . $this->sc('AND', 's') . '
+                 GROUP BY m';
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array_merge(['uid' => $driverId, 'year' => $year], $this->cb()));
         $result = array_fill(0, 12, 0);
         foreach ($stmt->fetchAll(PDO::FETCH_KEY_PAIR) as $month => $total) {
             $result[(int) $month - 1] = (int) $total;
@@ -748,54 +679,41 @@ final class ServiceRepository
         return $result;
     }
 
-    // ── Partner helpers ───────────────────────────────────────────────────
+    // ── Partner helpers ────────────────────────────────────────────────────
 
-    /**
-     * Count partner rides by status_pedido.
-     * @return array{total:int,pending:int,approved:int}
-     */
+    /** @return array{total:int,pending:int,approved:int} */
     public function partnerCounts(int $partnerId): array
     {
-        $stmt = $this->db->prepare('
-            SELECT
-                COUNT(*) AS total,
-                SUM(CASE WHEN status_pedido = "pendente"  THEN 1 ELSE 0 END) AS pending,
-                SUM(CASE WHEN status_pedido = "aprovado"  THEN 1 ELSE 0 END) AS approved
-            FROM Services WHERE partner_id = :pid
-        ');
-        $stmt->execute(['pid' => $partnerId]);
+        $sql  = 'SELECT COUNT(*) AS total,
+                        SUM(CASE WHEN status_pedido = "pendente" THEN 1 ELSE 0 END) AS pending,
+                        SUM(CASE WHEN status_pedido = "aprovado" THEN 1 ELSE 0 END) AS approved
+                 FROM Services WHERE partner_id = :pid ' . $this->sc('AND');
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array_merge(['pid' => $partnerId], $this->cb()));
         $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
-        return [
-            'total'    => (int) ($row['total']    ?? 0),
-            'pending'  => (int) ($row['pending']  ?? 0),
-            'approved' => (int) ($row['approved'] ?? 0),
-        ];
+        return ['total' => (int) ($row['total'] ?? 0), 'pending' => (int) ($row['pending'] ?? 0), 'approved' => (int) ($row['approved'] ?? 0)];
     }
 
-    /** Raw rows for partner DataTable, filtered by status_pedido. */
     public function partnerRidesByStatus(int $partnerId, string $status): array
     {
-        $stmt = $this->db->prepare('
-            SELECT * FROM Services
-            WHERE partner_id = :pid AND status_pedido = :status
-            ORDER BY serviceDate DESC, serviceStartTime DESC
-        ');
-        $stmt->execute(['pid' => $partnerId, 'status' => $status]);
+        $sql  = 'SELECT * FROM Services WHERE partner_id = :pid AND status_pedido = :status ' . $this->sc('AND') . ' ORDER BY serviceDate DESC, serviceStartTime DESC';
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array_merge(['pid' => $partnerId, 'status' => $status], $this->cb()));
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /** Create a ride from a partner booking form (POST). */
     public function createForPartner(int $partnerId, array $data): int
     {
+        $cid  = isset($data['company_id']) ? (int) $data['company_id'] : $this->companyId;
         $stmt = $this->db->prepare('
             INSERT INTO Services (
                 serviceDate, serviceStartTime, serviceStartPoint, serviceTargetPoint,
                 paxADT, paxCHD, NomeCliente, FlightNumber, partner_id,
-                status_pedido, serviceType, ClientNumber, total_price, has_key
+                status_pedido, serviceType, ClientNumber, total_price, has_key, company_id
             ) VALUES (
                 :date, :time, :pickup, :dropoff,
                 :pax_adt, :pax_chd, :client_name, :flight, :partner_id,
-                "pendente", 1, :client_phone, :price, :has_key
+                "pendente", 1, :client_phone, :price, :has_key, :company_id
             )
         ');
         $stmt->execute([
@@ -811,7 +729,30 @@ final class ServiceRepository
             'client_phone' => $data['client_phone'] ?? '',
             'price'        => isset($data['price']) && $data['price'] !== '' ? (float) $data['price'] : null,
             'has_key'      => (int) ($data['has_key'] ?? 0),
+            'company_id'   => $cid,
         ]);
         return (int) $this->db->lastInsertId();
+    }
+
+    // ── Scoping helpers ────────────────────────────────────────────────────
+
+    /**
+     * Returns an AND/WHERE clause for company scoping.
+     * @param string $prefix  'AND' or 'WHERE'
+     * @param string $alias   table alias ('s', 'u', or '' for no alias)
+     */
+    private function sc(string $prefix = 'WHERE', string $alias = ''): string
+    {
+        if ($this->companyId === null) {
+            return '';
+        }
+        $col = $alias !== '' ? "{$alias}.company_id" : 'company_id';
+        return "{$prefix} {$col} = :company_id";
+    }
+
+    /** Returns the company_id binding array, or empty if super-admin. */
+    private function cb(): array
+    {
+        return $this->companyId !== null ? ['company_id' => $this->companyId] : [];
     }
 }

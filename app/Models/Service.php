@@ -44,8 +44,9 @@ final class Service
         public readonly string $approvalStatus,   // status_pedido
         public readonly ?int $partnerId,          // partner_id
         public readonly ?int $driverRating,       // driver_rating
-        public readonly bool $hasKey,             // has_key
-        public readonly ?string $tsCompleted,     // ts_completed
+        public readonly bool    $hasKey,            // has_key
+        public readonly ?string $tsCompleted,      // ts_completed
+        public readonly ?int    $companyId,        // company_id
     ) {
     }
 
@@ -72,6 +73,7 @@ final class Service
             driverRating:     isset($row['driver_rating']) ? (int) $row['driver_rating'] : null,
             hasKey:           (bool) ($row['has_key'] ?? false),
             tsCompleted:      $row['ts_completed'] ?? null,
+            companyId:        isset($row['company_id']) ? (int) $row['company_id'] : null,
         );
     }
 

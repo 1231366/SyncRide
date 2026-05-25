@@ -9,16 +9,17 @@ use App\Support\Session;
 /**
  * Role gate at the top of every protected entry-point.
  *
- * Roles (legacy enum preserved):
- *   1 = admin
+ * Roles:
+ *   0 = super-admin (cross-tenant, sees all companies)
+ *   1 = admin       (company admin)
  *   2 = driver
  *   3 = partner
- *   0 = super-admin  (reserved for the upcoming multi-tenant work)
  *
  * Usage:
  *
  *   require __DIR__ . '/../../bootstrap.php';
- *   App\Http\AuthMiddleware::handle(1);          // admin only
+ *   App\Http\AuthMiddleware::handle(0);          // super-admin only
+ *   App\Http\AuthMiddleware::handle(1);          // company admin only
  *   App\Http\AuthMiddleware::handle(1, 2);       // admin or driver
  *
  * The middleware starts the session, redirects unauthenticated visitors

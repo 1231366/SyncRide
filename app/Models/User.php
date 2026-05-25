@@ -19,14 +19,15 @@ final class User
     public const ROLE_PARTNER     = 3;
 
     public function __construct(
-        public readonly int $id,
-        public readonly string $email,
-        public readonly string $name,
-        public readonly int $role,
+        public readonly int     $id,
+        public readonly string  $email,
+        public readonly string  $name,
+        public readonly int     $role,
         public readonly ?string $phone,
         public readonly ?string $profilePhotoPath,
-        public readonly ?int $assignedVehicleId,
-        public readonly ?int $secondaryRole,
+        public readonly ?int    $assignedVehicleId,
+        public readonly ?int    $secondaryRole,
+        public readonly ?int    $companyId,
     ) {
     }
 
@@ -42,6 +43,7 @@ final class User
             profilePhotoPath:  $row['profile_photo_path'] ?? null,
             assignedVehicleId: isset($row['assigned_vehicle_id']) ? (int) $row['assigned_vehicle_id'] : null,
             secondaryRole:     isset($row['secondary_role']) ? (int) $row['secondary_role'] : null,
+            companyId:         isset($row['company_id']) ? (int) $row['company_id'] : null,
         );
     }
 

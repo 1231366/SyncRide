@@ -38,6 +38,12 @@ final class Session
         return isset($_SESSION['role']) ? (int) $_SESSION['role'] : null;
     }
 
+    /** Returns the company the current user belongs to, or null for super-admin (sees all). */
+    public static function companyId(): ?int
+    {
+        return isset($_SESSION['company_id']) ? (int) $_SESSION['company_id'] : null;
+    }
+
     public static function isAuthenticated(): bool
     {
         return self::userId() !== null;

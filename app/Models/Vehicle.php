@@ -16,8 +16,9 @@ final class Vehicle
         public readonly string $licensePlate,
         public readonly ?string $inspectionDate,
         public readonly ?string $insuranceDate,
-        public readonly int $status,
+        public readonly int     $status,
         public readonly ?string $photoPath,
+        public readonly ?int    $companyId,
     ) {
     }
 
@@ -32,6 +33,7 @@ final class Vehicle
             insuranceDate:  $row['insurance_date'] ?? null,
             status:         (int) $row['status'],
             photoPath:      $row['photo_path'] ?? null,
+            companyId:      isset($row['company_id']) ? (int) $row['company_id'] : null,
         );
     }
 

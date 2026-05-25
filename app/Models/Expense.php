@@ -14,6 +14,7 @@ final class Expense
         public readonly string $date,
         public readonly ?string $filePath,
         public readonly ?string $createdAt,
+        public readonly ?int    $companyId,
     ) {
     }
 
@@ -27,6 +28,7 @@ final class Expense
             date:        (string) $row['date'],
             filePath:    $row['file_path'] ?? null,
             createdAt:   $row['created_at'] ?? null,
+            companyId:   isset($row['company_id']) ? (int) $row['company_id'] : null,
         );
     }
 }

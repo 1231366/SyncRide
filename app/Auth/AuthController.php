@@ -19,6 +19,7 @@ final class AuthController
 {
     /** Role → landing dashboard URL. */
     private const ROUTES = [
+        0 => '/SRMT/public/superadmin/',
         1 => '/SRMT/public/admin/',
         2 => '/SRMT/public/driver/',
         3 => '/SRMT/public/partner/',
@@ -105,6 +106,10 @@ final class AuthController
         $_SESSION['role']               = (int) $user['role'];
         $_SESSION['name']               = $user['name'];
         $_SESSION['profile_photo_path'] = $user['profile_photo_path'] ?? null;
+        // Super-admin (role=0) has no company — null means "see everything".
+        $_SESSION['company_id']         = isset($user['company_id']) && $user['company_id'] !== null
+            ? (int) $user['company_id']
+            : null;
     }
 
     private function isAjaxCall(): bool

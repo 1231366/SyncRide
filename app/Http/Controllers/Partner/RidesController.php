@@ -26,17 +26,31 @@ final class RidesController extends BaseController
 
         $rows = $this->services->partnerRidesByStatus($partnerId, $status);
         $data = array_map(static fn(array $r): array => [
-            'data_hora' => date('d/m/Y H:i', strtotime($r['serviceDate'] . ' ' . $r['serviceStartTime'])),
-            'cliente'   => htmlspecialchars((string) ($r['NomeCliente'] ?? ''), ENT_QUOTES, 'UTF-8'),
-            'has_key'   => (int) ($r['has_key'] ?? 0),
-            'rota'      => '<div class="d-flex flex-column text-start small">'
+            'raw_id'        => (int) $r['ID'],
+            'raw_date'      => $r['serviceDate'],
+            'raw_time'      => substr((string) $r['serviceStartTime'], 0, 5),
+            'raw_pickup'    => (string) ($r['serviceStartPoint']  ?? ''),
+            'raw_dropoff'   => (string) ($r['serviceTargetPoint'] ?? ''),
+            'raw_pax_adt'   => (int) ($r['paxADT']       ?? 1),
+            'raw_pax_chd'   => (int) ($r['paxCHD']       ?? 0),
+            'raw_flight'    => (string) ($r['FlightNumber'] ?? ''),
+            'raw_client'    => (string) ($r['NomeCliente']  ?? ''),
+            'raw_phone'     => (string) ($r['ClientNumber'] ?? ''),
+            'raw_status'    => (string) ($r['status_pedido'] ?? ''),
+            'data_hora'     => date('d/m/Y H:i', strtotime($r['serviceDate'] . ' ' . $r['serviceStartTime'])),
+            'cliente'       => htmlspecialchars((string) ($r['NomeCliente'] ?? ''), ENT_QUOTES, 'UTF-8'),
+            'has_key'       => (int) ($r['has_key'] ?? 0),
+            'rota'          => '<div class="d-flex flex-column text-start small">'
                 . '<span class="text-truncate" style="max-width:150px"><i class="bi bi-geo-alt-fill text-success me-1"></i>' . htmlspecialchars((string) ($r['serviceStartPoint'] ?? ''), ENT_QUOTES, 'UTF-8') . '</span>'
                 . '<span class="text-truncate" style="max-width:150px"><i class="bi bi-pin-map-fill text-danger me-1"></i>' . htmlspecialchars((string) ($r['serviceTargetPoint'] ?? ''), ENT_QUOTES, 'UTF-8') . '</span></div>',
-            'voo'       => !empty($r['FlightNumber'])
+            'voo'           => !empty($r['FlightNumber'])
                 ? '<span class="badge bg-light text-dark border">' . htmlspecialchars((string) $r['FlightNumber'], ENT_QUOTES, 'UTF-8') . '</span>'
                 : '-',
-            'pax'       => '<i class="bi bi-people-fill text-muted me-1"></i> ' . ((int)($r['paxADT'] ?? 0) + (int)($r['paxCHD'] ?? 0)),
-            'status'    => ucfirst((string) ($r['status_pedido'] ?? '')),
+            'pax'           => '<i class="bi bi-people-fill text-muted me-1"></i> ' . ((int)($r['paxADT'] ?? 0) + (int)($r['paxCHD'] ?? 0)),
+            'status'        => ucfirst((string) ($r['status_pedido'] ?? '')),
+            'acoes'         => (string) ($r['status_pedido'] ?? '') === 'pendente'
+                ? '<button class="btn btn-sm btn-outline-primary rounded-pill px-3 btn-edit-ride" data-id="' . (int) $r['ID'] . '"><i class="bi bi-pencil-fill me-1"></i>Edit</button>'
+                : '',
         ], $rows);
 
         $this->json(['data' => $data]);

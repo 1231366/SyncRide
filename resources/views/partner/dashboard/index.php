@@ -68,7 +68,8 @@ $userPhotoSrc = isset($_SESSION['profile_photo_path']) && $_SESSION['profile_pho
             #tabelaPartner tbody td:nth-child(1) { font-size: .7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 5px; }
             #tabelaPartner tbody td:nth-child(2) { font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 5px; line-height: 1.2; padding-right: 60px !important; }
             #tabelaPartner tbody td:nth-child(3), #tabelaPartner tbody td:nth-child(4), #tabelaPartner tbody td:nth-child(5) { font-size: .85rem; color: var(--text-main); display: flex; align-items: center; min-height: 22px; }
-            #tabelaPartner tbody td:nth-child(7) { position: absolute; top: 12px; right: 12px; width: auto !important; margin: 0; }
+            #tabelaPartner tbody td:nth-child(8) { position: absolute; top: 12px; right: 12px; width: auto !important; margin: 0; }
+            #tabelaPartner tbody td:nth-child(7) { position: absolute; top: 44px; right: 12px; width: auto !important; margin: 0; text-align: right; }
             #tabelaPartner tbody td:nth-child(6) { position: absolute; top: 12px; right: 120px; width: auto !important; margin: 0; text-align: right; }
         }
         .bottom-navbar { background-color: var(--bg-card); border-top: 1px solid var(--border-color); z-index: 1040; position: fixed; bottom: 0; left: 0; width: 100%; height: calc(70px + var(--safe-bottom)); padding-bottom: var(--safe-bottom); display: flex; justify-content: space-around; align-items: center; box-shadow: 0 -5px 20px rgba(0,0,0,.05); }
@@ -165,6 +166,7 @@ $userPhotoSrc = isset($_SESSION['profile_photo_path']) && $_SESSION['profile_pho
                                 <th>Pax</th>
                                 <th class="text-center">Key</th>
                                 <th class="text-center">Status</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -231,6 +233,32 @@ $userPhotoSrc = isset($_SESSION['profile_photo_path']) && $_SESSION['profile_pho
     </div>
 </div>
 
+<!-- Edit booking modal -->
+<div class="modal fade" id="modalEditBooking" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-bottom-0"><h5 class="modal-title fw-bold">Edit Booking</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body p-4">
+                <form id="formEditBooking">
+                    <input type="hidden" name="ride_id" id="edit_ride_id">
+                    <div class="row g-3">
+                        <div class="col-6"><label class="small text-muted fw-bold">Date</label><input type="date" name="date" id="edit_date" class="form-control" required></div>
+                        <div class="col-6"><label class="small text-muted fw-bold">Time</label><input type="time" name="time" id="edit_time" class="form-control" required></div>
+                        <div class="col-12"><label class="small text-muted fw-bold">Name</label><input type="text" name="client_name" id="edit_client_name" class="form-control" required></div>
+                        <div class="col-6"><label class="small text-muted fw-bold">Phone</label><input type="text" name="client_phone" id="edit_client_phone" class="form-control"></div>
+                        <div class="col-6"><label class="small text-muted fw-bold">Flight</label><input type="text" name="flight" id="edit_flight" class="form-control"></div>
+                        <div class="col-6"><label class="small text-muted fw-bold">Adults</label><input type="number" name="pax_adt" id="edit_pax_adt" value="1" class="form-control" required></div>
+                        <div class="col-6"><label class="small text-muted fw-bold">Children</label><input type="number" name="pax_chd" id="edit_pax_chd" value="0" class="form-control"></div>
+                        <div class="col-12"><label class="small text-muted fw-bold">Pickup</label><input type="text" name="pickup" id="edit_pickup" class="form-control" required></div>
+                        <div class="col-12"><label class="small text-muted fw-bold">Destination</label><input type="text" name="dropoff" id="edit_dropoff" class="form-control" required></div>
+                        <div class="col-12 mt-2"><button type="submit" class="btn btn-primary w-100 rounded-pill">Save Changes</button></div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
@@ -275,7 +303,8 @@ $(document).ready(function () {
                 const s = (d||'').toLowerCase();
                 const [cls, txt] = s === 'pendente' ? ['bg-warning text-warning','Pending'] : s === 'aprovado' ? ['bg-success text-success','Confirmed'] : s === 'rejeitado' ? ['bg-danger text-danger','Rejected'] : ['bg-secondary text-secondary', d];
                 return `<span class="badge rounded-pill ${cls} bg-opacity-10 px-3 py-2 border border-opacity-10">${txt}</span>`;
-            }}
+            }},
+            { data: 'acoes', className: 'text-end pe-3', orderable: false, searchable: false }
         ],
         order: [[0, 'desc']],
         dom: 'rt<"d-flex justify-content-center mt-3"p>',
@@ -294,6 +323,38 @@ $(document).ready(function () {
             currentStatus = link.dataset.status;
             table.ajax.reload();
         });
+    });
+
+    // Open edit modal — delegate on tbody because rows are re-rendered by DataTables
+    $('#tabelaPartner tbody').on('click', '.btn-edit-ride', function () {
+        const row = table.row($(this).closest('tr')).data();
+        if (!row) return;
+        const m = document.getElementById('modalEditBooking');
+        m.querySelector('#edit_ride_id').value    = row.raw_id;
+        m.querySelector('#edit_date').value       = row.raw_date;
+        m.querySelector('#edit_time').value       = row.raw_time;
+        m.querySelector('#edit_client_name').value= row.raw_client;
+        m.querySelector('#edit_client_phone').value= row.raw_phone;
+        m.querySelector('#edit_pax_adt').value    = row.raw_pax_adt;
+        m.querySelector('#edit_pax_chd').value    = row.raw_pax_chd;
+        m.querySelector('#edit_pickup').value     = row.raw_pickup;
+        m.querySelector('#edit_dropoff').value    = row.raw_dropoff;
+        m.querySelector('#edit_flight').value     = row.raw_flight;
+        new bootstrap.Modal(m).show();
+    });
+
+    $('#formEditBooking').on('submit', function (e) {
+        e.preventDefault();
+        const btn = $(this).find('button[type="submit"]');
+        btn.prop('disabled', true).html('Saving…');
+        fetch('/SRMT/public/partner/api-update-ride.php', { method: 'POST', body: new FormData(this) })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) { toastr.success('Booking updated!'); bootstrap.Modal.getInstance(document.getElementById('modalEditBooking')).hide(); table.ajax.reload(); }
+                else toastr.error(res.error || 'Update not allowed');
+            })
+            .catch(() => toastr.error('Network error'))
+            .finally(() => btn.prop('disabled', false).html('Save Changes'));
     });
 
     $('#formNewBooking').on('submit', function (e) {

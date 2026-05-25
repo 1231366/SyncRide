@@ -438,10 +438,7 @@ $userName = isset($_SESSION['name']) ? explode(' ', (string) $_SESSION['name'])[
                         <div class="col-6"><label class="form-label small">Adults</label><input type="number" class="form-control-custom" name="paxADT" required placeholder="0" /></div>
                         <div class="col-6"><label class="form-label small">Children</label><input type="number" class="form-control-custom" name="paxCHD" required placeholder="0" /></div>
                     </div>
-                    <div class="row mb-3">
-                        <div class="col-6"><label class="form-label small">Kids (criança)</label><input type="number" class="form-control-custom" name="NumCriancas" min="0" placeholder="0" /></div>
-                        <div class="col-6"><label class="form-label small">Infants (bebé)</label><input type="number" class="form-control-custom" name="NumBebes" min="0" placeholder="0" /></div>
-                    </div>
+                    <div class="mb-3"><label class="form-label small">Bebés</label><input type="number" class="form-control-custom" name="paxBBY" min="0" placeholder="0" /></div>
                     <div class="mb-3"><label class="form-label small">Pickup</label><input type="text" class="form-control-custom" name="serviceStartPoint" required placeholder="Address or Hotel" /></div>
                     <div class="mb-3"><label class="form-label small">Drop-off</label><input type="text" class="form-control-custom" name="serviceTargetPoint" required placeholder="Final destination" /></div>
                     <div class="row mb-3">
@@ -551,10 +548,7 @@ $userName = isset($_SESSION['name']) ? explode(' ', (string) $_SESSION['name'])[
                         <div class="col-4"><label class="small">CHD</label><input type="number" class="form-control-custom" id="editpaxCHD" name="edit_paxCHD" disabled></div>
                         <div class="col-4"><label class="small">Flight</label><input type="text" class="form-control-custom" id="editflightNumber" name="edit_flightNumber" disabled></div>
                     </div>
-                    <div class="row mb-3">
-                        <div class="col-6"><label class="small">Kids (criança)</label><input type="number" class="form-control-custom" id="editNumCriancas" name="edit_NumCriancas" min="0" disabled></div>
-                        <div class="col-6"><label class="small">Infants (bebé)</label><input type="number" class="form-control-custom" id="editNumBebes" name="edit_NumBebes" min="0" disabled></div>
-                    </div>
+                    <div class="mb-3"><label class="small">Bebés</label><input type="number" class="form-control-custom" id="editPaxBBY" name="edit_paxBBY" min="0" disabled></div>
                     <div class="row mb-3">
                         <div class="col-md-6"><label class="small">Client</label><input type="text" class="form-control-custom" id="editclientName" name="edit_clientName" disabled></div>
                         <div class="col-md-6"><label class="small">Client #</label><input type="text" class="form-control-custom" id="editclientNumber" name="edit_clientNumber" disabled></div>
@@ -746,7 +740,7 @@ $userName = isset($_SESSION['name']) ? explode(' ', (string) $_SESSION['name'])[
             else { toastr.error('Error'); }
         });
     }
-    function editTravel(id, dataHora, condutor, recolha, entrega, paxADT, paxCHD, numCriancas, numBebes, flightNumber, clientName, clientNumber, serviceType, totalPrice) {
+    function editTravel(id, dataHora, condutor, recolha, entrega, paxADT, paxCHD, paxBBY, flightNumber, clientName, clientNumber, serviceType, totalPrice) {
         disableEdit();
         document.getElementById('editTripId').value = id;
         document.getElementById('editDataHora').value = dataHora.replace(' ','T');
@@ -755,8 +749,7 @@ $userName = isset($_SESSION['name']) ? explode(' ', (string) $_SESSION['name'])[
         document.getElementById('editEntrega').value = entrega;
         document.getElementById('editpaxADT').value = paxADT;
         document.getElementById('editpaxCHD').value = paxCHD;
-        document.getElementById('editNumCriancas').value = numCriancas;
-        document.getElementById('editNumBebes').value = numBebes;
+        document.getElementById('editPaxBBY').value = paxBBY;
         document.getElementById('editflightNumber').value = flightNumber;
         document.getElementById('editclientName').value = clientName;
         document.getElementById('editclientNumber').value = clientNumber;

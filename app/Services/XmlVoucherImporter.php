@@ -52,18 +52,16 @@ final class XmlVoucherImporter
               AND NomeCliente = ? AND FlightNumber = ?
         ');
         $insertWithId = $this->db->prepare('
-            INSERT INTO Services (ID, serviceDate, serviceStartTime, paxADT, paxCHD,
-                                  NumCriancas, NumBebes,
+            INSERT INTO Services (ID, serviceDate, serviceStartTime, paxADT, paxCHD, paxBBY,
                                   serviceStartPoint, serviceTargetPoint, FlightNumber,
                                   NomeCliente, ClientNumber, serviceType, company_id)
-            VALUES (:ID, :sd, :st, :pa, :pc, :ncr, :nbe, :sp, :tp, :fn, :nc, :cn, :stype, :cid)
+            VALUES (:ID, :sd, :st, :pa, :pc, :bby, :sp, :tp, :fn, :nc, :cn, :stype, :cid)
         ');
         $insertWithoutId = $this->db->prepare('
-            INSERT INTO Services (serviceDate, serviceStartTime, paxADT, paxCHD,
-                                  NumCriancas, NumBebes,
+            INSERT INTO Services (serviceDate, serviceStartTime, paxADT, paxCHD, paxBBY,
                                   serviceStartPoint, serviceTargetPoint, FlightNumber,
                                   NomeCliente, ClientNumber, serviceType, company_id)
-            VALUES (:sd, :st, :pa, :pc, :ncr, :nbe, :sp, :tp, :fn, :nc, :cn, :stype, :cid)
+            VALUES (:sd, :st, :pa, :pc, :bby, :sp, :tp, :fn, :nc, :cn, :stype, :cid)
         ');
 
         $inserted = 0;
@@ -93,8 +91,7 @@ final class XmlVoucherImporter
                     ':st'    => $serviceTime,
                     ':pa'    => (int) $item->paxADT,
                     ':pc'    => (int) $item->paxCHD,
-                    ':ncr'   => $this->extractNumCriancas($remarks),
-                    ':nbe'   => $this->extractNumBebes($remarks),
+                    ':bby'   => $this->extractPaxBby($remarks),
                     ':sp'    => $pickup,
                     ':tp'    => $dropoff,
                     ':fn'    => $flight,
@@ -165,25 +162,11 @@ final class XmlVoucherImporter
     }
 
     /**
-     * Extracts child count from the remarks free-text.
-     * Matches patterns like "2 criança", "2 crianças", "2 chd", "2 child", "2 children".
+     * Extracts infant/baby count from the remarks free-text.
+     * paxCHD already covers children; this targets bebés/infants only.
+     * Matches: "1 bebé", "1 bebe", "1 infant", "1 baby", "1 babies".
      */
-    private function extractNumCriancas(string $remarks): int
-    {
-        if (preg_match('/(\d+)\s*crian[çc]a/ui', $remarks, $m)) {
-            return (int) $m[1];
-        }
-        if (preg_match('/(\d+)\s*(?:chd|child(?:ren)?)/ui', $remarks, $m)) {
-            return (int) $m[1];
-        }
-        return 0;
-    }
-
-    /**
-     * Extracts infant count from the remarks free-text.
-     * Matches patterns like "1 bebé", "1 bebe", "1 infant", "1 baby", "1 babies".
-     */
-    private function extractNumBebes(string $remarks): int
+    private function extractPaxBby(string $remarks): int
     {
         if (preg_match('/(\d+)\s*beb[eé]/ui', $remarks, $m)) {
             return (int) $m[1];

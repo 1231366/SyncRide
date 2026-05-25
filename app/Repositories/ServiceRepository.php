@@ -156,11 +156,11 @@ final class ServiceRepository
         $cid  = isset($data['company_id']) ? (int) $data['company_id'] : $this->companyId;
         $stmt = $this->db->prepare('
             INSERT INTO Services
-                (serviceDate, serviceStartTime, paxADT, paxCHD, NumCriancas, NumBebes,
+                (serviceDate, serviceStartTime, paxADT, paxCHD, paxBBY,
                  serviceStartPoint, serviceTargetPoint,
                  FlightNumber, NomeCliente, ClientNumber, serviceType, partner_id, total_price, status_pedido, company_id)
             VALUES
-                (:date, :time, :adults, :children, :ncr, :nbe, :pickup, :dropoff,
+                (:date, :time, :adults, :children, :bby, :pickup, :dropoff,
                  :flight, :client, :phone, :type, :partner, :price, :approval, :company_id)
         ');
         $stmt->execute([
@@ -168,8 +168,7 @@ final class ServiceRepository
             'time'       => $data['serviceStartTime'],
             'adults'     => (int) $data['paxADT'],
             'children'   => (int) $data['paxCHD'],
-            'ncr'        => (int) ($data['NumCriancas'] ?? 0),
-            'nbe'        => (int) ($data['NumBebes']    ?? 0),
+            'bby'        => (int) ($data['paxBBY'] ?? 0),
             'pickup'     => $data['serviceStartPoint'],
             'dropoff'    => $data['serviceTargetPoint'],
             'flight'     => $data['FlightNumber']  ?? null,
@@ -383,7 +382,7 @@ final class ServiceRepository
             UPDATE Services
             SET serviceDate=:date, serviceStartTime=:time, serviceStartPoint=:pickup,
                 serviceTargetPoint=:dropoff, paxADT=:adults, paxCHD=:children,
-                NumCriancas=:ncr, NumBebes=:nbe,
+                paxBBY=:bby,
                 FlightNumber=:flight, NomeCliente=:client, ClientNumber=:phone, total_price=:price
             WHERE ID = :id
         ')->execute([
@@ -393,8 +392,7 @@ final class ServiceRepository
             'dropoff'  => $data['serviceTargetPoint'],
             'adults'   => (int) ($data['paxADT'] ?? 0),
             'children' => (int) ($data['paxCHD'] ?? 0),
-            'ncr'      => (int) ($data['NumCriancas'] ?? 0),
-            'nbe'      => (int) ($data['NumBebes']    ?? 0),
+            'bby'      => (int) ($data['paxBBY'] ?? 0),
             'flight'   => $data['FlightNumber'] ?? null,
             'client'   => $data['NomeCliente']  ?? null,
             'phone'    => $data['ClientNumber'] ?? null,
@@ -655,7 +653,7 @@ final class ServiceRepository
     {
         $sql    = 'SELECT s.ID AS ServiceID, s.serviceDate, s.serviceStartTime,
                           s.serviceStartPoint, s.serviceTargetPoint,
-                          s.paxADT, s.paxCHD, s.NumCriancas, s.NumBebes,
+                          s.paxADT, s.paxCHD, s.paxBBY,
                           s.FlightNumber, s.NomeCliente,
                           s.ClientNumber, s.serviceType, s.total_price, s.has_key,
                           s.partner_id, COALESCE(s.status_id, 0) AS status_id,
@@ -762,11 +760,11 @@ final class ServiceRepository
         $stmt = $this->db->prepare('
             INSERT INTO Services (
                 serviceDate, serviceStartTime, serviceStartPoint, serviceTargetPoint,
-                paxADT, paxCHD, NomeCliente, FlightNumber, partner_id,
+                paxADT, paxCHD, paxBBY, NomeCliente, FlightNumber, partner_id,
                 status_pedido, serviceType, ClientNumber, total_price, has_key, company_id
             ) VALUES (
                 :date, :time, :pickup, :dropoff,
-                :pax_adt, :pax_chd, :client_name, :flight, :partner_id,
+                :pax_adt, :pax_chd, :bby, :client_name, :flight, :partner_id,
                 "pendente", 1, :client_phone, :price, :has_key, :company_id
             )
         ');
@@ -775,8 +773,9 @@ final class ServiceRepository
             'time'         => $data['time'],
             'pickup'       => $data['pickup'],
             'dropoff'      => $data['dropoff'],
-            'pax_adt'      => (int) ($data['pax_adt'] ?? 1),
-            'pax_chd'      => (int) ($data['pax_chd'] ?? 0),
+            'pax_adt'      => (int) ($data['pax_adt']  ?? 1),
+            'pax_chd'      => (int) ($data['pax_chd']  ?? 0),
+            'bby'          => (int) ($data['pax_bby']  ?? 0),
             'client_name'  => $data['client_name'],
             'flight'       => $data['flight'] ?? '',
             'partner_id'   => $partnerId,
@@ -807,7 +806,7 @@ final class ServiceRepository
             UPDATE Services
             SET serviceDate=:date, serviceStartTime=:time,
                 serviceStartPoint=:pickup, serviceTargetPoint=:dropoff,
-                paxADT=:adt, paxCHD=:chd,
+                paxADT=:adt, paxCHD=:chd, paxBBY=:bby,
                 FlightNumber=:flight, NomeCliente=:client,
                 ClientNumber=:phone
             WHERE ID = :id AND partner_id = :pid AND COALESCE(status_id, 0) = 0
@@ -816,8 +815,9 @@ final class ServiceRepository
             'time'   => $data['time'],
             'pickup' => $data['pickup'],
             'dropoff'=> $data['dropoff'],
-            'adt'    => (int) ($data['pax_adt']      ?? 1),
-            'chd'    => (int) ($data['pax_chd']      ?? 0),
+            'adt'    => (int) ($data['pax_adt']  ?? 1),
+            'chd'    => (int) ($data['pax_chd']  ?? 0),
+            'bby'    => (int) ($data['pax_bby']  ?? 0),
             'flight' => $data['flight']       ?? '',
             'client' => $data['client_name']  ?? '',
             'phone'  => $data['client_phone'] ?? '',

@@ -213,8 +213,9 @@ $userPhotoSrc = isset($_SESSION['profile_photo_path']) && $_SESSION['profile_pho
                         <div class="col-12"><label class="small text-muted fw-bold">Name</label><input type="text" name="client_name" class="form-control" required></div>
                         <div class="col-6"><label class="small text-muted fw-bold">Phone</label><input type="text" name="client_phone" class="form-control"></div>
                         <div class="col-6"><label class="small text-muted fw-bold">Price</label><input type="number" step="0.01" name="price" class="form-control"></div>
-                        <div class="col-6"><label class="small text-muted fw-bold">Adults</label><input type="number" name="pax_adt" value="1" class="form-control" required></div>
-                        <div class="col-6"><label class="small text-muted fw-bold">Children</label><input type="number" name="pax_chd" value="0" class="form-control"></div>
+                        <div class="col-4"><label class="small text-muted fw-bold">Adults</label><input type="number" name="pax_adt" value="1" class="form-control" required></div>
+                        <div class="col-4"><label class="small text-muted fw-bold">Crianças</label><input type="number" name="pax_chd" value="0" class="form-control"></div>
+                        <div class="col-4"><label class="small text-muted fw-bold">Bebés</label><input type="number" name="pax_bby" value="0" class="form-control"></div>
                         <div class="col-12"><label class="small text-muted fw-bold">Pickup</label><input type="text" name="pickup" class="form-control" required></div>
                         <div class="col-12"><label class="small text-muted fw-bold">Destination</label><input type="text" name="dropoff" class="form-control" required></div>
                         <div class="col-6"><label class="small text-muted fw-bold">Flight</label><input type="text" name="flight" class="form-control"></div>
@@ -247,8 +248,9 @@ $userPhotoSrc = isset($_SESSION['profile_photo_path']) && $_SESSION['profile_pho
                         <div class="col-12"><label class="small text-muted fw-bold">Name</label><input type="text" name="client_name" id="edit_client_name" class="form-control" required></div>
                         <div class="col-6"><label class="small text-muted fw-bold">Phone</label><input type="text" name="client_phone" id="edit_client_phone" class="form-control"></div>
                         <div class="col-6"><label class="small text-muted fw-bold">Flight</label><input type="text" name="flight" id="edit_flight" class="form-control"></div>
-                        <div class="col-6"><label class="small text-muted fw-bold">Adults</label><input type="number" name="pax_adt" id="edit_pax_adt" value="1" class="form-control" required></div>
-                        <div class="col-6"><label class="small text-muted fw-bold">Children</label><input type="number" name="pax_chd" id="edit_pax_chd" value="0" class="form-control"></div>
+                        <div class="col-4"><label class="small text-muted fw-bold">Adults</label><input type="number" name="pax_adt" id="edit_pax_adt" value="1" class="form-control" required></div>
+                        <div class="col-4"><label class="small text-muted fw-bold">Crianças</label><input type="number" name="pax_chd" id="edit_pax_chd" value="0" class="form-control"></div>
+                        <div class="col-4"><label class="small text-muted fw-bold">Bebés</label><input type="number" name="pax_bby" id="edit_pax_bby" value="0" class="form-control"></div>
                         <div class="col-12"><label class="small text-muted fw-bold">Pickup</label><input type="text" name="pickup" id="edit_pickup" class="form-control" required></div>
                         <div class="col-12"><label class="small text-muted fw-bold">Destination</label><input type="text" name="dropoff" id="edit_dropoff" class="form-control" required></div>
                         <div class="col-12 mt-2"><button type="submit" class="btn btn-primary w-100 rounded-pill">Save Changes</button></div>
@@ -337,6 +339,7 @@ $(document).ready(function () {
         m.querySelector('#edit_client_phone').value= row.raw_phone;
         m.querySelector('#edit_pax_adt').value    = row.raw_pax_adt;
         m.querySelector('#edit_pax_chd').value    = row.raw_pax_chd;
+        m.querySelector('#edit_pax_bby').value    = row.raw_pax_bby;
         m.querySelector('#edit_pickup').value     = row.raw_pickup;
         m.querySelector('#edit_dropoff').value    = row.raw_dropoff;
         m.querySelector('#edit_flight').value     = row.raw_flight;

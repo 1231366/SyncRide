@@ -392,6 +392,45 @@ final class ServiceRepository
             ->execute(['s' => $status, 'id' => $id]);
     }
 
+    /**
+     * No-show records with driver name for the admin DataTable.
+     *
+     * @return array<array<string,mixed>>
+     */
+    public function listNoShowsForAdmin(): array
+    {
+        return $this->db->query("
+            SELECT s.ID, s.serviceDate, s.serviceStartTime,
+                   s.serviceStartPoint, s.serviceTargetPoint,
+                   s.noShowPhotoPath, u.name AS driverName
+            FROM Services s
+            LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
+            LEFT JOIN Users u ON sr.UserID = u.ID
+            WHERE s.noShowStatus = 1
+            ORDER BY s.serviceDate DESC, s.serviceStartTime DESC
+        ")->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Returns the service row joined with partner email/name for email dispatch.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function findWithPartner(int $id): ?array
+    {
+        $stmt = $this->db->prepare("
+            SELECT s.NomeCliente, s.serviceStartPoint, s.serviceTargetPoint,
+                   s.serviceDate, s.partner_id,
+                   u.email AS partner_email, u.name AS partner_name
+            FROM Services s
+            LEFT JOIN Users u ON s.partner_id = u.id
+            WHERE s.ID = :id
+        ");
+        $stmt->execute(['id' => $id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
     /** Returns the five driver-progress timestamps for the logs modal. */
     public function getTimestamps(int $id): ?array
     {

@@ -1,9 +1,10 @@
 # Bloqueia acesso web directo a tudo excepto public/
-# (usado quando o document root não pode ser alterado para public/)
 Options -Indexes
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    # Nega acesso directo a directorias sensíveis
+    RewriteRule ^(app|bootstrap|config|database|vendor|storage|scripts|docs|tests|resources)(/|$) - [F,L]
     # Se não está já dentro de public/, redireciona para lá
     RewriteCond %{REQUEST_URI} !^/public/
     RewriteCond %{REQUEST_URI} !^/SRMT/public/
@@ -14,8 +15,3 @@ Options -Indexes
 <FilesMatch "\.(env|json|lock|md|sh|sql)$">
     Require all denied
 </FilesMatch>
-
-# Nega acesso a directorias sensíveis
-<DirectoryMatch "^.*(app|bootstrap|config|database|vendor|storage|scripts|docs|tests|resources).*$">
-    Require all denied
-</DirectoryMatch>

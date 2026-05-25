@@ -26,8 +26,9 @@ final class CompaniesController extends BaseController
 
     public function index(): void
     {
-        $companies = $this->companies->all();
-        $this->view('superadmin.companies.index', compact('companies'));
+        $companies    = $this->companies->all();
+        $adminsByCompany = $this->companies->allAdminsByCompany();
+        $this->view('superadmin.companies.index', compact('companies', 'adminsByCompany'));
     }
 
     public function store(): never
@@ -91,7 +92,7 @@ final class CompaniesController extends BaseController
         $this->redirect('/SRMT/public/superadmin/companies.php?success=deleted');
     }
 
-    /** Create a user and associate them with a company (called via POST). */
+    /** Create a company admin (role=1) for a given company. */
     public function storeUser(): never
     {
         $this->requirePost();
@@ -100,8 +101,6 @@ final class CompaniesController extends BaseController
         $email     = trim((string) $this->input('email', ''));
         $name      = trim((string) $this->input('name', ''));
         $password  = (string) $this->input('password', '');
-        $role      = (int) $this->input('role', 1);
-        $phone     = trim((string) $this->input('phone', ''));
 
         if ($companyId === 0 || $email === '' || $name === '' || $password === '') {
             $this->json(['success' => false, 'message' => 'Missing required fields'], 400);
@@ -112,12 +111,12 @@ final class CompaniesController extends BaseController
                 'email'      => $email,
                 'name'       => $name,
                 'password'   => $password,
-                'role'       => $role,
-                'phone'      => $phone ?: null,
+                'role'       => 1, // always Admin — drivers/partners are created by the company admin
+                'phone'      => 0,
                 'company_id' => $companyId,
             ]);
-            $this->logs->record("Super-admin created user #{$user->id} ({$user->name}) for company #{$companyId}");
-            $this->json(['success' => true, 'user_id' => $user->id]);
+            $this->logs->record("Super-admin created admin #{$user->id} ({$user->name}) for company #{$companyId}");
+            $this->json(['success' => true, 'user_id' => $user->id, 'name' => $user->name, 'email' => $user->email]);
         } catch (\RuntimeException $e) {
             $this->json(['success' => false, 'message' => $e->getMessage()], 422);
         }

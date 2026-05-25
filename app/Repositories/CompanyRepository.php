@@ -69,6 +69,38 @@ final class CompanyRepository
         return (bool) $stmt->fetchColumn();
     }
 
+    /**
+     * Returns all admin users (role=1) for a given company.
+     * @return array<array{id:int,name:string,email:string}>
+     */
+    public function adminsForCompany(int $companyId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT id, name, email FROM Users WHERE role = 1 AND company_id = :cid ORDER BY name'
+        );
+        $stmt->execute(['cid' => $companyId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Returns admins for all companies, keyed by company_id.
+     * @return array<int, array<array{id:int,name:string,email:string}>>
+     */
+    public function allAdminsByCompany(): array
+    {
+        $stmt   = $this->db->query('SELECT id, name, email, company_id FROM Users WHERE role = 1 ORDER BY company_id, name');
+        $rows   = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $result = [];
+        foreach ($rows as $row) {
+            $result[(int) $row['company_id']][] = [
+                'id'    => (int) $row['id'],
+                'name'  => (string) $row['name'],
+                'email' => (string) $row['email'],
+            ];
+        }
+        return $result;
+    }
+
     /** Per-company summary stats for the super-admin dashboard. */
     public function stats(): array
     {

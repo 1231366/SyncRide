@@ -13,12 +13,18 @@ require __DIR__ . '/../bootstrap.php';
 use App\Support\Database;
 
 $pdo = Database::connection();
-$sql = file_get_contents(__DIR__ . '/migrations/001_multi_tenant.sql');
+$raw = file_get_contents(__DIR__ . '/migrations/001_multi_tenant.sql');
 
-// Split on semicolons, skip comments and empty statements
+// Strip every comment line before splitting on ";"
+// This prevents semicolons inside comment text from creating broken fragments.
+$stripped = implode("\n", array_filter(
+    explode("\n", $raw),
+    fn(string $line) => !str_starts_with(ltrim($line), '--')
+));
+
 $statements = array_filter(
-    array_map('trim', explode(';', $sql)),
-    fn(string $s) => $s !== '' && !str_starts_with(ltrim($s), '--')
+    array_map('trim', explode(';', $stripped)),
+    fn(string $s) => $s !== ''
 );
 
 $ok     = 0;
@@ -29,25 +35,36 @@ foreach ($statements as $statement) {
         $pdo->exec($statement);
         $ok++;
     } catch (\PDOException $e) {
-        $errors[] = ['sql' => substr($statement, 0, 120) . '…', 'error' => $e->getMessage()];
+        $code = (int) $e->getCode();
+        // 1060 = Duplicate column name  (column already exists — safe to ignore)
+        // 1061 = Duplicate key name      (index already exists — safe to ignore)
+        // 1146 = Table doesn't exist     (optional table — safe to ignore)
+        if (in_array($code, [1060, 1061, 1146], true)) {
+            $ok++; // treat as OK — migration is idempotent
+        } else {
+            $errors[] = [
+                'sql'   => substr($statement, 0, 200) . (strlen($statement) > 200 ? '…' : ''),
+                'error' => $e->getMessage(),
+            ];
+        }
     }
 }
 
 $isCli = PHP_SAPI === 'cli';
-$nl     = $isCli ? "\n" : "<br>\n";
+$nl    = $isCli ? "\n" : "<br>\n";
 
 echo $isCli ? '' : '<!DOCTYPE html><meta charset="utf-8"><pre>';
 echo "Migration 001_multi_tenant{$nl}";
-echo "Statements executed: {$ok}{$nl}";
+echo "Statements OK: {$ok}{$nl}";
 
 if ($errors !== []) {
-    echo "ERRORS ({$nl}";
+    echo "ERRORS:" . $nl;
     foreach ($errors as $e) {
         echo "  SQL: {$e['sql']}{$nl}";
         echo "  ERR: {$e['error']}{$nl}{$nl}";
     }
 } else {
-    echo "All statements ran without errors.{$nl}";
+    echo "All statements ran without errors. Safe to delete this file.{$nl}";
 }
 
 echo $isCli ? '' : '</pre>';

@@ -1,0 +1,256 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Repositories;
+
+use App\Models\Service;
+use App\Support\Database;
+use PDO;
+use RuntimeException;
+
+/**
+ * Data-access layer for the `Services` table and its join with
+ * `Services_Rides` (driver assignment).
+ *
+ * Method names are English; SQL keeps the production column names
+ * (NomeCliente, FlightNumber, serviceDate, …).
+ */
+final class ServiceRepository
+{
+    public function __construct(private readonly PDO $db)
+    {
+    }
+
+    public static function default(): self
+    {
+        return new self(Database::connection());
+    }
+
+    public function find(int $id): ?Service
+    {
+        $stmt = $this->db->prepare('SELECT * FROM Services WHERE ID = :id');
+        $stmt->execute(['id' => $id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? Service::fromRow($row) : null;
+    }
+
+    /** @return array<Service> */
+    public function byDate(string $date): array
+    {
+        $stmt = $this->db->prepare('
+            SELECT * FROM Services
+            WHERE serviceDate = :date
+            ORDER BY serviceStartTime
+        ');
+        $stmt->execute(['date' => $date]);
+        return array_map(Service::fromRow(...), $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    /** @return array<Service> */
+    public function byDateRange(string $from, string $to): array
+    {
+        $stmt = $this->db->prepare('
+            SELECT * FROM Services
+            WHERE serviceDate BETWEEN :from AND :to
+            ORDER BY serviceDate, serviceStartTime
+        ');
+        $stmt->execute(['from' => $from, 'to' => $to]);
+        return array_map(Service::fromRow(...), $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    /** @return array<Service> rides assigned to a given driver, optionally for a given date. */
+    public function forDriver(int $driverId, ?string $date = null): array
+    {
+        $sql = '
+            SELECT s.*
+            FROM Services s
+            JOIN Services_Rides sr ON sr.RideID = s.ID
+            WHERE sr.UserID = :uid
+        ';
+        $params = ['uid' => $driverId];
+        if ($date !== null) {
+            $sql .= ' AND s.serviceDate = :date';
+            $params['date'] = $date;
+        }
+        $sql .= ' ORDER BY s.serviceDate, s.serviceStartTime';
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return array_map(Service::fromRow(...), $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    /** @return array<Service> rides owned by a partner (status_pedido='aprovado' filter optional). */
+    public function forPartner(int $partnerId, bool $approvedOnly = false): array
+    {
+        $sql = 'SELECT * FROM Services WHERE partner_id = :pid';
+        $params = ['pid' => $partnerId];
+        if ($approvedOnly) {
+            $sql .= " AND status_pedido = 'aprovado'";
+        }
+        $sql .= ' ORDER BY serviceDate DESC, serviceStartTime';
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return array_map(Service::fromRow(...), $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    /** @return array<Service> no-show rides, most recent first. */
+    public function noShows(?string $from = null, ?string $to = null): array
+    {
+        $sql = 'SELECT * FROM Services WHERE noShowStatus = 1';
+        $params = [];
+        if ($from !== null) { $sql .= ' AND serviceDate >= :from'; $params['from'] = $from; }
+        if ($to   !== null) { $sql .= ' AND serviceDate <= :to';   $params['to']   = $to; }
+        $sql .= ' ORDER BY serviceDate DESC, serviceStartTime';
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return array_map(Service::fromRow(...), $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    public function create(array $data): Service
+    {
+        foreach (['serviceDate', 'serviceStartTime', 'paxADT', 'paxCHD', 'serviceStartPoint', 'serviceTargetPoint'] as $required) {
+            if (!isset($data[$required])) {
+                throw new RuntimeException("ServiceRepository::create — missing field: {$required}");
+            }
+        }
+
+        $stmt = $this->db->prepare('
+            INSERT INTO Services
+                (serviceDate, serviceStartTime, paxADT, paxCHD, serviceStartPoint, serviceTargetPoint,
+                 FlightNumber, NomeCliente, ClientNumber, serviceType, partner_id, total_price, status_pedido)
+            VALUES
+                (:date, :time, :adults, :children, :pickup, :dropoff,
+                 :flight, :client, :phone, :type, :partner, :price, :approval)
+        ');
+        $stmt->execute([
+            'date'     => $data['serviceDate'],
+            'time'     => $data['serviceStartTime'],
+            'adults'   => (int) $data['paxADT'],
+            'children' => (int) $data['paxCHD'],
+            'pickup'   => $data['serviceStartPoint'],
+            'dropoff'  => $data['serviceTargetPoint'],
+            'flight'   => $data['FlightNumber']   ?? null,
+            'client'   => $data['NomeCliente']    ?? null,
+            'phone'    => $data['ClientNumber']   ?? null,
+            'type'     => (int) ($data['serviceType']   ?? 1),
+            'partner'  => isset($data['partner_id']) ? (int) $data['partner_id'] : null,
+            'price'    => isset($data['total_price']) ? (float) $data['total_price'] : null,
+            'approval' => $data['status_pedido']  ?? 'aprovado',
+        ]);
+
+        return $this->find((int) $this->db->lastInsertId())
+            ?? throw new RuntimeException('ServiceRepository::create — reload failed');
+    }
+
+    public function updateStatus(int $id, int $statusId): void
+    {
+        $ts = match ($statusId) {
+            Service::STATUS_ON_THE_WAY  => 'ts_start_pickup',
+            Service::STATUS_AT_PICKUP   => 'ts_arrived_pickup',
+            Service::STATUS_WITH_CLIENT => 'ts_with_client',
+            Service::STATUS_ON_TRIP     => 'ts_start_trip',
+            Service::STATUS_COMPLETED   => 'ts_completed',
+            default                     => null,
+        };
+
+        if ($ts !== null) {
+            $sql = "UPDATE Services SET status_id = :st, {$ts} = NOW() WHERE ID = :id";
+        } else {
+            $sql = 'UPDATE Services SET status_id = :st WHERE ID = :id';
+        }
+        $this->db->prepare($sql)->execute(['st' => $statusId, 'id' => $id]);
+    }
+
+    public function markNoShow(int $id, ?string $photoPath, ?string $lat, ?string $lng): void
+    {
+        $stmt = $this->db->prepare('
+            UPDATE Services
+            SET noShowStatus = 1, noShowPhotoPath = :photo, noShowLat = :lat, noShowLng = :lng
+            WHERE ID = :id
+        ');
+        $stmt->execute(['photo' => $photoPath, 'lat' => $lat, 'lng' => $lng, 'id' => $id]);
+    }
+
+    public function setTripType(int $id, int $type): void
+    {
+        $this->db->prepare('UPDATE Services SET serviceType = :t WHERE ID = :id')
+            ->execute(['t' => $type, 'id' => $id]);
+    }
+
+    public function delete(int $id): void
+    {
+        $this->db->beginTransaction();
+        try {
+            $this->db->prepare('DELETE FROM Services_Rides WHERE RideID = :id')->execute(['id' => $id]);
+            $this->db->prepare('DELETE FROM Services WHERE ID = :id')->execute(['id' => $id]);
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
+    public function deleteAll(): void
+    {
+        $this->db->beginTransaction();
+        try {
+            $this->db->exec('DELETE FROM Services_Rides');
+            $this->db->exec('DELETE FROM Services');
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
+    /** Assign a driver to a ride; replaces any existing assignment. */
+    public function assignDriver(int $serviceId, int $driverId): void
+    {
+        $this->db->beginTransaction();
+        try {
+            $this->db->prepare('DELETE FROM Services_Rides WHERE RideID = :rid')
+                ->execute(['rid' => $serviceId]);
+            $this->db->prepare('INSERT INTO Services_Rides (RideID, UserID) VALUES (:rid, :uid)')
+                ->execute(['rid' => $serviceId, 'uid' => $driverId]);
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
+    /** Returns assigned driver id for a ride, or null if unassigned. */
+    public function assignedDriver(int $serviceId): ?int
+    {
+        $stmt = $this->db->prepare('SELECT UserID FROM Services_Rides WHERE RideID = :rid LIMIT 1');
+        $stmt->execute(['rid' => $serviceId]);
+        $id = $stmt->fetchColumn();
+        return $id === false ? null : (int) $id;
+    }
+
+    /**
+     * Count rides per driver in a date range, for ranking tables.
+     *
+     * @return array<array{driver_id:int,driver_name:string,total:int}>
+     */
+    public function rankByDriver(string $from, string $to): array
+    {
+        $stmt = $this->db->prepare('
+            SELECT u.id AS driver_id, u.name AS driver_name, COUNT(*) AS total
+            FROM Services s
+            JOIN Services_Rides sr ON sr.RideID = s.ID
+            JOIN Users u           ON u.id = sr.UserID
+            WHERE s.serviceDate BETWEEN :from AND :to
+            GROUP BY u.id, u.name
+            ORDER BY total DESC
+        ');
+        $stmt->execute(['from' => $from, 'to' => $to]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return array_map(static fn(array $r): array => [
+            'driver_id'   => (int) $r['driver_id'],
+            'driver_name' => (string) $r['driver_name'],
+            'total'       => (int) $r['total'],
+        ], $rows);
+    }
+}

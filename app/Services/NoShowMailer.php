@@ -7,31 +7,31 @@ namespace App\Services;
 use PHPMailer\PHPMailer\PHPMailer;
 
 /**
- * Sends the no-show incident email to the relevant parties.
- *
- * For partner rides: the partner + internal address.
- * For agency rides:  MTS Globe contacts + internal address.
+ * Partner rides  → TO: partner email (auto from ride data)
+ * Normal rides   → TO: $agencyEmail
+ * Both cases     → CC: $ccList + $myCopyEmail
  */
 final class NoShowMailer
 {
     /**
-     * @param string[] $internalRecipients  From TenantSettings (no_show_cc).
-     *                                       Partner is always added automatically for partner rides.
+     * @param string[] $ccList  Internal CC list from settings.
      */
     public function send(
-        int    $tripId,
-        array  $tripData,
-        string $serverPath,
+        int     $tripId,
+        array   $tripData,
+        string  $serverPath,
         ?string $lat,
         ?string $lng,
-        array $internalRecipients = []
+        string  $agencyEmail = '',
+        array   $ccList      = [],
+        string  $myCopyEmail = ''
     ): void {
         date_default_timezone_set('Europe/Lisbon');
         $timestamp = date('d/m/Y H:i');
 
         $locationHtml = '';
         if ($lat && $lng) {
-            $mapLink = "https://www.google.com/maps?q={$lat},{$lng}";
+            $mapLink      = "https://www.google.com/maps?q={$lat},{$lng}";
             $locationHtml = "
                 <div style='margin-top:20px;padding:15px;background:#fff5f5;border-radius:10px;border:1px solid #feb2b2;'>
                     <div style='font-size:10px;color:#c53030;text-transform:uppercase;font-weight:bold;'>GPS Location of Report</div>
@@ -41,7 +41,7 @@ final class NoShowMailer
                 </div>";
         }
 
-        $clientName = strtoupper((string) ($tripData['NomeCliente'] ?? 'N/A'));
+        $clientName = strtoupper((string) ($tripData['NomeCliente']       ?? 'N/A'));
         $pickup     = htmlspecialchars((string) ($tripData['serviceStartPoint'] ?? ''));
         $dropoff    = htmlspecialchars((string) ($tripData['serviceTargetPoint'] ?? ''));
 
@@ -56,11 +56,24 @@ final class NoShowMailer
         $mail->CharSet    = 'UTF-8';
         $mail->setFrom('no-reply@syncride.wmservers.pt', 'SyncRide Alerts');
 
-        if (!empty($tripData['partner_id']) && !empty($tripData['partner_email'])) {
-            $mail->addAddress((string) $tripData['partner_email'], (string) $tripData['partner_name']);
+        // Route primary TO
+        $partnerEmail = (string) ($tripData['partner_email'] ?? '');
+        $partnerName  = (string) ($tripData['partner_name']  ?? '');
+        if (!empty($tripData['partner_id']) && $partnerEmail !== '') {
+            $mail->addAddress($partnerEmail, $partnerName);
+        } elseif ($agencyEmail !== '') {
+            $mail->addAddress($agencyEmail);
+        } else {
+            return; // nowhere to send
         }
-        foreach ($internalRecipients as $email) {
-            $mail->addAddress($email);
+
+        foreach ($ccList as $cc) {
+            if (filter_var($cc, FILTER_VALIDATE_EMAIL)) {
+                $mail->addCC($cc);
+            }
+        }
+        if ($myCopyEmail !== '' && filter_var($myCopyEmail, FILTER_VALIDATE_EMAIL)) {
+            $mail->addCC($myCopyEmail);
         }
 
         $mail->addEmbeddedImage($serverPath, 'foto_noshow');
@@ -89,15 +102,11 @@ final class NoShowMailer
                             </td>
                         </tr>
                     </table>
-                    <div style='background-color:#f7fafc;border-radius:15px;padding:25px;display:flex;align-items:center;justify-content:space-between;margin-bottom:30px;border:1px dashed #cbd5e0;'>
-                        <div style='text-align:left;'>
-                            <div style='font-size:24px;font-weight:900;color:#1a202c;'>PICK</div>
-                            <div style='font-size:12px;color:#718096;max-width:150px;'>{$pickup}</div>
-                        </div>
-                        <div style='font-size:24px;color:#e53e3e;'>✕</div>
-                        <div style='text-align:right;'>
-                            <div style='font-size:24px;font-weight:900;color:#1a202c;'>DROP</div>
-                            <div style='font-size:12px;color:#718096;max-width:150px;'>{$dropoff}</div>
+                    <div style='background-color:#f7fafc;border-radius:15px;padding:25px;margin-bottom:30px;border:1px dashed #cbd5e0;'>
+                        <div style='display:flex;align-items:center;justify-content:space-between;'>
+                            <div><div style='font-size:24px;font-weight:900;color:#1a202c;'>PICK</div><div style='font-size:12px;color:#718096;max-width:150px;'>{$pickup}</div></div>
+                            <div style='font-size:24px;color:#e53e3e;'>✕</div>
+                            <div style='text-align:right;'><div style='font-size:24px;font-weight:900;color:#1a202c;'>DROP</div><div style='font-size:12px;color:#718096;max-width:150px;'>{$dropoff}</div></div>
                         </div>
                     </div>
                     <div style='text-align:center;margin-bottom:25px;'>
@@ -110,9 +119,6 @@ final class NoShowMailer
                     <div style='font-size:24px;color:#1a202c;margin-bottom:10px;font-weight:bold;'>Ride ID #{$tripId}</div>
                     <div style='font-size:10px;color:#a0aec0;letter-spacing:2px;'>SYNCRIDE PORTUGAL ECOSYSTEM</div>
                 </div>
-            </div>
-            <div style='text-align:center;margin-top:20px;color:#a0aec0;font-size:11px;'>
-                Sent automatically by the SyncRide security system.
             </div>
         </div>";
 

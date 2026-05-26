@@ -90,9 +90,14 @@ final class UploadController extends BaseController
         }
 
         $s = $this->settings();
-        if ($s->voucherEnabled() && $s->voucherRecipients() !== []) {
+        if ($s->voucherEnabled()) {
             try {
-                (new VoucherMailer())->send($tripId, $driverName, $serverPath, $fileName, $lat, $lng, $s->voucherRecipients());
+                (new VoucherMailer())->send(
+                    $tripId, $driverName, $serverPath, $fileName, $lat, $lng,
+                    $s->voucherAgencyEmail(),
+                    $s->voucherCcList(),
+                    $s->voucherMyCopy()
+                );
             } catch (\Throwable $e) {
                 error_log('VoucherMailer failed for ride #' . $tripId . ': ' . $e->getMessage());
             }

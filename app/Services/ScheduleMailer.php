@@ -25,10 +25,10 @@ final class ScheduleMailer
     }
 
     /**
-     * @param string[] $recipients  Configured via TenantSettings (schedule_recipient).
-     *                              Falls back to MAIL_FROM_ADDRESS env var if empty.
+     * @param string[] $recipients   Configured via TenantSettings (schedule_recipient).
+     * @param string   $myCopyEmail Admin self-copy (schedule_my_copy). Empty = disabled.
      */
-    public function sendForTomorrow(array $recipients = []): bool
+    public function sendForTomorrow(array $recipients = [], string $myCopyEmail = ''): bool
     {
         $tomorrow    = (new \DateTimeImmutable('+1 day'))->format('Y-m-d');
         $displayDate = (new \DateTimeImmutable('+1 day'))->format('d/m/Y');
@@ -36,8 +36,11 @@ final class ScheduleMailer
         $subject     = "SyncRide schedule — {$displayDate}";
         $body        = $this->renderHtml($displayDate, $services);
 
-        $fallback    = (string) (Env::get('MAIL_FROM_ADDRESS') ?: '');
-        $toList      = $recipients !== [] ? $recipients : ($fallback !== '' ? [$fallback] : []);
+        $fallback = (string) (Env::get('MAIL_FROM_ADDRESS') ?: '');
+        $toList   = $recipients !== [] ? $recipients : ($fallback !== '' ? [$fallback] : []);
+        if ($myCopyEmail !== '' && filter_var($myCopyEmail, FILTER_VALIDATE_EMAIL) && !in_array($myCopyEmail, $toList, true)) {
+            $toList[] = $myCopyEmail;
+        }
 
         if ($toList === []) {
             return false;

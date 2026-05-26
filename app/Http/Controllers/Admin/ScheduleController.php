@@ -20,7 +20,7 @@ final class ScheduleController extends BaseController
             $this->json(['success' => false, 'message' => 'Schedule email is disabled in settings.']);
         }
 
-        $ok = ScheduleMailer::default()->sendForTomorrow($s->scheduleRecipients());
+        $ok = ScheduleMailer::default()->sendForTomorrow($s->scheduleRecipients(), $s->scheduleMyCopy());
 
         LogRepository::default()->record(
             $ok ? 'Operations schedule emailed for tomorrow' : 'Schedule email FAILED'

@@ -85,7 +85,12 @@ final class NoShowsController extends BaseController
         $tripData = $this->services->findWithPartner($tripId);
         if ($tripData !== null && $s->noShowEnabled()) {
             try {
-                (new NoShowMailer())->send($tripId, $tripData, $serverPath, $lat, $lng, $s->noShowInternalRecipients());
+                (new NoShowMailer())->send(
+                    $tripId, $tripData, $serverPath, $lat, $lng,
+                    $s->noShowAgencyEmail(),
+                    $s->noShowCcList(),
+                    $s->noShowMyCopy()
+                );
             } catch (\Throwable $e) {
                 error_log('NoShowMailer failed for ride #' . $tripId . ': ' . $e->getMessage());
             }

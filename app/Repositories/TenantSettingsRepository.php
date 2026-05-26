@@ -16,15 +16,26 @@ use PDO;
  *
  * Setting keys
  * ────────────
- * ui_theme                 "light"|"dark"
- * trip_report_enabled      "1"|"0"   — end-of-trip email to partner + CC
- * trip_report_cc           comma-separated extra CCs
- * voucher_enabled          "1"|"0"   — voucher-photo email when driver uploads
- * voucher_cc               comma-separated recipients
- * no_show_enabled          "1"|"0"   — no-show alert email
- * no_show_cc               comma-separated internal recipients
- * schedule_enabled         "1"|"0"   — daily operations schedule email
- * schedule_recipient       single email (or comma-separated)
+ * ui_theme                   "light"|"dark"
+ *
+ * trip_report_enabled        "1"|"0"
+ * trip_report_agency_email   TO for non-partner rides (single email)
+ * trip_report_cc             comma-separated extra CCs (both cases)
+ * trip_report_my_copy        admin self-copy email (empty = disabled)
+ *
+ * voucher_enabled            "1"|"0"
+ * voucher_agency_email       TO for non-partner rides
+ * voucher_cc                 comma-separated CCs
+ * voucher_my_copy            admin self-copy email
+ *
+ * no_show_enabled            "1"|"0"
+ * no_show_agency_email       TO for non-partner no-shows
+ * no_show_cc                 comma-separated CC list
+ * no_show_my_copy            admin self-copy email
+ *
+ * schedule_enabled           "1"|"0"
+ * schedule_recipient         comma-separated TO list
+ * schedule_my_copy           admin self-copy email
  */
 final class TenantSettingsRepository
 {
@@ -94,10 +105,22 @@ final class TenantSettingsRepository
         return $this->get('trip_report_enabled', '1') === '1';
     }
 
-    /** @return string[] */
+    /** TO for non-partner rides. */
+    public function tripReportAgencyEmail(): string
+    {
+        return $this->get('trip_report_agency_email', '');
+    }
+
+    /** Extra CCs applied to both partner and non-partner trip reports. @return string[] */
     public function tripReportRecipients(): array
     {
         return $this->emailList('trip_report_cc');
+    }
+
+    /** Admin self-copy email — empty means disabled. */
+    public function tripReportMyCopy(): string
+    {
+        return $this->get('trip_report_my_copy', '');
     }
 
     // Voucher ──────────────────────────────────────────────────────────────────
@@ -107,10 +130,21 @@ final class TenantSettingsRepository
         return $this->get('voucher_enabled', '1') === '1';
     }
 
+    /** TO for non-partner vouchers. */
+    public function voucherAgencyEmail(): string
+    {
+        return $this->get('voucher_agency_email', '');
+    }
+
     /** @return string[] */
-    public function voucherRecipients(): array
+    public function voucherCcList(): array
     {
         return $this->emailList('voucher_cc');
+    }
+
+    public function voucherMyCopy(): string
+    {
+        return $this->get('voucher_my_copy', '');
     }
 
     // No-show ──────────────────────────────────────────────────────────────────
@@ -120,10 +154,21 @@ final class TenantSettingsRepository
         return $this->get('no_show_enabled', '1') === '1';
     }
 
-    /** Internal CC list — partner is always notified separately by the mailer. @return string[] */
-    public function noShowInternalRecipients(): array
+    /** TO for non-partner no-shows. */
+    public function noShowAgencyEmail(): string
+    {
+        return $this->get('no_show_agency_email', '');
+    }
+
+    /** CC list applied to all no-show alerts. @return string[] */
+    public function noShowCcList(): array
     {
         return $this->emailList('no_show_cc');
+    }
+
+    public function noShowMyCopy(): string
+    {
+        return $this->get('no_show_my_copy', '');
     }
 
     // Schedule ─────────────────────────────────────────────────────────────────
@@ -137,5 +182,10 @@ final class TenantSettingsRepository
     public function scheduleRecipients(): array
     {
         return $this->emailList('schedule_recipient');
+    }
+
+    public function scheduleMyCopy(): string
+    {
+        return $this->get('schedule_my_copy', '');
     }
 }

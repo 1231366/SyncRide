@@ -89,16 +89,26 @@ final class TripReportController extends BaseController
         $mail->CharSet    = 'UTF-8';
         $mail->setFrom('no-reply@syncride.wmservers.pt', 'SyncRide Alerts');
 
-        if (!empty($ride['partner_id']) && !empty($ride['partner_email'])) {
-            $mail->addAddress((string) $ride['partner_email'], (string) $ride['partner_name']);
+        // Route primary TO: partner → partner email; normal → configured agency email
+        $partnerEmail = (string) ($ride['partner_email'] ?? '');
+        if (!empty($ride['partner_id']) && $partnerEmail !== '') {
+            $mail->addAddress($partnerEmail, (string) ($ride['partner_name'] ?? ''));
         } else {
-            $mail->addAddress('transfers.pt@mtsglobe.com');
+            $agencyEmail = $this->tenantSettings->tripReportAgencyEmail();
+            if ($agencyEmail !== '') {
+                $mail->addAddress($agencyEmail);
+            }
         }
 
+        // CC: extra recipients + admin self-copy
         foreach ($this->tenantSettings->tripReportRecipients() as $ccEmail) {
             if (filter_var($ccEmail, FILTER_VALIDATE_EMAIL)) {
                 $mail->addCC($ccEmail);
             }
+        }
+        $myCopy = $this->tenantSettings->tripReportMyCopy();
+        if ($myCopy !== '' && filter_var($myCopy, FILTER_VALIDATE_EMAIL)) {
+            $mail->addCC($myCopy);
         }
 
         $mail->isHTML(true);

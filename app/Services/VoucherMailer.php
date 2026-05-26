@@ -8,38 +8,40 @@ use App\Support\Database;
 use PDO;
 use PHPMailer\PHPMailer\PHPMailer;
 
-/**
- * Sends a voucher confirmation email with the photo taken by the driver.
- */
 final class VoucherMailer
 {
     /**
-     * @param string[] $recipients  Configured recipient emails from TenantSettings.
+     * Routes TO based on partner: partner rides → partner email; normal rides → $agencyEmail.
+     * $ccList and $myCopyEmail are CC'd on both cases.
+     *
+     * @param string[] $ccList
      */
     public function send(
-        int    $tripId,
-        string $driverName,
-        string $serverPath,
-        string $fileName,
+        int     $tripId,
+        string  $driverName,
+        string  $serverPath,
+        string  $fileName,
         ?string $lat,
         ?string $lng,
-        array $recipients = []
+        string  $agencyEmail  = '',
+        array   $ccList       = [],
+        string  $myCopyEmail  = ''
     ): void {
         date_default_timezone_set('Europe/Lisbon');
         $timestamp = date('d/m/Y H:i');
 
-        $trip     = $this->fetchTrip($tripId);
-        $locHtml  = $lat && $lng
+        $trip    = $this->fetchTrip($tripId);
+        $locHtml = $lat && $lng
             ? "<p>📍 <b>Location:</b> <a href='https://maps.google.com/maps?q={$lat},{$lng}' target='_blank'>View on Google Maps</a> <small>({$lat}, {$lng})</small></p>"
             : "<p>⚠️ Location not captured.</p>";
 
-        $clientName   = htmlspecialchars((string) ($trip['NomeCliente']        ?? 'N/A'));
-        $clientPhone  = htmlspecialchars((string) ($trip['ClientNumber']       ?? 'N/A'));
-        $serviceDate  = htmlspecialchars((string) ($trip['serviceDate']        ?? 'N/A'));
-        $serviceTime  = htmlspecialchars((string) ($trip['serviceStartTime']   ?? 'N/A'));
-        $origin       = htmlspecialchars((string) ($trip['serviceStartPoint']  ?? 'N/A'));
-        $destination  = htmlspecialchars((string) ($trip['serviceTargetPoint'] ?? 'N/A'));
-        $safeDriver   = htmlspecialchars($driverName);
+        $clientName  = htmlspecialchars((string) ($trip['NomeCliente']       ?? 'N/A'));
+        $clientPhone = htmlspecialchars((string) ($trip['ClientNumber']      ?? 'N/A'));
+        $serviceDate = htmlspecialchars((string) ($trip['serviceDate']       ?? 'N/A'));
+        $serviceTime = htmlspecialchars((string) ($trip['serviceStartTime']  ?? 'N/A'));
+        $origin      = htmlspecialchars((string) ($trip['serviceStartPoint'] ?? 'N/A'));
+        $destination = htmlspecialchars((string) ($trip['serviceTargetPoint']?? 'N/A'));
+        $safeDriver  = htmlspecialchars($driverName);
 
         $mail = new PHPMailer(true);
         $mail->isSMTP();
@@ -49,10 +51,26 @@ final class VoucherMailer
         $mail->Password   = (string) (getenv('MAIL_PASSWORD') ?: '');
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
         $mail->Port       = 465;
-
         $mail->setFrom('no-reply@syncride.wmservers.pt', 'SyncRide Vouchers');
-        foreach ($recipients as $email) {
-            $mail->addAddress($email);
+
+        // Route primary TO
+        $partnerEmail = (string) ($trip['partner_email'] ?? '');
+        $partnerName  = (string) ($trip['partner_name']  ?? '');
+        if ($partnerEmail !== '') {
+            $mail->addAddress($partnerEmail, $partnerName);
+        } elseif ($agencyEmail !== '') {
+            $mail->addAddress($agencyEmail);
+        } else {
+            return; // nowhere to send
+        }
+
+        foreach ($ccList as $cc) {
+            if (filter_var($cc, FILTER_VALIDATE_EMAIL)) {
+                $mail->addCC($cc);
+            }
+        }
+        if ($myCopyEmail !== '' && filter_var($myCopyEmail, FILTER_VALIDATE_EMAIL)) {
+            $mail->addCC($myCopyEmail);
         }
 
         $mail->isHTML(true);
@@ -82,11 +100,14 @@ final class VoucherMailer
 
     private function fetchTrip(int $id): array
     {
-        $stmt = Database::connection()->prepare(
-            'SELECT serviceDate, serviceStartTime, NomeCliente, ClientNumber,
-                    serviceStartPoint, serviceTargetPoint
-             FROM Services WHERE ID = :id'
-        );
+        $stmt = Database::connection()->prepare('
+            SELECT s.serviceDate, s.serviceStartTime, s.NomeCliente, s.ClientNumber,
+                   s.serviceStartPoint, s.serviceTargetPoint,
+                   s.partner_id, u.email AS partner_email, u.name AS partner_name
+            FROM Services s
+            LEFT JOIN Users u ON s.partner_id = u.ID
+            WHERE s.ID = :id
+        ');
         $stmt->execute(['id' => $id]);
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
     }

@@ -341,13 +341,15 @@ final class ServiceRepository
             ? "{$colMap[$orderCol]} {$orderDir}"
             : 's.serviceDate ASC, s.serviceStartTime ASC';
 
+        // LIMIT/OFFSET must be inlined as integers — PDO binds them as quoted
+        // strings which MariaDB rejects in LIMIT context.
         $dataSql = "SELECT {$cols}, {$driverCol}, p.name AS partner_name
                     FROM Services s {$join}
                     WHERE {$where}{$tenancyWhere}{$searchWhere}
                     ORDER BY {$orderSql}
-                    LIMIT ? OFFSET ?";
+                    LIMIT {$length} OFFSET {$start}";
         $dataStmt = $this->db->prepare($dataSql);
-        $dataStmt->execute(array_merge($baseParams, $tenancyParams, $searchParams, [$length, $start]));
+        $dataStmt->execute(array_merge($baseParams, $tenancyParams, $searchParams));
 
         return [
             'data'            => $dataStmt->fetchAll(PDO::FETCH_ASSOC),

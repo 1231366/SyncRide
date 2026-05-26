@@ -102,7 +102,7 @@ final class TenantSettingsRepository
 
     public function tripReportEnabled(): bool
     {
-        return $this->get('trip_report_enabled', '1') === '1';
+        return $this->get('trip_report_enabled', '0') === '1';
     }
 
     /** TO for non-partner rides. */
@@ -127,7 +127,7 @@ final class TenantSettingsRepository
 
     public function voucherEnabled(): bool
     {
-        return $this->get('voucher_enabled', '1') === '1';
+        return $this->get('voucher_enabled', '0') === '1';
     }
 
     /** TO for non-partner vouchers. */
@@ -151,7 +151,7 @@ final class TenantSettingsRepository
 
     public function noShowEnabled(): bool
     {
-        return $this->get('no_show_enabled', '1') === '1';
+        return $this->get('no_show_enabled', '0') === '1';
     }
 
     /** TO for non-partner no-shows. */
@@ -175,7 +175,7 @@ final class TenantSettingsRepository
 
     public function scheduleEnabled(): bool
     {
-        return $this->get('schedule_enabled', '1') === '1';
+        return $this->get('schedule_enabled', '0') === '1';
     }
 
     /** @return string[] */

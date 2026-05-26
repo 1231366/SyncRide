@@ -89,11 +89,13 @@ final class UploadController extends BaseController
             $this->json(['success' => false, 'message' => 'Failed to save image.'], 500);
         }
 
-        try {
-            (new VoucherMailer())->send($tripId, $driverName, $serverPath, $fileName, $lat, $lng);
-        } catch (\Throwable $e) {
-            error_log('VoucherMailer failed for ride #' . $tripId . ': ' . $e->getMessage());
-            $this->json(['success' => true, 'message' => 'Saved, but email send failed.']);
+        $s = $this->settings();
+        if ($s->voucherEnabled() && $s->voucherRecipients() !== []) {
+            try {
+                (new VoucherMailer())->send($tripId, $driverName, $serverPath, $fileName, $lat, $lng, $s->voucherRecipients());
+            } catch (\Throwable $e) {
+                error_log('VoucherMailer failed for ride #' . $tripId . ': ' . $e->getMessage());
+            }
         }
 
         $this->json(['success' => true, 'message' => 'Voucher submitted successfully!']);

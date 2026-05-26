@@ -81,13 +81,13 @@ final class NoShowsController extends BaseController
         $this->services->markNoShow($tripId, $dbPath, $lat, $lng);
         $this->logs->record("Driver no-show reported for ride #{$tripId}");
 
+        $s        = $this->settings();
         $tripData = $this->services->findWithPartner($tripId);
-        if ($tripData !== null) {
+        if ($tripData !== null && $s->noShowEnabled()) {
             try {
-                (new NoShowMailer())->send($tripId, $tripData, $serverPath, $lat, $lng);
+                (new NoShowMailer())->send($tripId, $tripData, $serverPath, $lat, $lng, $s->noShowInternalRecipients());
             } catch (\Throwable $e) {
                 error_log('NoShowMailer failed for ride #' . $tripId . ': ' . $e->getMessage());
-                $this->json(['success' => true, 'message' => 'Saved, but email send failed.']);
             }
         }
 

@@ -14,12 +14,17 @@ use PHPMailer\PHPMailer\PHPMailer;
  */
 final class NoShowMailer
 {
+    /**
+     * @param string[] $internalRecipients  From TenantSettings (no_show_cc).
+     *                                       Partner is always added automatically for partner rides.
+     */
     public function send(
         int    $tripId,
         array  $tripData,
         string $serverPath,
         ?string $lat,
-        ?string $lng
+        ?string $lng,
+        array $internalRecipients = []
     ): void {
         date_default_timezone_set('Europe/Lisbon');
         $timestamp = date('d/m/Y H:i');
@@ -53,12 +58,9 @@ final class NoShowMailer
 
         if (!empty($tripData['partner_id']) && !empty($tripData['partner_email'])) {
             $mail->addAddress((string) $tripData['partner_email'], (string) $tripData['partner_name']);
-            $mail->addAddress('flexewar@gmail.com');
-        } else {
-            $mail->addAddress('transfers.pt@mtsglobe.com');
-            $mail->addAddress('joao.teixeira@mtsglobe.com');
-            $mail->addAddress('complaints.pt@mtsglobe.com');
-            $mail->addAddress('flexewar@gmail.com');
+        }
+        foreach ($internalRecipients as $email) {
+            $mail->addAddress($email);
         }
 
         $mail->addEmbeddedImage($serverPath, 'foto_noshow');

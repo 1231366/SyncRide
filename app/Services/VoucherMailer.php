@@ -13,13 +13,17 @@ use PHPMailer\PHPMailer\PHPMailer;
  */
 final class VoucherMailer
 {
+    /**
+     * @param string[] $recipients  Configured recipient emails from TenantSettings.
+     */
     public function send(
         int    $tripId,
         string $driverName,
         string $serverPath,
         string $fileName,
         ?string $lat,
-        ?string $lng
+        ?string $lng,
+        array $recipients = []
     ): void {
         date_default_timezone_set('Europe/Lisbon');
         $timestamp = date('d/m/Y H:i');
@@ -47,7 +51,9 @@ final class VoucherMailer
         $mail->Port       = 465;
 
         $mail->setFrom('no-reply@syncride.wmservers.pt', 'SyncRide Vouchers');
-        $mail->addAddress('flexewar@gmail.com');
+        foreach ($recipients as $email) {
+            $mail->addAddress($email);
+        }
 
         $mail->isHTML(true);
         $mail->Subject = "Voucher — Ride #{$tripId} — {$clientName}";

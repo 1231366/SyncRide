@@ -13,7 +13,14 @@ final class ScheduleController extends BaseController
 {
     public function send(): never
     {
-        $ok = ScheduleMailer::default()->sendForTomorrow();
+        $s = $this->settings();
+
+        if (!$s->scheduleEnabled()) {
+            LogRepository::default()->record('Schedule email skipped — disabled in settings');
+            $this->json(['success' => false, 'message' => 'Schedule email is disabled in settings.']);
+        }
+
+        $ok = ScheduleMailer::default()->sendForTomorrow($s->scheduleRecipients());
 
         LogRepository::default()->record(
             $ok ? 'Operations schedule emailed for tomorrow' : 'Schedule email FAILED'

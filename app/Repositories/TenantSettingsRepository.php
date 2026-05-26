@@ -12,8 +12,19 @@ use PDO;
  * Persists and retrieves per-tenant configuration stored in TenantSettings.
  *
  * Keys are free-form strings. Values are stored as TEXT; typed convenience
- * getters (uiTheme, tripReportEnabled, tripReportRecipients) sit here so
- * callers never need to know the raw key names.
+ * getters sit here so callers never need to know the raw key names.
+ *
+ * Setting keys
+ * ────────────
+ * ui_theme                 "light"|"dark"
+ * trip_report_enabled      "1"|"0"   — end-of-trip email to partner + CC
+ * trip_report_cc           comma-separated extra CCs
+ * voucher_enabled          "1"|"0"   — voucher-photo email when driver uploads
+ * voucher_cc               comma-separated recipients
+ * no_show_enabled          "1"|"0"   — no-show alert email
+ * no_show_cc               comma-separated internal recipients
+ * schedule_enabled         "1"|"0"   — daily operations schedule email
+ * schedule_recipient       single email (or comma-separated)
  */
 final class TenantSettingsRepository
 {
@@ -53,32 +64,78 @@ final class TenantSettingsRepository
         ')->execute([$this->companyId, $key, $value]);
     }
 
-    // ── Typed convenience getters ──────────────────────────────────────────
+    // ── Helpers ────────────────────────────────────────────────────────────────
 
-    /** Returns the preferred UI theme: "light" (default) or "dark". */
+    /** @return string[] validated, trimmed emails from a comma-separated value */
+    private function emailList(string $key, string $default = ''): array
+    {
+        $raw = $this->get($key, $default);
+        if ($raw === '') {
+            return [];
+        }
+        return array_values(array_filter(
+            array_map('trim', explode(',', $raw)),
+            static fn(string $e) => filter_var($e, FILTER_VALIDATE_EMAIL) !== false
+        ));
+    }
+
+    // ── Typed convenience getters ──────────────────────────────────────────────
+
     public function uiTheme(): string
     {
         $t = $this->get('ui_theme', 'light');
         return in_array($t, ['light', 'dark'], true) ? $t : 'light';
     }
 
-    /** Whether the automated end-of-trip email report is enabled. */
+    // Trip report ──────────────────────────────────────────────────────────────
+
     public function tripReportEnabled(): bool
     {
         return $this->get('trip_report_enabled', '1') === '1';
     }
 
-    /**
-     * Extra CC recipients for trip-report emails (comma-separated in DB).
-     *
-     * @return string[]
-     */
+    /** @return string[] */
     public function tripReportRecipients(): array
     {
-        $raw = $this->get('trip_report_cc', '');
-        if ($raw === '') {
-            return [];
-        }
-        return array_values(array_filter(array_map('trim', explode(',', $raw))));
+        return $this->emailList('trip_report_cc');
+    }
+
+    // Voucher ──────────────────────────────────────────────────────────────────
+
+    public function voucherEnabled(): bool
+    {
+        return $this->get('voucher_enabled', '1') === '1';
+    }
+
+    /** @return string[] */
+    public function voucherRecipients(): array
+    {
+        return $this->emailList('voucher_cc');
+    }
+
+    // No-show ──────────────────────────────────────────────────────────────────
+
+    public function noShowEnabled(): bool
+    {
+        return $this->get('no_show_enabled', '1') === '1';
+    }
+
+    /** Internal CC list — partner is always notified separately by the mailer. @return string[] */
+    public function noShowInternalRecipients(): array
+    {
+        return $this->emailList('no_show_cc');
+    }
+
+    // Schedule ─────────────────────────────────────────────────────────────────
+
+    public function scheduleEnabled(): bool
+    {
+        return $this->get('schedule_enabled', '1') === '1';
+    }
+
+    /** @return string[] */
+    public function scheduleRecipients(): array
+    {
+        return $this->emailList('schedule_recipient');
     }
 }

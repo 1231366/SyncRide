@@ -24,24 +24,38 @@ final class ScheduleMailer
         return new self(Database::connection());
     }
 
-    /** Returns true if the mailer accepted the message. */
-    public function sendForTomorrow(?string $recipient = null): bool
+    /**
+     * @param string[] $recipients  Configured via TenantSettings (schedule_recipient).
+     *                              Falls back to MAIL_FROM_ADDRESS env var if empty.
+     */
+    public function sendForTomorrow(array $recipients = []): bool
     {
-        $tomorrow      = (new \DateTimeImmutable('+1 day'))->format('Y-m-d');
-        $displayDate   = (new \DateTimeImmutable('+1 day'))->format('d/m/Y');
-        $services      = $this->servicesForDate($tomorrow);
+        $tomorrow    = (new \DateTimeImmutable('+1 day'))->format('Y-m-d');
+        $displayDate = (new \DateTimeImmutable('+1 day'))->format('d/m/Y');
+        $services    = $this->servicesForDate($tomorrow);
+        $subject     = "SyncRide schedule — {$displayDate}";
+        $body        = $this->renderHtml($displayDate, $services);
 
-        $to      = $recipient ?? (string) (Env::get('MAIL_FROM_ADDRESS') ?: 'tiagofsilva04@gmail.com');
-        $subject = "SyncRide schedule — {$displayDate}";
-        $body    = $this->renderHtml($displayDate, $services);
+        $fallback    = (string) (Env::get('MAIL_FROM_ADDRESS') ?: '');
+        $toList      = $recipients !== [] ? $recipients : ($fallback !== '' ? [$fallback] : []);
 
-        $fromAddress = (string) (Env::get('MAIL_FROM_ADDRESS') ?: 'no-reply@syncride.local');
+        if ($toList === []) {
+            return false;
+        }
+
+        $fromAddress = (string) (Env::get('MAIL_FROM_ADDRESS') ?: 'no-reply@syncride.wmservers.pt');
         $headers  = "From: {$fromAddress}\r\n";
         $headers .= "Reply-To: {$fromAddress}\r\n";
         $headers .= "MIME-Version: 1.0\r\n";
         $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
 
-        return mail($to, $subject, $body, $headers);
+        $allOk = true;
+        foreach ($toList as $to) {
+            if (!mail($to, $subject, $body, $headers)) {
+                $allOk = false;
+            }
+        }
+        return $allOk;
     }
 
     /** @return array<array<string,mixed>> */

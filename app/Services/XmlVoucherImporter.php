@@ -86,12 +86,17 @@ final class XmlVoucherImporter
                 $remarks  = (string) ($item->remarks ?? '');
                 $phone    = $this->extractPhone($remarks);
 
+                $paxBby = (int) ($item->paxINF ?? 0);
+                if ($paxBby === 0) {
+                    $paxBby = $this->extractPaxBby($remarks);
+                }
+
                 $params = [
                     ':sd'    => $serviceDate,
                     ':st'    => $serviceTime,
                     ':pa'    => (int) $item->paxADT,
                     ':pc'    => (int) $item->paxCHD,
-                    ':bby'   => $this->extractPaxBby($remarks),
+                    ':bby'   => $paxBby,
                     ':sp'    => $pickup,
                     ':tp'    => $dropoff,
                     ':fn'    => $flight,
@@ -162,9 +167,8 @@ final class XmlVoucherImporter
     }
 
     /**
-     * Extracts infant/baby count from the remarks free-text.
-     * paxCHD already covers children; this targets bebés/infants only.
-     * Matches: "1 bebé", "1 bebe", "1 infant", "1 baby", "1 babies".
+     * Fallback: extracts baby/infant count from the remarks free-text.
+     * Used only when the structured <paxINF> element is absent or zero.
      */
     private function extractPaxBby(string $remarks): int
     {

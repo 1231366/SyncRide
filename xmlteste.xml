@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<transferGroupings DateTime="2026-05-25+01:00">
+   <Header>
+      <companyCode>DTS</companyCode>
+      <companyName>Destination Travel Solutions, Unipessoal, LDA</companyName>
+      <officeCode>OPO</officeCode>
+      <officeName>EVTours Portugal - Porto</officeName>
+      <providerCarrierCode>DPPTJQ0S</providerCarrierCode>
+      <providerCarrierName>WELCOME AGITATION, LDA</providerCarrierName>
+      <destinationCode>OPO</destinationCode>
+      <destinationName>Porto &amp; North</destinationName>
+   </Header>
+   <Groupings>
+      <Grouping>
+         <serviceId>26052501</serviceId>
+         <serviceDate>2026-05-25</serviceDate>
+         <serviceType>TR</serviceType>
+         <serviceLegCode>IN</serviceLegCode>
+         <serviceUnitVehicleCode>P0T00</serviceUnitVehicleCode>
+         <serviceUnitVehicleName>Private Taxi</serviceUnitVehicleName>
+         <serviceVehicleNumber/>
+         <serviceCarrierFleetCode/>
+         <serviceBusGuide/>
+         <serviceStartTime>14:30</serviceStartTime>
+         <serviceStartPoint>Airport OPO</serviceStartPoint>
+         <serviceTargetTime>15:15</serviceTargetTime>
+         <serviceTargetPoint>Hotel da Bolsa</serviceTargetPoint>
+         <serviceRemarks/>
+         <serviceBackToBackID/>
+         <bookings>
+            <bookingItem>
+               <distributorCode>SUNTR</distributorCode>
+               <distributorName>Suntransfers</distributorName>
+               <distributorBrandCode/>
+               <distributorBrandName/>
+               <bookingReference>SUNTR_MK2026</bookingReference>
+               <bookingItemNo>1</bookingItemNo>
+               <bookingItemVoucher>SUNTR_MK2026</bookingItemVoucher>
+               <paxLeadName>Silva, Carlos</paxLeadName>
+               <paxADT>2</paxADT>
+               <paxCHD>1</paxCHD>
+               <paxCHD_AGES>
+                  <paxCHD_AGE>7</paxCHD_AGE>
+               </paxCHD_AGES>
+               <paxINF>1</paxINF>
+               <remarks>Pick up time: 2026-05-25 14:30:00, Cadeiras: 1x Cadeira de Bebé (0-13kg), 1x Assento Elevatório,</remarks>
+               <extras/>
+               <pickup>
+                  <pickupPointType>Flight</pickupPointType>
+                  <pickupPoint>
+                     <flightCompanyCode>TP</flightCompanyCode>
+                     <flightNumber>1472</flightNumber>
+                     <flightDepartureDate>2026-05-25</flightDepartureDate>
+                     <flightDepartureTime>12:15:00</flightDepartureTime>
+                     <flightDepartureAirport>ORY</flightDepartureAirport>
+                     <flightDepartureAirportTerminal/>
+                     <flightArrivalDate>2026-05-25</flightArrivalDate>
+                     <flightArrivalTime>14:30:00</flightArrivalTime>
+                     <flightArrivalAirport>OPO</flightArrivalAirport>
+                     <flightArrivalAirportTerminal/>
+                  </pickupPoint>
+                  <pickupDate>2026-05-25</pickupDate>
+                  <pickupTime>15:15</pickupTime>
+                  <meetingPoint/>
+                  <latitude/>
+                  <longitude/>
+               </pickup>
+               <dropoff>
+                  <dropoffPointType>Accommodation</dropoffPointType>
+                  <accommodationZoneCode>OPO</accommodationZoneCode>
+                  <accommodationZoneOrder>0</accommodationZoneOrder>
+                  <accommodationResortOrder>0</accommodationResortOrder>
+                  <accommodationResortCode>Porto</accommodationResortCode>
+                  <accommodationResortName>Porto</accommodationResortName>
+                  <accommodationOrder>0</accommodationOrder>
+                  <accommodationtCode>AMTSPT15XK</accommodationtCode>
+                  <accommodationtName>Hotel da Bolsa</accommodationtName>
+                  <latitude>41.14262058556682</latitude>
+                  <longitude>-8.615404054463852</longitude>
+               </dropoff>
+               <bookingItemNotes/>
+            </bookingItem>
+         </bookings>
+      </Grouping>
+   </Groupings>
+</transferGroupings>

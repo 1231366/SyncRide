@@ -286,6 +286,118 @@ final class ServiceRepository
         ], $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
+    /**
+     * Server-side DataTables: returns one page of rides + total / filtered counts.
+     * Tenancy is enforced via company_id on every query — never leaks across tenants.
+     *
+     * @return array{data: array<array<string,mixed>>, recordsTotal: int, recordsFiltered: int}
+     */
+    public function listForAdminPaginated(
+        string $filter,
+        int    $start,
+        int    $length,
+        string $search,
+        int    $orderCol,
+        string $orderDir
+    ): array {
+        $cols = 's.ID, s.serviceDate, s.serviceStartTime, s.paxADT, s.paxCHD, s.paxBBY,
+                 s.serviceStartPoint, s.serviceTargetPoint, s.FlightNumber,
+                 s.NomeCliente, s.ClientNumber, s.serviceType, s.total_price,
+                 s.has_key, s.partner_id, s.status_pedido';
+
+        [$join, $where, $baseParams, $driverCol] = $this->filterFragments($filter);
+
+        $tenancyWhere  = $this->companyId !== null ? ' AND s.company_id = ?' : '';
+        $tenancyParams = $this->companyId !== null ? [$this->companyId]      : [];
+
+        $searchWhere  = '';
+        $searchParams = [];
+        if ($search !== '') {
+            $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search) . '%';
+            $searchWhere  = ' AND (s.NomeCliente LIKE ? OR s.FlightNumber LIKE ?'
+                          . ' OR s.serviceStartPoint LIKE ? OR s.serviceTargetPoint LIKE ?)';
+            $searchParams = [$like, $like, $like, $like];
+        }
+
+        $countBase = "SELECT COUNT(DISTINCT s.ID) FROM Services s {$join} WHERE {$where}";
+
+        $totalStmt = $this->db->prepare("{$countBase}{$tenancyWhere}");
+        $totalStmt->execute(array_merge($baseParams, $tenancyParams));
+        $total = (int) $totalStmt->fetchColumn();
+
+        $filteredStmt = $this->db->prepare("{$countBase}{$tenancyWhere}{$searchWhere}");
+        $filteredStmt->execute(array_merge($baseParams, $tenancyParams, $searchParams));
+        $filtered = (int) $filteredStmt->fetchColumn();
+
+        $colMap = [
+            1 => 's.ID',
+            2 => 's.serviceDate, s.serviceStartTime',
+            4 => 's.serviceStartPoint',
+            5 => 's.serviceTargetPoint',
+            6 => 's.serviceType',
+        ];
+        $orderDir = $orderDir === 'DESC' ? 'DESC' : 'ASC';
+        $orderSql = isset($colMap[$orderCol])
+            ? "{$colMap[$orderCol]} {$orderDir}"
+            : 's.serviceDate ASC, s.serviceStartTime ASC';
+
+        $dataSql = "SELECT {$cols}, {$driverCol}, p.name AS partner_name
+                    FROM Services s {$join}
+                    WHERE {$where}{$tenancyWhere}{$searchWhere}
+                    ORDER BY {$orderSql}
+                    LIMIT ? OFFSET ?";
+        $dataStmt = $this->db->prepare($dataSql);
+        $dataStmt->execute(array_merge($baseParams, $tenancyParams, $searchParams, [$length, $start]));
+
+        return [
+            'data'            => $dataStmt->fetchAll(PDO::FETCH_ASSOC),
+            'recordsTotal'    => $total,
+            'recordsFiltered' => $filtered,
+        ];
+    }
+
+    /** @return array{0:string, 1:string, 2:array<mixed>, 3:string} [join, where, params, driverCol] */
+    private function filterFragments(string $filter): array
+    {
+        $joinSR  = 'LEFT JOIN Services_Rides sr ON s.ID = sr.RideID';
+        $joinU   = 'LEFT JOIN Users u ON sr.UserID = u.ID';
+        $joinP   = 'LEFT JOIN Users p ON s.partner_id = p.ID';
+        $active  = "(s.status_pedido = 'aprovado' OR s.status_pedido IS NULL)";
+
+        return match ($filter) {
+            'requests' => [
+                $joinP,
+                "s.status_pedido = 'pendente'",
+                [],
+                'NULL AS driverName',
+            ],
+            'today' => [
+                "{$joinSR} {$joinU} {$joinP}",
+                "s.serviceDate = CURDATE() AND {$active}",
+                [],
+                'u.name AS driverName',
+            ],
+            'pending' => [
+                "{$joinSR} {$joinP}",
+                "sr.UserID IS NULL AND {$active}",
+                [],
+                'NULL AS driverName',
+            ],
+            'assigned' => [
+                "INNER JOIN Services_Rides sr ON s.ID = sr.RideID INNER JOIN Users u ON sr.UserID = u.ID {$joinP}",
+                $active,
+                [],
+                'u.name AS driverName',
+            ],
+            default => [
+                "{$joinSR} {$joinU} {$joinP}",
+                $active,
+                [],
+                'u.name AS driverName',
+            ],
+        };
+    }
+
     /** @return array<array<string,mixed>> */
     public function listForAdmin(string $filter): array
     {

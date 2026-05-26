@@ -600,8 +600,8 @@ $userName = isset($_SESSION['name']) ? explode(' ', (string) $_SESSION['name'])[
         $('#ride-tabs a:not([data-status="' + currentStatus + '"])').removeClass('active');
 
         tabelaViagens = $('#tabelaViagens').DataTable({
-            processing: true, serverSide: false,
-            ajax: { url: 'rides-data.php?status=' + currentStatus, type: 'GET', dataSrc: 'data', cache: false },
+            processing: true, serverSide: true,
+            ajax: { url: 'rides-data.php?status=' + currentStatus, type: 'GET', cache: false },
             columns: [
                 { data: 'raw_id', className: 'col-selection', orderable: false,
                   render: function(data, type, row) {
@@ -647,8 +647,8 @@ $userName = isset($_SESSION['name']) ? explode(' ', (string) $_SESSION['name'])[
             const url = new URL(window.location);
             url.searchParams.set('tab', status);
             window.history.replaceState({}, '', url);
-            tabelaViagens.search('').draw();
-            tabelaViagens.ajax.url('rides-data.php?status=' + status + '&_=' + Date.now()).load();
+            tabelaViagens.search('');
+            tabelaViagens.ajax.url('rides-data.php?status=' + status).load();
             disableSelectionMode();
         });
 
@@ -673,17 +673,17 @@ $userName = isset($_SESSION['name']) ? explode(' ', (string) $_SESSION['name'])[
         });
 
         $('#tabelaViagens').on('xhr.dt', function(e, settings, json) {
-            if (!json || !Array.isArray(json.data)) return;
+            if (!json) return;
             const status = $('#ride-tabs a.active').data('status');
-            const n = json.data.length;
+            const n = json.recordsFiltered ?? json.recordsTotal ?? 0;
             if (status === 'today')   { const b = document.getElementById('todayBadge');   if (b) b.textContent = n; }
             if (status === 'pending') { const b = document.getElementById('pendingBadge'); if (b) b.textContent = n; }
         });
     });
 
     function refreshPendingBadge() {
-        $.getJSON('rides-data.php?status=requests&_=' + Date.now(), function(res) {
-            const n = (res && res.data) ? res.data.length : 0;
+        $.getJSON('rides-data.php?status=requests', function(res) {
+            const n = res?.recordsTotal ?? 0;
             const badge = document.getElementById('pendingRequestsBadge');
             if (!badge) return;
             badge.textContent = n;

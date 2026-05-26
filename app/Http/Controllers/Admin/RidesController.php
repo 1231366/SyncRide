@@ -43,10 +43,22 @@ final class RidesController extends BaseController
     /** GET /admin/rides-data.php?status=X — DataTable JSON feed. */
     public function data(): void
     {
-        $filter = trim((string) ($_GET['status'] ?? 'today'));
-        $rows   = $this->services->listForAdmin($filter);
-        $data   = array_map([$this, 'formatRow'], $rows);
-        $this->json(['data' => $data]);
+        $filter   = trim((string) ($_GET['status'] ?? 'today'));
+        $draw     = (int) ($_GET['draw']   ?? 1);
+        $start    = max(0, (int) ($_GET['start']  ?? 0));
+        $length   = min(200, max(1, (int) ($_GET['length'] ?? 25)));
+        $search   = trim((string) ($_GET['search']['value'] ?? ''));
+        $orderCol = (int) ($_GET['order'][0]['column'] ?? 2);
+        $orderDir = strtoupper(trim((string) ($_GET['order'][0]['dir'] ?? 'asc'))) === 'DESC' ? 'DESC' : 'ASC';
+
+        $result = $this->services->listForAdminPaginated($filter, $start, $length, $search, $orderCol, $orderDir);
+
+        $this->json([
+            'draw'            => $draw,
+            'recordsTotal'    => $result['recordsTotal'],
+            'recordsFiltered' => $result['recordsFiltered'],
+            'data'            => array_map([$this, 'formatRow'], $result['data']),
+        ]);
     }
 
     /** POST /admin/ride-add.php — create a ride. */

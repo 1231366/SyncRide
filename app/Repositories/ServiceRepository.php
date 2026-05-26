@@ -289,7 +289,7 @@ final class ServiceRepository
     /** @return array<array<string,mixed>> */
     public function listForAdmin(string $filter): array
     {
-        $cols = 's.ID, s.serviceDate, s.serviceStartTime, s.paxADT, s.paxCHD,
+        $cols = 's.ID, s.serviceDate, s.serviceStartTime, s.paxADT, s.paxCHD, s.paxBBY,
                  s.serviceStartPoint, s.serviceTargetPoint, s.FlightNumber,
                  s.NomeCliente, s.ClientNumber, s.serviceType, s.total_price,
                  s.has_key, s.partner_id, s.status_pedido';

@@ -4,17 +4,18 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use PHPMailer\PHPMailer\PHPMailer;
-
 /**
- * Partner rides  → TO: partner email (auto from ride data)
- * Normal rides   → TO: $agencyEmail
- * Both cases     → CC: $ccList + $myCopyEmail
+ * Partner rides  → TO: partner email + CC: $ccAlways
+ * Normal rides   → TO: $agencyEmail  + CC: $ccAlways + $ccList + $myCopyEmail
+ *
+ * $ccAlways is the "always" CC list (e.g. the operator's own inbox) sent on every
+ * alert; $ccList is the agency-only CC list (e.g. the agency's internal recipients).
  */
 final class NoShowMailer
 {
     /**
-     * @param string[] $ccList  Internal CC list from settings.
+     * @param string[] $ccList    Agency-only CC list from settings.
+     * @param string[] $ccAlways  CC list applied to both partner and agency rides.
      */
     public function send(
         int     $tripId,
@@ -22,12 +23,15 @@ final class NoShowMailer
         string  $serverPath,
         ?string $lat,
         ?string $lng,
-        string  $agencyEmail = '',
-        array   $ccList      = [],
-        string  $myCopyEmail = ''
+        string  $agencyEmail  = '',
+        array   $ccList       = [],
+        string  $myCopyEmail  = '',
+        ?string $reportPath   = null,
+        array   $ccAlways     = []
     ): void {
         date_default_timezone_set('Europe/Lisbon');
-        $timestamp = date('d/m/Y H:i');
+        $timestamp   = date('d/m/Y H:i');
+        $companyName = (string) ($tripData['company_name'] ?? '');
 
         $locationHtml = '';
         if ($lat && $lng) {
@@ -45,48 +49,59 @@ final class NoShowMailer
         $pickup     = htmlspecialchars((string) ($tripData['serviceStartPoint'] ?? ''));
         $dropoff    = htmlspecialchars((string) ($tripData['serviceTargetPoint'] ?? ''));
 
-        $mail = new PHPMailer(true);
-        $mail->isSMTP();
-        $mail->Host       = 'cloud865.thundercloud.uk';
-        $mail->SMTPAuth   = true;
-        $mail->Username   = 'no-reply@syncride.wmservers.pt';
-        $mail->Password   = (string) (getenv('MAIL_PASSWORD') ?: '');
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-        $mail->Port       = 465;
-        $mail->CharSet    = 'UTF-8';
-        $mail->setFrom('no-reply@syncride.wmservers.pt', 'SyncRide Alerts');
+        $mail = Mailer::make();
 
-        // Route primary TO
+        // The "always" CC list goes out on every alert (partner and agency alike).
+        $addAlwaysCc = static function () use ($mail, $ccAlways): void {
+            foreach ($ccAlways as $cc) {
+                if (filter_var($cc, FILTER_VALIDATE_EMAIL)) {
+                    $mail->addCC($cc);
+                }
+            }
+        };
+
         $partnerEmail = (string) ($tripData['partner_email'] ?? '');
         $partnerName  = (string) ($tripData['partner_name']  ?? '');
         if (!empty($tripData['partner_id']) && $partnerEmail !== '') {
+            // Partner ride → partner (TO) + always-CC only (no agency/MTS recipients)
             $mail->addAddress($partnerEmail, $partnerName);
+            $addAlwaysCc();
         } elseif ($agencyEmail !== '') {
+            // Agency ride → agency (TO) + always-CC + agency-only CC + my copy
             $mail->addAddress($agencyEmail);
+            $addAlwaysCc();
+            foreach ($ccList as $cc) {
+                if (filter_var($cc, FILTER_VALIDATE_EMAIL)) {
+                    $mail->addCC($cc);
+                }
+            }
+            if ($myCopyEmail !== '' && filter_var($myCopyEmail, FILTER_VALIDATE_EMAIL)) {
+                $mail->addCC($myCopyEmail);
+            }
         } else {
             return; // nowhere to send
         }
 
-        foreach ($ccList as $cc) {
-            if (filter_var($cc, FILTER_VALIDATE_EMAIL)) {
-                $mail->addCC($cc);
-            }
-        }
-        if ($myCopyEmail !== '' && filter_var($myCopyEmail, FILTER_VALIDATE_EMAIL)) {
-            $mail->addCC($myCopyEmail);
-        }
-
         $mail->addEmbeddedImage($serverPath, 'foto_noshow');
+        if ($reportPath !== null && file_exists($reportPath)) {
+            $reportName = 'NoShow-Report-' . $tripId . '.pdf';
+            $mail->addAttachment($reportPath, $reportName);
+        }
         $mail->isHTML(true);
-        $mail->Subject = "No-Show Reported: Ride #{$tripId}";
+        $subjectCompany = $companyName !== '' ? "[{$companyName}] " : '';
+        $mail->Subject = "{$subjectCompany}No-Show Reported: Ride #{$tripId}";
+        $companyBadge  = $companyName !== ''
+            ? "<div style='font-size:11px;text-transform:uppercase;opacity:0.85;margin-top:4px;letter-spacing:1px;'>{$companyName}</div>"
+            : '';
         $mail->Body    = "
         <div style='background-color:#f0f4f8;padding:50px 20px;font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;'>
             <div style='max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,0.1);border:1px solid #e2e8f0;'>
-                <div style='background-color:#e53e3e;padding:30px;color:#ffffff;'>
-                    <div style='font-size:24px;font-weight:800;letter-spacing:-1px;display:inline-block;'>SyncRide<span style='color:#ffffff;'>.</span></div>
+                <div style='background-color:#2563eb;padding:30px;color:#ffffff;'>
+                    <div style='font-size:24px;font-weight:800;letter-spacing:-1px;display:inline-block;'>SyncRide<span style='color:rgba(255,255,255,0.7);font-weight:400;'> OS</span></div>
+                    {$companyBadge}
                     <div style='float:right;text-align:right;'>
                         <div style='font-size:10px;text-transform:uppercase;opacity:0.9;'>Status</div>
-                        <div style='font-size:14px;font-weight:bold;'>NO-SHOW REPORTED</div>
+                        <div style='font-size:14px;font-weight:bold;background:#dc2626;display:inline-block;padding:2px 10px;border-radius:6px;margin-top:2px;'>NO-SHOW</div>
                     </div>
                 </div>
                 <div style='padding:40px;'>

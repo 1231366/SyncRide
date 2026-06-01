@@ -2,231 +2,549 @@
 use App\Http\View;
 
 /**
- * @var array{total:int,pending:int,approved:int} $counts
+ * @var array{total:int,pending:int,approved:int,today:int,this_month:int,noshows:int} $counts
+ * @var array<array<string,mixed>> $noShows
  * @var string $userName
  */
-$firstName    = explode(' ', trim($userName))[0];
-$userPhotoSrc = isset($_SESSION['profile_photo_path']) && $_SESSION['profile_photo_path'] !== ''
-    ? '/SRMT/' . ltrim((string) $_SESSION['profile_photo_path'], '/')
-    : '/SRMT/public/assets/images/icons/SyncRide.png';
-?><!DOCTYPE html>
-<html lang="en" data-bs-theme="light">
+$firstName = explode(' ', trim($userName))[0];
+
+$rawPhoto  = $_SESSION['profile_photo_path'] ?? null;
+if ($rawPhoto !== null && $rawPhoto !== '') {
+    $rawPhoto  = str_replace('Includes/dist/pages/', '', $rawPhoto);
+    $userPhoto = str_starts_with($rawPhoto, '/') || str_starts_with($rawPhoto, 'http')
+        ? $rawPhoto
+        : '/SRMT/public/' . $rawPhoto;
+} else {
+    $userPhoto = '';
+}
+$initial        = mb_strtoupper(mb_substr($firstName, 0, 1, 'UTF-8'));
+$svgAvatar      = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><circle cx="20" cy="20" r="20" fill="#2563eb"/><text x="50%" y="50%" dy=".35em" text-anchor="middle" fill="white" font-size="17" font-weight="bold" font-family="system-ui">' . htmlspecialchars($initial) . '</text></svg>';
+$avatarFallback = 'data:image/svg+xml;base64,' . base64_encode($svgAvatar);
+?>
+<!DOCTYPE html>
+<html lang="en" translate="no" data-theme="light">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
-    <title>Partner Portal — SyncRide</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet">
-    <style>
-        :root {
-            --font-primary: 'Inter', sans-serif; --font-display: 'Poppins', sans-serif;
-            --bg-body: #f3f4f6; --bg-card: #ffffff; --text-main: #111827; --text-muted: #6b7280;
-            --primary-accent: #4f46e5; --primary-hover: #4338ca;
-            --border-color: #e5e7eb; --radius-md: 16px; --radius-sm: 10px;
-            --card-shadow: 0 2px 12px rgba(0,0,0,.04);
-            --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px);
-        }
-        [data-bs-theme="dark"] {
-            --bg-body: #0f172a; --bg-card: #1e293b; --text-main: #f9fafb; --text-muted: #94a3b8;
-            --primary-accent: #6366f1; --primary-hover: #818cf8; --border-color: #334155;
-            --card-shadow: 0 4px 20px rgba(0,0,0,.2);
-        }
-        body { font-family: var(--font-primary); background-color: var(--bg-body); color: var(--text-main); padding-bottom: calc(90px + var(--safe-bottom)); margin: 0; min-height: 100vh; }
-        @media (min-width: 992px) { body { padding-bottom: 0; } }
-        .app-header { background: rgba(255,255,255,.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border-color); padding-top: var(--safe-top); height: calc(70px + var(--safe-top)); display: flex; align-items: center; position: fixed; top: 0; width: 100%; z-index: 1040; }
-        [data-bs-theme="dark"] .app-header { background: rgba(30,41,59,.95); }
-        .navbar-brand img { height: 35px; margin-right: 10px; }
-        .navbar-brand span { font-family: var(--font-display); font-weight: 700; }
-        .app-main { padding-top: calc(80px + var(--safe-top)) !important; }
-        .stat-card { background: var(--bg-card); border: none; border-radius: var(--radius-md); padding: 1rem; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; box-shadow: var(--card-shadow); }
-        .stat-value { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; margin-bottom: 0; line-height: 1.2; }
-        .stat-label { font-size: .75rem; opacity: .7; font-weight: 500; }
-        .stat-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; margin-bottom: 8px; font-size: 1rem; }
-        .stat-blue   { color: #3b82f6; } .stat-blue   .stat-icon { color: #3b82f6; background: rgba(59,130,246,.1); }
-        .stat-orange { color: #f97316; } .stat-orange .stat-icon { color: #f97316; background: rgba(249,115,22,.1); }
-        .stat-green  { color: #10b981; } .stat-green  .stat-icon { color: #10b981; background: rgba(16,185,129,.1); }
-        .modern-search { position: relative; width: 100%; max-width: 400px; }
-        .modern-search input { width: 100%; padding: 10px 15px 10px 45px; border-radius: 50px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); box-shadow: var(--card-shadow); }
-        .modern-search i { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
-        .nav-pills { gap: 8px; flex-wrap: nowrap; padding: 0; margin: 0; border: none; }
-        .nav-pills .nav-link { color: var(--text-muted); background: var(--bg-card); border-radius: 50px; padding: 8px 20px; font-size: .85rem; font-weight: 600; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,.02); transition: all .2s; }
-        .nav-pills .nav-link.active { background-color: var(--primary-accent); color: #fff; box-shadow: 0 4px 10px rgba(79,70,229,.3); }
-        @media (max-width: 767.98px) {
-            .nav-pills { display: flex; width: 100%; justify-content: space-between; gap: 5px; }
-            .nav-pills .nav-item { flex: 1; min-width: 0; }
-            .nav-pills .nav-link { width: 100%; text-align: center; padding: 10px 0; font-size: .75rem; border-radius: 12px; overflow: hidden; text-overflow: ellipsis; }
-        }
-        .card-table { background: transparent; border-radius: var(--radius-md); overflow: hidden; }
-        @media (min-width: 768px) { .card-table { background: var(--bg-card); border: 1px solid var(--border-color); } .table td { padding: 1rem; vertical-align: middle; } }
-        @media (max-width: 767.98px) {
-            #tabelaPartner thead { display: none; }
-            #tabelaPartner tbody tr { display: flex; flex-direction: column; background-color: var(--bg-card); border: none; border-radius: 14px; margin-bottom: 12px; padding: 12px; position: relative; box-shadow: var(--card-shadow); }
-            #tabelaPartner tbody td { display: block; width: 100%; padding: 0 !important; margin-bottom: 3px; background: transparent !important; border: none !important; box-shadow: none !important; }
-            #tabelaPartner tbody td:nth-child(1) { font-size: .7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 5px; }
-            #tabelaPartner tbody td:nth-child(2) { font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 5px; line-height: 1.2; padding-right: 60px !important; }
-            #tabelaPartner tbody td:nth-child(3), #tabelaPartner tbody td:nth-child(4), #tabelaPartner tbody td:nth-child(5) { font-size: .85rem; color: var(--text-main); display: flex; align-items: center; min-height: 22px; }
-            #tabelaPartner tbody td:nth-child(8) { position: absolute; top: 12px; right: 12px; width: auto !important; margin: 0; }
-            #tabelaPartner tbody td:nth-child(7) { position: absolute; top: 44px; right: 12px; width: auto !important; margin: 0; text-align: right; }
-            #tabelaPartner tbody td:nth-child(6) { position: absolute; top: 12px; right: 120px; width: auto !important; margin: 0; text-align: right; }
-        }
-        .bottom-navbar { background-color: var(--bg-card); border-top: 1px solid var(--border-color); z-index: 1040; position: fixed; bottom: 0; left: 0; width: 100%; height: calc(70px + var(--safe-bottom)); padding-bottom: var(--safe-bottom); display: flex; justify-content: space-around; align-items: center; box-shadow: 0 -5px 20px rgba(0,0,0,.05); }
-        .nav-item-bottom { color: var(--text-muted); flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none; border: none; background: transparent; font-size: .75rem; height: 100%; transition: color .2s; cursor: pointer; }
-        .nav-item-bottom i { font-size: 1.5rem; margin-bottom: 2px; }
-        .nav-item-bottom.active { color: var(--primary-accent); }
-        .btn-center-add { position: absolute; top: -25px; left: 50%; transform: translateX(-50%); width: 60px; height: 60px; background: linear-gradient(135deg, var(--primary-accent), var(--primary-hover)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 2rem; border: 5px solid var(--bg-body); box-shadow: 0 5px 15px rgba(79,70,229,.4); cursor: pointer; z-index: 1050; transition: transform .2s; }
-        .btn-center-add:active { transform: translateX(-50%) scale(.95); }
-    </style>
+<script>(function(){var t=localStorage.getItem('sr-theme')||'light';document.documentElement.dataset.theme=t;var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=t==='dark'?'#020617':'#f1f5f9';})()</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" id="themeColor" content="#f1f5f9">
+<title>Partner Portal — SyncRide OS</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet">
+
+<style>
+    :root { --safe-bottom: env(safe-area-inset-bottom, 0px); }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+        font-family: 'Inter', sans-serif; margin: 0;
+        -webkit-font-smoothing: antialiased;
+        background-color: #f1f5f9; color: #0f172a;
+    }
+    #app-container { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .bg-main {
+        height: 100%;
+        background: radial-gradient(circle at 50% -10%, #bfdbfe 0%, #f1f5f9 65%);
+        background-attachment: fixed; min-height: 100vh;
+    }
+    [data-theme="dark"] .bg-main { background: radial-gradient(circle at 50% -10%, #1e3a8a 0%, #020617 70%); background-color: #020617; }
+    [data-theme="dark"] body { background-color: #020617; color: #f1f5f9; }
+
+    /* Glass */
+    .glass { background: rgba(255,255,255,0.62); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(0,0,0,0.08); }
+    [data-theme="dark"] .glass { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10); }
+
+    /* ── Bottom nav pill ── */
+    .nav-bottom {
+        position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+        width: calc(100% - 24px); max-width: 480px;
+        height: 66px; margin-bottom: calc(10px + var(--safe-bottom));
+        background: rgba(255,255,255,0.90); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+        border: 1px solid rgba(0,0,0,0.07); border-radius: 26px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06);
+        display: flex; align-items: stretch; z-index: 1000; overflow: hidden;
+    }
+    [data-theme="dark"] .nav-bottom { background: rgba(10,14,30,0.95); border: 1px solid rgba(255,255,255,0.09); box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+    .nav-bottom a, .nav-bottom button {
+        flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+        font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
+        color: #94a3b8; background: none; border: none; cursor: pointer; text-decoration: none; transition: color .15s; padding: 0;
+    }
+    .nav-bottom a i, .nav-bottom button i { width: 20px; height: 20px; display: block; }
+    .nav-bottom a:hover, .nav-bottom button:hover { color: #64748b; }
+    [data-theme="dark"] .nav-bottom a, [data-theme="dark"] .nav-bottom button { color: #475569; }
+    .nav-bottom a.sr-nav-active, .nav-bottom button.sr-nav-active { color: #2563eb; }
+    [data-theme="dark"] .nav-bottom a.sr-nav-active, [data-theme="dark"] .nav-bottom button.sr-nav-active { color: #60a5fa; }
+    /* noshow badge on nav icon */
+    .nav-badge {
+        position: absolute; top: 8px; right: calc(50% - 18px);
+        min-width: 16px; height: 16px; border-radius: 8px;
+        background: #dc2626; color: #fff;
+        font-size: 8px; font-weight: 800; line-height: 16px;
+        text-align: center; padding: 0 4px;
+        border: 2px solid rgba(255,255,255,0.9);
+    }
+    [data-theme="dark"] .nav-badge { border-color: rgba(10,14,30,0.9); }
+
+    /* ── FAB ── */
+    .nav-fab {
+        position: fixed; left: 50%; transform: translateX(-50%);
+        bottom: calc(10px + var(--safe-bottom) + 36px);
+        width: 52px; height: 52px; border-radius: 50%;
+        background: #2563eb; color: #fff;
+        border: 4px solid #f1f5f9;
+        box-shadow: 0 4px 20px rgba(37,99,235,0.45);
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; z-index: 1001; transition: transform .15s, box-shadow .15s;
+    }
+    .nav-fab:active { transform: translateX(-50%) scale(.93); }
+    [data-theme="dark"] .nav-fab { border-color: #020617; box-shadow: 0 4px 20px rgba(37,99,235,0.6); }
+
+    /* ── Sections ── */
+    .page-section { display: none; }
+    .page-section.active { display: block; }
+
+    /* Section enter animation */
+    .page-section.active { animation: fadeUp .22s ease; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── Light overrides ── */
+    [data-theme="light"] .text-white      { color: #0f172a !important; }
+    [data-theme="light"] .bg-white\/5     { background: rgba(0,0,0,0.04) !important; }
+    [data-theme="light"] .border-white\/10  { border-color: rgba(0,0,0,0.08) !important; }
+
+    /* ── Bootstrap modal override ── */
+    .modal-backdrop { backdrop-filter: blur(4px) !important; -webkit-backdrop-filter: blur(4px) !important; background: rgba(0,0,0,0.3) !important; }
+    .modal-backdrop.show { opacity: 1 !important; }
+    .modal-content { border-radius: 28px !important; border: 1px solid rgba(0,0,0,0.10) !important; overflow: hidden; }
+    [data-theme="light"] .modal-content { background: rgba(255,255,255,0.97) !important; box-shadow: 0 24px 64px rgba(0,0,0,0.14) !important; color: #0f172a !important; }
+    [data-theme="dark"]  .modal-content { background: rgba(10,12,20,0.97) !important; border: 1px solid rgba(255,255,255,0.12) !important; color: #f1f5f9 !important; }
+    .modal-header { padding: 20px 24px 16px !important; border-bottom: 1px solid rgba(0,0,0,0.08) !important; }
+    [data-theme="dark"] .modal-header { border-bottom-color: rgba(255,255,255,0.08) !important; }
+    .modal-body { padding: 20px 24px 24px !important; }
+    .modal-title { font-weight: 800 !important; font-size: 1rem !important; }
+    .btn-close { opacity: .4 !important; }
+    [data-theme="dark"] .btn-close { filter: invert(1) !important; }
+
+    /* ── Form controls ── */
+    .form-control, .form-select { border-radius: 12px !important; font-size: .875rem !important; padding: 10px 14px !important; transition: border-color .15s, box-shadow .15s !important; }
+    [data-theme="light"] .form-control, [data-theme="light"] .form-select { background: rgba(0,0,0,0.04) !important; border: 1px solid rgba(0,0,0,0.12) !important; color: #0f172a !important; }
+    [data-theme="dark"]  .form-control, [data-theme="dark"]  .form-select { background: rgba(255,255,255,0.06) !important; border: 1px solid rgba(255,255,255,0.10) !important; color: #f1f5f9 !important; }
+    .form-control:focus, .form-select:focus { box-shadow: 0 0 0 3px rgba(37,99,235,0.18) !important; border-color: #2563eb !important; }
+    label.form-label, .modal label { font-size: .7rem !important; font-weight: 700 !important; text-transform: uppercase; letter-spacing: .06em; color: #94a3b8; margin-bottom: 5px !important; }
+    .btn-primary { background: #2563eb !important; border-color: #2563eb !important; border-radius: 12px !important; font-weight: 700 !important; font-size: .875rem !important; }
+    .btn-primary:hover { background: #1d4ed8 !important; border-color: #1d4ed8 !important; }
+
+    /* ── Tab pills ── */
+    .partner-tabs { display: flex; gap: 6px; }
+    .partner-tab { padding: 7px 18px; border-radius: 50px; font-size: .75rem; font-weight: 700; cursor: pointer; border: none; color: #94a3b8; transition: all .15s; }
+    .glass-tab { background: rgba(255,255,255,0.62); backdrop-filter: blur(10px); border: 1px solid rgba(0,0,0,0.08); }
+    [data-theme="dark"] .glass-tab { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); }
+    .partner-tab.active { background: #2563eb !important; color: #fff !important; border-color: transparent !important; }
+    [data-theme="dark"] .partner-tab { color: #64748b; }
+
+    /* ── DataTable ── */
+    .dataTables_wrapper { padding: 0 !important; }
+    .dataTables_wrapper .dataTables_info, .dataTables_wrapper .dataTables_length, .dataTables_wrapper .dataTables_filter { display: none !important; }
+    .dataTables_wrapper .dataTables_paginate { padding: 12px 16px !important; }
+    .dataTables_wrapper .dataTables_paginate .paginate_button { border-radius: 8px !important; font-size: .75rem !important; font-weight: 700 !important; border: none !important; padding: 5px 11px !important; color: #94a3b8 !important; }
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover { background: #2563eb !important; color: #fff !important; border: none !important; }
+    .dataTables_wrapper .dataTables_paginate .paginate_button:hover { background: rgba(37,99,235,0.1) !important; color: #2563eb !important; border: none !important; }
+    #tabelaPartner { border-collapse: separate !important; border-spacing: 0 !important; }
+    #tabelaPartner thead th { font-size: .65rem !important; font-weight: 800 !important; text-transform: uppercase; letter-spacing: .08em; color: #94a3b8 !important; border-bottom: 1px solid rgba(0,0,0,0.07) !important; padding: 12px 16px !important; background: transparent !important; white-space: nowrap; }
+    [data-theme="dark"] #tabelaPartner thead th { color: #475569 !important; border-bottom-color: rgba(255,255,255,0.07) !important; }
+    #tabelaPartner tbody td { padding: 11px 16px !important; vertical-align: middle !important; border-bottom: 1px solid rgba(0,0,0,0.05) !important; font-size: .875rem !important; color: #0f172a; }
+    [data-theme="dark"] #tabelaPartner tbody td { border-bottom-color: rgba(255,255,255,0.05) !important; color: #f1f5f9 !important; }
+    #tabelaPartner tbody tr:last-child td { border-bottom: none !important; }
+    #tabelaPartner tbody tr:hover td { background: rgba(37,99,235,0.03) !important; }
+    [data-theme="dark"] #tabelaPartner tbody tr:hover td { background: rgba(255,255,255,0.03) !important; }
+
+    @media (max-width: 767.98px) {
+        #tabelaPartner thead { display: none; }
+        #tabelaPartner tbody tr { display: flex; flex-direction: column; background: rgba(255,255,255,0.62) !important; backdrop-filter: blur(20px); border: 1px solid rgba(0,0,0,0.08) !important; border-radius: 16px; margin-bottom: 10px; padding: 14px; position: relative; }
+        [data-theme="dark"] #tabelaPartner tbody tr { background: rgba(255,255,255,0.05) !important; border-color: rgba(255,255,255,0.10) !important; }
+        #tabelaPartner tbody tr:hover td { background: transparent !important; }
+        #tabelaPartner tbody td { display: block; width: 100%; padding: 0 !important; margin-bottom: 3px; border: none !important; }
+        #tabelaPartner tbody td:nth-child(1) { font-size: .65rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 5px; }
+        #tabelaPartner tbody td:nth-child(2) { font-size: .95rem; font-weight: 800; margin-bottom: 6px; padding-right: 70px !important; }
+        #tabelaPartner tbody td:nth-child(3), #tabelaPartner tbody td:nth-child(4), #tabelaPartner tbody td:nth-child(5) { font-size: .8rem; color: #475569; display: flex; align-items: center; min-height: 20px; }
+        [data-theme="dark"] #tabelaPartner tbody td:nth-child(3), [data-theme="dark"] #tabelaPartner tbody td:nth-child(4), [data-theme="dark"] #tabelaPartner tbody td:nth-child(5) { color: #94a3b8; }
+        #tabelaPartner tbody td:nth-child(7) { position: absolute; top: 14px; right: 14px; width: auto !important; margin: 0; }
+        #tabelaPartner tbody td:nth-child(8) { position: absolute; top: 44px; right: 14px; width: auto !important; margin: 0; }
+        #tabelaPartner tbody td:nth-child(6) { display: none; }
+    }
+
+    /* ── Badges ── */
+    .badge { border-radius: 6px !important; font-weight: 700 !important; font-size: .65rem !important; padding: 4px 8px !important; letter-spacing: .04em; }
+
+    /* ── Search ── */
+    .search-wrap { position: relative; }
+    .search-wrap input { padding: 9px 14px 9px 38px; border-radius: 50px; font-size: .8rem; width: 100%; outline: none; transition: box-shadow .15s; }
+    [data-theme="light"] .search-wrap input { background: rgba(255,255,255,0.7); border: 1px solid rgba(0,0,0,0.09); color: #0f172a; }
+    [data-theme="dark"]  .search-wrap input { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: #f1f5f9; }
+    .search-wrap input:focus { box-shadow: 0 0 0 3px rgba(37,99,235,0.15); border-color: #2563eb; }
+    .search-wrap svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: #94a3b8; pointer-events: none; }
+
+    /* ── Table action button ── */
+    .btn-act { width: 30px; height: 30px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.08); background: rgba(255,255,255,0.6); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: .75rem; transition: background .15s; color: #475569; }
+    [data-theme="dark"] .btn-act { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.1); color: #94a3b8; }
+    .btn-act:hover { background: rgba(37,99,235,0.08); color: #2563eb; }
+
+    /* ── Stat card (Stats section) ── */
+    .stat-big { border-radius: 20px; padding: 20px 16px; }
+    .stat-big .label { font-size: .65rem; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: #94a3b8; margin-bottom: 6px; }
+    .stat-big .value { font-size: 2.4rem; font-weight: 900; line-height: 1; letter-spacing: -.02em; }
+    .stat-big .sub { font-size: .72rem; color: #94a3b8; margin-top: 4px; }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+</style>
 </head>
 <body>
-<div class="app-wrapper">
-    <nav class="app-header navbar navbar-expand fixed-top">
-        <div class="container-fluid">
-            <a href="#" class="navbar-brand d-flex align-items-center">
-                <img id="app-logo" src="/SRMT/public/assets/images/icons/SyncRide.png" alt="SyncRide">
-            </a>
-            <ul class="navbar-nav ms-auto align-items-center">
-                <li class="nav-item me-2">
-                    <button class="btn btn-link text-muted p-0 border-0" id="theme-toggle"><i class="bi bi-moon-stars-fill fs-5" id="theme-icon"></i></button>
-                </li>
-                <li class="nav-item dropdown user-menu">
-                    <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
-                        <img src="<?= View::e($userPhotoSrc) ?>" class="rounded-circle shadow-sm border" style="width:36px;height:36px;object-fit:cover;">
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg rounded-4 overflow-hidden mt-2">
-                        <li class="user-header bg-primary text-white p-4 text-center">
-                            <p class="mb-0 fw-bold"><?= View::e($userName) ?></p>
-                            <a href="/SRMT/public/auth/logout.php" class="btn btn-danger btn-sm rounded-pill mt-3 fw-bold">Logout</a>
-                        </li>
-                    </ul>
-                </li>
-            </ul>
-        </div>
-    </nav>
+<div class="bg-main">
+<div id="app-container">
+<div style="padding-bottom: calc(66px + var(--safe-bottom) + 32px)">
 
-    <main class="app-main">
-        <div class="app-content">
-            <div class="container-xl">
-                <div class="d-flex justify-content-between align-items-end mb-4 px-1">
-                    <div>
-                        <h3 class="fw-bold mb-0">Hello, <?= View::e($firstName) ?></h3>
-                        <p class="text-muted mb-0 small">Welcome to the partner portal.</p>
-                    </div>
-                    <button class="btn btn-primary rounded-pill d-none d-md-block shadow-sm px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#modalNewBooking">
-                        <i class="bi bi-plus-lg me-1"></i> New Booking
-                    </button>
-                </div>
-
-                <div class="row g-3 mb-4">
-                    <div class="col-4">
-                        <div class="stat-card stat-blue">
-                            <div class="stat-icon"><i class="bi bi-airplane-fill"></i></div>
-                            <div class="stat-value"><?= $counts['total'] ?></div>
-                            <div class="stat-label">Total</div>
-                        </div>
-                    </div>
-                    <div class="col-4">
-                        <div class="stat-card stat-orange">
-                            <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
-                            <div class="stat-value"><?= $counts['pending'] ?></div>
-                            <div class="stat-label">Pending</div>
-                        </div>
-                    </div>
-                    <div class="col-4">
-                        <div class="stat-card stat-green">
-                            <div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div>
-                            <div class="stat-value"><?= $counts['approved'] ?></div>
-                            <div class="stat-label">Confirmed</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-3">
-                    <div class="modern-search order-2 order-md-1">
-                        <i class="bi bi-search"></i>
-                        <input type="text" id="customSearch" placeholder="Search…">
-                    </div>
-                    <ul class="nav nav-pills order-1 order-md-2" id="partner-tabs">
-                        <li class="nav-item"><a class="nav-link active" data-status="pendente" href="#">Pending</a></li>
-                        <li class="nav-item"><a class="nav-link" data-status="aprovado"  href="#">Confirmed</a></li>
-                        <li class="nav-item"><a class="nav-link" data-status="rejeitado" href="#">Rejected</a></li>
-                    </ul>
-                </div>
-
-                <div class="card-table">
-                    <table id="tabelaPartner" class="table mb-0 w-100">
-                        <thead>
-                            <tr>
-                                <th class="ps-4">Date</th>
-                                <th>Passenger</th>
-                                <th>Flight</th>
-                                <th>Route</th>
-                                <th>Pax</th>
-                                <th class="text-center">Key</th>
-                                <th class="text-center">Status</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
+    <!-- ── Shared header ──────────────────────────────────────────── -->
+    <header class="px-6 pt-10 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <img src="<?= View::e($userPhoto) ?>"
+                 onerror="this.onerror=null;this.src='<?= $avatarFallback ?>'"
+                 class="w-10 h-10 rounded-full object-cover"
+                 style="border:2px solid rgba(37,99,235,0.2);" alt="">
+            <div>
+                <h2 class="text-[15px] font-extrabold leading-tight">Hi, <?= View::e($firstName) ?></h2>
+                <p class="text-[8px] text-zinc-500 font-black tracking-widest uppercase italic">Partner Portal</p>
             </div>
         </div>
-    </main>
+        <div class="flex items-center gap-2">
+            <button onclick="applyTheme(document.documentElement.dataset.theme==='dark'?'light':'dark',true)"
+                    class="glass w-9 h-9 rounded-full flex items-center justify-center active:scale-90 transition-transform border-0">
+                <i data-lucide="sun"  class="w-4 h-4 hidden" id="icon-light"></i>
+                <i data-lucide="moon" class="w-4 h-4"        id="icon-dark"></i>
+            </button>
+            <button onclick="confirmLogout()"
+                    class="glass w-9 h-9 rounded-full flex items-center justify-center active:scale-90 transition-transform border-0 text-red-500/70">
+                <i data-lucide="log-out" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- ════════════════════════════════════════════════════════════
+         SECTION: RIDES
+    ═══════════════════════════════════════════════════════════════ -->
+    <div id="section-rides" class="page-section active">
+
+        <!-- Tabs + Search -->
+        <section class="px-6 mt-6">
+            <div class="flex items-center gap-3 mb-3 overflow-x-auto no-scrollbar">
+                <div class="partner-tabs flex-shrink-0" id="partner-tabs">
+                    <button class="partner-tab glass-tab active" data-status="pendente">Pending</button>
+                    <button class="partner-tab glass-tab" data-status="aprovado">Confirmed</button>
+                    <button class="partner-tab glass-tab" data-status="rejeitado">Rejected</button>
+                </div>
+            </div>
+            <div class="search-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <input type="text" id="customSearch" placeholder="Search bookings…">
+            </div>
+        </section>
+
+        <!-- Table -->
+        <section class="px-6 mt-3">
+            <div class="glass rounded-2xl overflow-hidden">
+                <table id="tabelaPartner" class="table mb-0 w-100">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Date</th>
+                            <th>Passenger</th>
+                            <th>Flight</th>
+                            <th>Route</th>
+                            <th>Pax</th>
+                            <th class="text-center">Key</th>
+                            <th class="text-center">Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Desktop new booking -->
+        <div class="hidden md:flex justify-end px-6 mt-4">
+            <button class="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 active:scale-95 transition-transform"
+                    data-bs-toggle="modal" data-bs-target="#modalNewBooking">
+                <i data-lucide="plus" class="w-4 h-4"></i> New Booking
+            </button>
+        </div>
+    </div><!-- /section-rides -->
+
+    <!-- ════════════════════════════════════════════════════════════
+         SECTION: STATS
+    ═══════════════════════════════════════════════════════════════ -->
+    <div id="section-stats" class="page-section">
+        <section class="px-6 mt-6">
+            <h2 class="text-xl font-black mb-4">Statistics</h2>
+
+            <!-- 2-col KPI grid -->
+            <div class="grid grid-cols-2 gap-3">
+
+                <div class="glass stat-big">
+                    <div class="label">Today</div>
+                    <div class="value text-blue-500"><?= (int) $counts['today'] ?></div>
+                    <div class="sub">rides scheduled</div>
+                </div>
+
+                <div class="glass stat-big">
+                    <div class="label">This Month</div>
+                    <div class="value"><?= (int) $counts['this_month'] ?></div>
+                    <div class="sub">rides</div>
+                </div>
+
+                <div class="glass stat-big">
+                    <div class="label">All Time</div>
+                    <div class="value"><?= (int) $counts['total'] ?></div>
+                    <div class="sub">total rides</div>
+                </div>
+
+                <div class="glass stat-big">
+                    <div class="label">Confirmed</div>
+                    <div class="value text-emerald-500"><?= (int) $counts['approved'] ?></div>
+                    <div class="sub">approved</div>
+                </div>
+
+            </div>
+
+            <!-- Pending + No-Shows row -->
+            <div class="grid grid-cols-2 gap-3 mt-3">
+
+                <div class="glass stat-big">
+                    <div class="label">Pending</div>
+                    <div class="value text-amber-500"><?= (int) $counts['pending'] ?></div>
+                    <div class="sub">awaiting approval</div>
+                </div>
+
+                <div class="glass stat-big">
+                    <div class="label">No-Shows</div>
+                    <div class="value <?= $counts['noshows'] > 0 ? 'text-red-500' : 'text-zinc-400' ?>"><?= (int) $counts['noshows'] ?></div>
+                    <div class="sub">incidents recorded</div>
+                </div>
+
+            </div>
+
+            <!-- Approval rate pill -->
+            <?php
+                $rate = $counts['total'] > 0
+                    ? round($counts['approved'] / $counts['total'] * 100)
+                    : 0;
+            ?>
+            <div class="glass rounded-2xl p-4 mt-3 flex items-center justify-between">
+                <div>
+                    <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Approval Rate</p>
+                    <p class="text-lg font-black mt-0.5"><?= $rate ?>%</p>
+                </div>
+                <!-- progress bar -->
+                <div class="flex-1 mx-4">
+                    <div class="h-2 rounded-full overflow-hidden" style="background:rgba(0,0,0,0.07)">
+                        <div class="h-full rounded-full bg-blue-500 transition-all"
+                             style="width:<?= $rate ?>%"></div>
+                    </div>
+                </div>
+                <p class="text-[9px] text-zinc-500 font-bold whitespace-nowrap"><?= (int) $counts['approved'] ?>/<?= (int) $counts['total'] ?></p>
+            </div>
+        </section>
+    </div><!-- /section-stats -->
+
+    <!-- ════════════════════════════════════════════════════════════
+         SECTION: NO-SHOWS
+    ═══════════════════════════════════════════════════════════════ -->
+    <div id="section-noshows" class="page-section">
+        <section class="px-6 mt-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-black">No-Shows</h2>
+                <?php if ($counts['noshows'] > 0): ?>
+                <span class="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full"
+                      style="background:rgba(239,68,68,.12);color:#dc2626;border:1px solid rgba(239,68,68,.2)">
+                    <?= (int) $counts['noshows'] ?> incident<?= $counts['noshows'] !== 1 ? 's' : '' ?>
+                </span>
+                <?php endif; ?>
+            </div>
+
+            <?php if (empty($noShows)): ?>
+            <div class="glass rounded-2xl p-8 text-center">
+                <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3"
+                     style="background:rgba(16,185,129,.1)">
+                    <i data-lucide="check-circle" style="width:26px;height:26px;color:#10b981;"></i>
+                </div>
+                <p class="font-bold text-sm">No incidents recorded</p>
+                <p class="text-[10px] text-zinc-500 mt-1">No no-shows have been reported on your rides.</p>
+            </div>
+            <?php else: ?>
+            <div class="space-y-3">
+                <?php foreach ($noShows as $ns):
+                    $nsTs      = !empty($ns['serviceDate']) ? strtotime((string) $ns['serviceDate']) : false;
+                    $nsDate    = $nsTs !== false ? date('d M Y', $nsTs) : '—';
+                    $nsTime    = !empty($ns['serviceStartTime'])
+                        ? substr((string) $ns['serviceStartTime'], 0, 5)
+                        : '';
+                    $nsClient  = strtoupper((string) ($ns['NomeCliente'] ?? '—'));
+                    $nsOrigin  = (string) ($ns['serviceStartPoint']  ?? '');
+                    $nsDestiny = (string) ($ns['serviceTargetPoint'] ?? '');
+                    $nsReport  = (string) ($ns['noShowReportPath'] ?? '');
+                    $nsPhoto   = (string) ($ns['noShowPhotoPath']  ?? '');
+                    $reportUrl = $nsReport !== '' ? '/SRMT/public/' . ltrim($nsReport, '/') : '';
+                    $photoUrl  = $nsPhoto  !== '' ? '/SRMT/public/' . ltrim($nsPhoto,  '/') : '';
+                    $nsId      = (int) $ns['ID'];
+                ?>
+                <div class="glass rounded-2xl p-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex-1 min-w-0">
+                            <!-- Date + badge -->
+                            <div class="flex items-center gap-2 mb-2 flex-wrap">
+                                <span class="text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                                    <?= View::e($nsDate) ?>
+                                    <?php if ($nsTime): ?>
+                                    <span class="text-zinc-400 mx-1">·</span><?= View::e($nsTime) ?>
+                                    <?php endif; ?>
+                                </span>
+                                <span class="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full flex-shrink-0"
+                                      style="background:rgba(239,68,68,.12);color:#dc2626;border:1px solid rgba(239,68,68,.18)">
+                                    No-Show
+                                </span>
+                            </div>
+                            <!-- Client -->
+                            <p class="text-sm font-bold leading-tight mb-1.5"><?= View::e($nsClient) ?></p>
+                            <!-- Route -->
+                            <div class="flex items-start gap-1 text-[10px] text-zinc-500">
+                                <i data-lucide="map-pin" style="width:11px;height:11px;flex-shrink:0;margin-top:1px;color:#2563eb"></i>
+                                <span class="leading-snug">
+                                    <?= View::e($nsOrigin) ?>
+                                    <span class="text-zinc-400 mx-1">→</span>
+                                    <?= View::e($nsDestiny) ?>
+                                </span>
+                            </div>
+                            <?php if (!empty($ns['noShowLat']) && !empty($ns['noShowLng'])): ?>
+                            <p class="text-[9px] text-zinc-400 mt-1 flex items-center gap-1">
+                                <i data-lucide="locate" style="width:9px;height:9px;"></i>
+                                <?= View::e((string) $ns['noShowLat']) ?>, <?= View::e((string) $ns['noShowLng']) ?>
+                            </p>
+                            <?php endif; ?>
+                        </div>
+
+                        <!-- Action buttons -->
+                        <div class="flex flex-col gap-2 flex-shrink-0">
+                            <?php if ($photoUrl !== ''): ?>
+                            <a href="<?= View::e($photoUrl) ?>" target="_blank"
+                               class="w-9 h-9 glass rounded-full flex items-center justify-center text-zinc-500 active:scale-90 transition-transform"
+                               title="View photo">
+                                <i data-lucide="camera" style="width:15px;height:15px;"></i>
+                            </a>
+                            <?php endif; ?>
+
+                            <?php if ($reportUrl !== ''): ?>
+                            <a href="<?= View::e($reportUrl) ?>"
+                               download="NoShow-Report-<?= $nsId ?>.pdf"
+                               class="w-9 h-9 rounded-full flex items-center justify-center text-white active:scale-90 transition-transform"
+                               style="background:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.4)"
+                               title="Download PDF">
+                                <i data-lucide="file-down" style="width:15px;height:15px;"></i>
+                            </a>
+                            <?php else: ?>
+                            <div class="w-9 h-9 glass rounded-full flex items-center justify-center text-zinc-400"
+                                 title="Report not available">
+                                <i data-lucide="file-x" style="width:15px;height:15px;"></i>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+        </section>
+    </div><!-- /section-noshows -->
+
+</div>
+</div>
 </div>
 
-<div class="bottom-navbar d-md-none">
-    <a href="#" class="nav-item-bottom active"><i class="bi bi-house-door-fill"></i><span>Home</span></a>
-    <div style="width:60px;height:60px;"></div>
-    <div class="btn-center-add" data-bs-toggle="modal" data-bs-target="#modalNewBooking"><i class="bi bi-plus-lg"></i></div>
-    <button onclick="confirmLogout()" class="nav-item-bottom text-danger"><i class="bi bi-box-arrow-right"></i><span>Logout</span></button>
-</div>
+<!-- ── Bottom nav (5 slots: rides | noshows | [FAB] | stats | logout) ── -->
+<nav class="nav-bottom">
+    <button id="nav-rides" onclick="showSection('rides')" class="sr-nav-active">
+        <i data-lucide="calendar"></i>Rides
+    </button>
+    <button id="nav-noshows" onclick="showSection('noshows')" style="position:relative">
+        <i data-lucide="alert-triangle"></i>No-Shows
+        <?php if ($counts['noshows'] > 0): ?>
+        <span class="nav-badge"><?= (int) $counts['noshows'] ?></span>
+        <?php endif; ?>
+    </button>
+    <span style="flex:1"></span><!-- FAB spacer -->
+    <button id="nav-stats" onclick="showSection('stats')">
+        <i data-lucide="bar-chart-2"></i>Stats
+    </button>
+    <button onclick="confirmLogout()" class="text-red-500/70">
+        <i data-lucide="log-out"></i>Logout
+    </button>
+</nav>
 
-<!-- Logout confirm modal -->
+<!-- FAB -->
+<button class="nav-fab" data-bs-toggle="modal" data-bs-target="#modalNewBooking" title="New Booking">
+    <i data-lucide="plus" style="width:22px;height:22px;"></i>
+</button>
+
+<!-- ── Logout confirm ─────────────────────────────────────────────── -->
 <div class="modal fade" id="modalConfirmLogout" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content border-0 shadow rounded-4">
-            <div class="modal-body text-center p-4">
-                <h5 class="fw-bold mb-2">Sign out?</h5>
-                <p class="text-muted small mb-4">You will need to log in again.</p>
-                <div class="d-flex gap-2 justify-content-center">
-                    <button type="button" class="btn btn-light rounded-pill px-4 fw-bold" data-bs-dismiss="modal">No</button>
-                    <a href="/SRMT/public/auth/logout.php" class="btn btn-danger rounded-pill px-4 fw-bold">Yes</a>
+        <div class="modal-content">
+            <div class="modal-body text-center p-5">
+                <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
+                     style="background:rgba(220,38,38,.1)">
+                    <i data-lucide="log-out" style="width:22px;height:22px;color:#dc2626;"></i>
+                </div>
+                <h5 class="font-extrabold mb-1 text-sm">Sign out?</h5>
+                <p class="text-zinc-400 text-xs mb-4">You'll need to log in again.</p>
+                <div class="flex gap-2 justify-center">
+                    <button type="button" class="glass px-5 py-2 rounded-xl font-bold text-xs" data-bs-dismiss="modal">Cancel</button>
+                    <a href="/SRMT/public/auth/logout.php" class="bg-red-600 text-white px-5 py-2 rounded-xl font-bold text-xs">Sign out</a>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- New booking modal -->
+<!-- ── New Booking modal ──────────────────────────────────────────── -->
 <div class="modal fade" id="modalNewBooking" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0 shadow-lg rounded-4">
-            <div class="modal-header border-bottom-0"><h5 class="modal-title fw-bold">New Booking</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-            <div class="modal-body p-4">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">New Booking</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
                 <form id="formNewBooking">
                     <div class="row g-3">
-                        <div class="col-6"><label class="small text-muted fw-bold">Date</label><input type="date" name="date" class="form-control" required></div>
-                        <div class="col-6"><label class="small text-muted fw-bold">Time</label><input type="time" name="time" class="form-control" required></div>
-                        <div class="col-12"><label class="small text-muted fw-bold">Name</label><input type="text" name="client_name" class="form-control" required></div>
-                        <div class="col-6"><label class="small text-muted fw-bold">Phone</label><input type="text" name="client_phone" class="form-control"></div>
-                        <div class="col-6"><label class="small text-muted fw-bold">Price</label><input type="number" step="0.01" name="price" class="form-control"></div>
-                        <div class="col-4"><label class="small text-muted fw-bold">Adults</label><input type="number" name="pax_adt" value="1" class="form-control" required></div>
-                        <div class="col-4"><label class="small text-muted fw-bold">Crianças</label><input type="number" name="pax_chd" value="0" class="form-control"></div>
-                        <div class="col-4"><label class="small text-muted fw-bold">Bebés</label><input type="number" name="pax_bby" value="0" class="form-control"></div>
-                        <div class="col-12"><label class="small text-muted fw-bold">Pickup</label><input type="text" name="pickup" class="form-control" required></div>
-                        <div class="col-12"><label class="small text-muted fw-bold">Destination</label><input type="text" name="dropoff" class="form-control" required></div>
-                        <div class="col-6"><label class="small text-muted fw-bold">Flight</label><input type="text" name="flight" class="form-control"></div>
-                        <div class="col-6">
-                            <label class="small text-muted fw-bold">Has Key?</label>
-                            <select name="has_key" class="form-select">
-                                <option value="0" selected>No</option>
-                                <option value="1">Yes</option>
-                            </select>
+                        <div class="col-6"><label class="form-label">Date</label><input type="date" name="date" class="form-control" required></div>
+                        <div class="col-6"><label class="form-label">Time</label><input type="time" name="time" class="form-control" required></div>
+                        <div class="col-12"><label class="form-label">Passenger name</label><input type="text" name="client_name" class="form-control" required></div>
+                        <div class="col-6"><label class="form-label">Phone</label><input type="text" name="client_phone" class="form-control"></div>
+                        <div class="col-6"><label class="form-label">Price</label><input type="number" step="0.01" name="price" class="form-control"></div>
+                        <div class="col-4"><label class="form-label">Adults</label><input type="number" name="pax_adt" value="1" class="form-control" required></div>
+                        <div class="col-4"><label class="form-label">Children</label><input type="number" name="pax_chd" value="0" class="form-control"></div>
+                        <div class="col-4"><label class="form-label">Babies</label><input type="number" name="pax_bby" value="0" class="form-control"></div>
+                        <div class="col-12"><label class="form-label">Pickup</label><input type="text" name="pickup" class="form-control" required></div>
+                        <div class="col-12"><label class="form-label">Destination</label><input type="text" name="dropoff" class="form-control" required></div>
+                        <div class="col-6"><label class="form-label">Flight</label><input type="text" name="flight" class="form-control"></div>
+                        <div class="col-6"><label class="form-label">Has Key?</label>
+                            <select name="has_key" class="form-select"><option value="0" selected>No</option><option value="1">Yes</option></select>
                         </div>
-                        <div class="col-12 mt-4"><button type="submit" class="btn btn-primary w-100 rounded-pill">Submit</button></div>
+                        <div class="col-12 mt-2"><button type="submit" class="btn btn-primary w-100 py-3 font-bold">Submit Booking</button></div>
                     </div>
                 </form>
             </div>
@@ -234,26 +552,29 @@ $userPhotoSrc = isset($_SESSION['profile_photo_path']) && $_SESSION['profile_pho
     </div>
 </div>
 
-<!-- Edit booking modal -->
+<!-- ── Edit Booking modal ─────────────────────────────────────────── -->
 <div class="modal fade" id="modalEditBooking" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0 shadow-lg rounded-4">
-            <div class="modal-header border-bottom-0"><h5 class="modal-title fw-bold">Edit Booking</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-            <div class="modal-body p-4">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Booking</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
                 <form id="formEditBooking">
                     <input type="hidden" name="ride_id" id="edit_ride_id">
                     <div class="row g-3">
-                        <div class="col-6"><label class="small text-muted fw-bold">Date</label><input type="date" name="date" id="edit_date" class="form-control" required></div>
-                        <div class="col-6"><label class="small text-muted fw-bold">Time</label><input type="time" name="time" id="edit_time" class="form-control" required></div>
-                        <div class="col-12"><label class="small text-muted fw-bold">Name</label><input type="text" name="client_name" id="edit_client_name" class="form-control" required></div>
-                        <div class="col-6"><label class="small text-muted fw-bold">Phone</label><input type="text" name="client_phone" id="edit_client_phone" class="form-control"></div>
-                        <div class="col-6"><label class="small text-muted fw-bold">Flight</label><input type="text" name="flight" id="edit_flight" class="form-control"></div>
-                        <div class="col-4"><label class="small text-muted fw-bold">Adults</label><input type="number" name="pax_adt" id="edit_pax_adt" value="1" class="form-control" required></div>
-                        <div class="col-4"><label class="small text-muted fw-bold">Crianças</label><input type="number" name="pax_chd" id="edit_pax_chd" value="0" class="form-control"></div>
-                        <div class="col-4"><label class="small text-muted fw-bold">Bebés</label><input type="number" name="pax_bby" id="edit_pax_bby" value="0" class="form-control"></div>
-                        <div class="col-12"><label class="small text-muted fw-bold">Pickup</label><input type="text" name="pickup" id="edit_pickup" class="form-control" required></div>
-                        <div class="col-12"><label class="small text-muted fw-bold">Destination</label><input type="text" name="dropoff" id="edit_dropoff" class="form-control" required></div>
-                        <div class="col-12 mt-2"><button type="submit" class="btn btn-primary w-100 rounded-pill">Save Changes</button></div>
+                        <div class="col-6"><label class="form-label">Date</label><input type="date" name="date" id="edit_date" class="form-control" required></div>
+                        <div class="col-6"><label class="form-label">Time</label><input type="time" name="time" id="edit_time" class="form-control" required></div>
+                        <div class="col-12"><label class="form-label">Passenger name</label><input type="text" name="client_name" id="edit_client_name" class="form-control" required></div>
+                        <div class="col-6"><label class="form-label">Phone</label><input type="text" name="client_phone" id="edit_client_phone" class="form-control"></div>
+                        <div class="col-6"><label class="form-label">Flight</label><input type="text" name="flight" id="edit_flight" class="form-control"></div>
+                        <div class="col-4"><label class="form-label">Adults</label><input type="number" name="pax_adt" id="edit_pax_adt" value="1" class="form-control" required></div>
+                        <div class="col-4"><label class="form-label">Children</label><input type="number" name="pax_chd" id="edit_pax_chd" value="0" class="form-control"></div>
+                        <div class="col-4"><label class="form-label">Babies</label><input type="number" name="pax_bby" id="edit_pax_bby" value="0" class="form-control"></div>
+                        <div class="col-12"><label class="form-label">Pickup</label><input type="text" name="pickup" id="edit_pickup" class="form-control" required></div>
+                        <div class="col-12"><label class="form-label">Destination</label><input type="text" name="dropoff" id="edit_dropoff" class="form-control" required></div>
+                        <div class="col-12 mt-2"><button type="submit" class="btn btn-primary w-100 py-3 font-bold">Save Changes</button></div>
                     </div>
                 </form>
             </div>
@@ -267,26 +588,40 @@ $userPhotoSrc = isset($_SESSION['profile_photo_path']) && $_SESSION['profile_pho
 <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// Theme
-(function () {
-    const html   = document.documentElement;
-    const toggle = document.getElementById('theme-toggle');
-    const icon   = document.getElementById('theme-icon');
-    const logo   = document.getElementById('app-logo');
-    function applyTheme(t) {
-        html.setAttribute('data-bs-theme', t);
-        icon.className = t === 'light' ? 'bi bi-moon-stars-fill fs-5' : 'bi bi-sun-fill fs-5';
-        if (logo) logo.src = t === 'dark' ? '/SRMT/public/assets/images/icons/Syncridewhite.png' : '/SRMT/public/assets/images/icons/SyncRide.png';
-    }
-    applyTheme(localStorage.getItem('theme') || 'light');
-    toggle.addEventListener('click', () => {
-        const next = html.getAttribute('data-bs-theme') === 'light' ? 'dark' : 'light';
-        localStorage.setItem('theme', next); applyTheme(next);
-    });
-})();
+lucide.createIcons();
+
+/* ── Theme ────────────────────────────────────────────────────────── */
+function applyTheme(t, save) {
+    document.documentElement.dataset.theme = t;
+    const mc = document.getElementById('themeColor');
+    if (mc) mc.content = t === 'dark' ? '#020617' : '#f1f5f9';
+    document.getElementById('icon-light').classList.toggle('hidden', t !== 'dark');
+    document.getElementById('icon-dark').classList.toggle('hidden',  t === 'dark');
+    if (save) localStorage.setItem('sr-theme', t);
+}
+(function () { applyTheme(localStorage.getItem('sr-theme') || 'light', false); })();
+
+/* ── Section switching ────────────────────────────────────────────── */
+const NAV_MAP = { rides: 'nav-rides', noshows: 'nav-noshows', stats: 'nav-stats' };
+
+function showSection(id) {
+    // scroll to top
+    document.getElementById('app-container').scrollTo({ top: 0, behavior: 'smooth' });
+
+    // toggle sections
+    document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+    const sec = document.getElementById('section-' + id);
+    if (sec) sec.classList.add('active');
+
+    // toggle nav active state
+    document.querySelectorAll('.nav-bottom button, .nav-bottom a').forEach(b => b.classList.remove('sr-nav-active'));
+    const navBtn = document.getElementById(NAV_MAP[id]);
+    if (navBtn) navBtn.classList.add('sr-nav-active');
+}
 
 function confirmLogout() { new bootstrap.Modal(document.getElementById('modalConfirmLogout')).show(); }
 
+/* ── DataTable ────────────────────────────────────────────────────── */
 let table, currentStatus = 'pendente';
 $(document).ready(function () {
     table = $('#tabelaPartner').DataTable({
@@ -295,54 +630,53 @@ $(document).ready(function () {
         columns: [
             { data: 'data_hora', className: 'ps-4' },
             { data: 'cliente', className: 'fw-bold' },
-            { data: 'voo', render: (d) => window.innerWidth < 768 ? '<i class="bi bi-airplane-fill text-primary me-2"></i> ' + (d || '--') : d },
-            { data: 'rota', render: (d) => window.innerWidth < 768 ? '<i class="bi bi-geo-alt-fill text-muted me-2"></i> ' + d : d },
-            { data: 'pax',  render: (d) => window.innerWidth < 768 ? '<i class="bi bi-people-fill text-muted me-2"></i> ' + d : d },
+            { data: 'voo' },
+            { data: 'rota' },
+            { data: 'pax' },
             { data: 'has_key', className: 'text-center', render: d => d == 1
-                ? '<span class="badge bg-success rounded-pill"><i class="bi bi-key-fill"></i> Yes</span>'
-                : '<span class="badge bg-danger rounded-pill"><i class="bi bi-x-lg"></i> No</span>' },
+                ? '<span class="badge" style="background:rgba(16,185,129,.12);color:#059669;border:1px solid rgba(16,185,129,.2)"><i class="bi bi-key-fill me-1"></i>Yes</span>'
+                : '<span class="badge" style="background:rgba(239,68,68,.10);color:#dc2626;border:1px solid rgba(239,68,68,.2)"><i class="bi bi-x me-1"></i>No</span>' },
             { data: 'status', className: 'text-center', render: d => {
                 const s = (d||'').toLowerCase();
-                const [cls, txt] = s === 'pendente' ? ['bg-warning text-warning','Pending'] : s === 'aprovado' ? ['bg-success text-success','Confirmed'] : s === 'rejeitado' ? ['bg-danger text-danger','Rejected'] : ['bg-secondary text-secondary', d];
-                return `<span class="badge rounded-pill ${cls} bg-opacity-10 px-3 py-2 border border-opacity-10">${txt}</span>`;
+                if (s==='pendente') return '<span class="badge" style="background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.2)">Pending</span>';
+                if (s==='aprovado') return '<span class="badge" style="background:rgba(16,185,129,.12);color:#059669;border:1px solid rgba(16,185,129,.2)">Confirmed</span>';
+                if (s==='rejeitado') return '<span class="badge" style="background:rgba(239,68,68,.10);color:#dc2626;border:1px solid rgba(239,68,68,.2)">Rejected</span>';
+                return '<span class="badge">' + d + '</span>';
             }},
             { data: 'acoes', className: 'text-end pe-3', orderable: false, searchable: false }
         ],
         order: [[0, 'desc']],
-        dom: 'rt<"d-flex justify-content-center mt-3"p>',
+        dom: 'rt<"d-flex justify-content-center mt-3 pb-2"p>',
         pageLength: 10,
         autoWidth: false
     });
 
     $('#customSearch').on('keyup', function () { table.search(this.value).draw(); });
 
-    // Tab switching
-    document.querySelectorAll('#partner-tabs .nav-link').forEach(link => {
-        link.addEventListener('click', e => {
-            e.preventDefault();
-            document.querySelectorAll('#partner-tabs .nav-link').forEach(l => l.classList.remove('active'));
-            link.classList.add('active');
-            currentStatus = link.dataset.status;
+    document.querySelectorAll('#partner-tabs .partner-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('#partner-tabs .partner-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentStatus = btn.dataset.status;
             table.ajax.reload();
         });
     });
 
-    // Open edit modal — delegate on tbody because rows are re-rendered by DataTables
     $('#tabelaPartner tbody').on('click', '.btn-edit-ride', function () {
         const row = table.row($(this).closest('tr')).data();
         if (!row) return;
         const m = document.getElementById('modalEditBooking');
-        m.querySelector('#edit_ride_id').value    = row.raw_id;
-        m.querySelector('#edit_date').value       = row.raw_date;
-        m.querySelector('#edit_time').value       = row.raw_time;
-        m.querySelector('#edit_client_name').value= row.raw_client;
+        m.querySelector('#edit_ride_id').value     = row.raw_id;
+        m.querySelector('#edit_date').value        = row.raw_date;
+        m.querySelector('#edit_time').value        = row.raw_time;
+        m.querySelector('#edit_client_name').value = row.raw_client;
         m.querySelector('#edit_client_phone').value= row.raw_phone;
-        m.querySelector('#edit_pax_adt').value    = row.raw_pax_adt;
-        m.querySelector('#edit_pax_chd').value    = row.raw_pax_chd;
-        m.querySelector('#edit_pax_bby').value    = row.raw_pax_bby;
-        m.querySelector('#edit_pickup').value     = row.raw_pickup;
-        m.querySelector('#edit_dropoff').value    = row.raw_dropoff;
-        m.querySelector('#edit_flight').value     = row.raw_flight;
+        m.querySelector('#edit_pax_adt').value     = row.raw_pax_adt;
+        m.querySelector('#edit_pax_chd').value     = row.raw_pax_chd;
+        m.querySelector('#edit_pax_bby').value     = row.raw_pax_bby;
+        m.querySelector('#edit_pickup').value      = row.raw_pickup;
+        m.querySelector('#edit_dropoff').value     = row.raw_dropoff;
+        m.querySelector('#edit_flight').value      = row.raw_flight;
         new bootstrap.Modal(m).show();
     });
 
@@ -353,8 +687,11 @@ $(document).ready(function () {
         fetch('/SRMT/public/partner/api-update-ride.php', { method: 'POST', body: new FormData(this) })
             .then(r => r.json())
             .then(res => {
-                if (res.success) { toastr.success('Booking updated!'); bootstrap.Modal.getInstance(document.getElementById('modalEditBooking')).hide(); table.ajax.reload(); }
-                else toastr.error(res.error || 'Update not allowed');
+                if (res.success) {
+                    toastr.success('Booking updated!');
+                    bootstrap.Modal.getInstance(document.getElementById('modalEditBooking')).hide();
+                    table.ajax.reload();
+                } else { toastr.error(res.error || 'Update not allowed'); }
             })
             .catch(() => toastr.error('Network error'))
             .finally(() => btn.prop('disabled', false).html('Save Changes'));
@@ -367,11 +704,15 @@ $(document).ready(function () {
         fetch('/SRMT/public/partner/api-create-ride.php', { method: 'POST', body: new FormData(this) })
             .then(r => r.json())
             .then(res => {
-                if (res.success) { toastr.success('Booking submitted!'); $('#modalNewBooking').modal('hide'); $('#formNewBooking')[0].reset(); table.ajax.reload(); }
-                else toastr.error(res.error || 'Error');
+                if (res.success) {
+                    toastr.success('Booking submitted!');
+                    bootstrap.Modal.getInstance(document.getElementById('modalNewBooking')).hide();
+                    document.getElementById('formNewBooking').reset();
+                    table.ajax.reload();
+                } else { toastr.error(res.error || 'Error'); }
             })
             .catch(() => toastr.error('Network error'))
-            .finally(() => btn.prop('disabled', false).html('Submit'));
+            .finally(() => btn.prop('disabled', false).html('Submit Booking'));
     });
 });
 </script>

@@ -9,73 +9,80 @@ View::layout('layouts.admin', [
             .action-tile {
                 display: flex; flex-direction: column; align-items: flex-start;
                 justify-content: space-between; padding: 22px; border-radius: 22px;
-                background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
-                color: #fff; cursor: pointer; transition: all .2s;
+                cursor: pointer; transition: all .2s;
                 min-height: 140px; width: 100%;
-                backdrop-filter: blur(20px); text-align: left;
+                backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+                text-align: left;
             }
-            .action-tile:hover { background: rgba(255,255,255,0.08); transform: translateY(-2px); }
+            [data-theme="dark"]  .action-tile { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); color: #f1f5f9; }
+            [data-theme="light"] .action-tile { background: rgba(255,255,255,0.65); border: 1px solid rgba(0,0,0,0.08); color: #0f172a; }
+            [data-theme="dark"]  .action-tile:hover { background: rgba(255,255,255,0.08); transform: translateY(-2px); }
+            [data-theme="light"] .action-tile:hover { background: rgba(255,255,255,0.88); transform: translateY(-2px); }
             .action-tile:active { transform: scale(0.98); }
             .action-tile .ico {
                 width: 44px; height: 44px; border-radius: 14px;
                 display: inline-flex; align-items: center; justify-content: center;
                 margin-bottom: 12px;
             }
-            .action-tile .title { font-size: 14px; font-weight: 800; color: #fff; letter-spacing: -0.01em; }
-            .action-tile .sub   { font-size: 11px; color: #a1a1aa; font-weight: 600; margin-top: 4px; }
-            .tile-backup .ico { background: rgba(59,130,246,0.15); color: #60a5fa; }
-            .tile-delete .ico { background: rgba(239,68,68,0.15);  color: #f87171; }
-            .tile-clear  .ico { background: rgba(251,191,36,0.15); color: #fbbf24; }
+            .action-tile .title { font-size: 14px; font-weight: 800; letter-spacing: -0.01em; }
+            .action-tile .sub   { font-size: 11px; color: #71717a; font-weight: 600; margin-top: 4px; }
+            .tile-backup .ico { background: rgba(59,130,246,0.15); color: #3b82f6; }
+            .tile-delete .ico { background: rgba(239,68,68,0.15);  color: #ef4444; }
+            .tile-clear  .ico { background: rgba(251,191,36,0.15); color: #f59e0b; }
 
             .health-card {
-                background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
                 border-radius: 22px; padding: 28px; text-align: center;
-                backdrop-filter: blur(20px);
+                backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
                 display: flex; flex-direction: column; align-items: center; gap: 16px;
             }
+            [data-theme="dark"]  .health-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); }
+            [data-theme="light"] .health-card { background: rgba(255,255,255,0.65); border: 1px solid rgba(0,0,0,0.08); }
             .health-ring {
                 width: 96px; height: 96px; border-radius: 999px;
                 display: flex; align-items: center; justify-content: center;
-                background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
                 position: relative;
             }
+            [data-theme="dark"]  .health-ring { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+            [data-theme="light"] .health-ring { background: rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.08); }
             .health-ring .dot {
                 position: absolute; top: 6px; right: 6px;
                 width: 14px; height: 14px; border-radius: 999px;
-                border: 3px solid #0a0a0a;
             }
-            .health-title { font-size: 20px; font-weight: 800; color: #fff; }
-            .health-msg   { font-size: 12px; color: #a1a1aa; font-weight: 600; }
+            [data-theme="dark"]  .health-ring .dot { border: 3px solid #020617; }
+            [data-theme="light"] .health-ring .dot { border: 3px solid #f1f5f9; }
+            .health-title { font-size: 20px; font-weight: 800; }
+            .health-msg   { font-size: 12px; color: #71717a; font-weight: 600; }
             .progress-rail {
-                width: 100%; height: 8px; border-radius: 999px;
-                background: rgba(255,255,255,0.06); overflow: hidden;
+                width: 100%; height: 8px; border-radius: 999px; overflow: hidden;
             }
+            [data-theme="dark"]  .progress-rail { background: rgba(255,255,255,0.06); }
+            [data-theme="light"] .progress-rail { background: rgba(0,0,0,0.08); }
             .progress-fill { height: 100%; border-radius: 999px; transition: width .4s; }
 
             .log-card {
-                background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
                 border-radius: 22px; padding: 4px;
-                backdrop-filter: blur(20px); height: 100%;
+                backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); height: 100%;
             }
-            .log-head {
-                display: flex; align-items: center; gap: 10px;
-                padding: 18px 20px 12px 20px;
-            }
-            .log-head h3 { font-size: 13px; font-weight: 800; color: #fff; letter-spacing: -0.01em; }
+            [data-theme="dark"]  .log-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); }
+            [data-theme="light"] .log-card { background: rgba(255,255,255,0.65); border: 1px solid rgba(0,0,0,0.08); }
+            .log-head { display: flex; align-items: center; gap: 10px; padding: 18px 20px 12px 20px; }
+            .log-head h3 { font-size: 13px; font-weight: 800; letter-spacing: -0.01em; }
             .log-item {
                 display: flex; justify-content: space-between; align-items: center;
-                padding: 12px 20px; border-top: 1px solid rgba(255,255,255,0.05);
-                font-size: 13px;
+                padding: 12px 20px; font-size: 13px;
             }
+            [data-theme="dark"]  .log-item { border-top: 1px solid rgba(255,255,255,0.05); }
+            [data-theme="light"] .log-item { border-top: 1px solid rgba(0,0,0,0.06); }
             .log-item .action {
-                color: #e4e4e7; font-weight: 600; max-width: 70%;
+                font-weight: 600; max-width: 70%;
                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
             }
             .log-item .when {
-                font-family: monospace; font-size: 10px; color: #a1a1aa;
-                background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+                font-family: monospace; font-size: 10px; color: #71717a;
                 padding: 4px 8px; border-radius: 999px;
             }
+            [data-theme="dark"]  .log-item .when { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); }
+            [data-theme="light"] .log-item .when { background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.08); }
             .log-empty { padding: 40px 20px; text-align: center; color: #71717a; font-size: 12px; font-weight: 600; }
         </style>
     ',
@@ -84,6 +91,12 @@ View::layout('layouts.admin', [
         <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet">
         <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
         <script>
+            var SR_STORAGE = {
+                backupOk: "' . addslashes(t('storage.backup_ok')) . '",
+                done: "' . addslashes(t('storage.done')) . '",
+                error: "' . addslashes(t('storage.error')) . '",
+                logCleared: "' . addslashes(t('storage.log_cleared')) . '"
+            };
             toastr.options = { closeButton: true, progressBar: true, positionClass: "toast-top-right", timeOut: 3000 };
 
             document.getElementById("backup-btn").addEventListener("click", function () {
@@ -94,10 +107,10 @@ View::layout('layouts.admin', [
                         const a = document.createElement("a");
                         a.href = url; a.download = "backup.sql";
                         document.body.appendChild(a); a.click(); a.remove();
-                        toastr.success("Backup downloaded successfully!", "SyncRide");
+                        toastr.success(SR_STORAGE.backupOk, SR_STORAGE.done);
                         setTimeout(() => location.reload(), 1500);
                     })
-                    .catch(e => toastr.error(e.message, "Error"));
+                    .catch(e => toastr.error(e.message, SR_STORAGE.error));
             });
 
             document.getElementById("delete-rides-btn").addEventListener("click", function () {
@@ -105,8 +118,8 @@ View::layout('layouts.admin', [
                 fetch("ride-delete.php", { method: "POST" })
                     .then(r => r.json())
                     .then(data => {
-                        if (data.success) { toastr.success("All rides deleted.", "Done"); setTimeout(() => location.reload(), 1500); }
-                        else toastr.error(data.message, "Error");
+                        if (data.success) { toastr.success("All rides deleted.", SR_STORAGE.done); setTimeout(() => location.reload(), 1500); }
+                        else toastr.error(data.message, SR_STORAGE.error);
                     });
             });
 
@@ -115,8 +128,8 @@ View::layout('layouts.admin', [
                 fetch("clear-logs.php", { method: "POST" })
                     .then(r => r.json())
                     .then(data => {
-                        if (data.success) { toastr.success("Audit log cleared.", "Done"); setTimeout(() => location.reload(), 1500); }
-                        else toastr.error(data.message, "Error");
+                        if (data.success) { toastr.success(SR_STORAGE.logCleared, SR_STORAGE.done); setTimeout(() => location.reload(), 1500); }
+                        else toastr.error(data.message, SR_STORAGE.error);
                     });
             });
         </script>
@@ -126,8 +139,8 @@ View::layout('layouts.admin', [
 
 <main class="px-6 mt-8">
     <div class="mb-6">
-        <h1 class="text-[24px] font-extrabold tracking-tight">Storage</h1>
-        <p class="text-[11px] text-zinc-500 font-semibold mt-1">Backups, cleanups and system history.</p>
+        <h1 class="text-[24px] font-extrabold tracking-tight"><?= t('storage.title') ?></h1>
+        <p class="text-[11px] text-zinc-500 font-semibold mt-1"><?= t('storage.subtitle') ?></p>
     </div>
 
     <!-- Action tiles -->
@@ -135,22 +148,22 @@ View::layout('layouts.admin', [
         <button class="action-tile tile-backup" id="backup-btn">
             <div class="ico"><i data-lucide="cloud-download" class="w-5 h-5"></i></div>
             <div>
-                <div class="title">Backup Database</div>
-                <div class="sub">Download full SQL dump</div>
+                <div class="title"><?= t('storage.backup_db') ?></div>
+                <div class="sub"><?= t('storage.backup_desc') ?></div>
             </div>
         </button>
         <button class="action-tile tile-delete" id="delete-rides-btn">
             <div class="ico"><i data-lucide="trash-2" class="w-5 h-5"></i></div>
             <div>
-                <div class="title">Delete All Rides</div>
-                <div class="sub">Permanently removes all rides</div>
+                <div class="title"><?= t('storage.delete_rides') ?></div>
+                <div class="sub"><?= t('storage.delete_desc') ?></div>
             </div>
         </button>
         <button class="action-tile tile-clear" id="clear-logs-btn">
             <div class="ico"><i data-lucide="eraser" class="w-5 h-5"></i></div>
             <div>
-                <div class="title">Clear Audit Log</div>
-                <div class="sub">Wipes system history</div>
+                <div class="title"><?= t('storage.clear_log') ?></div>
+                <div class="sub"><?= t('storage.clear_desc') ?></div>
             </div>
         </button>
     </div>
@@ -175,7 +188,7 @@ View::layout('layouts.admin', [
         <div class="log-card">
             <div class="log-head">
                 <i data-lucide="scroll-text" class="w-4 h-4 text-zinc-400"></i>
-                <h3>Recent Activity</h3>
+                <h3><?= t('storage.recent') ?></h3>
             </div>
             <?php if ($recent): ?>
                 <?php foreach ($recent as $row): ?>
@@ -185,7 +198,7 @@ View::layout('layouts.admin', [
                     </div>
                 <?php endforeach; ?>
             <?php else: ?>
-                <div class="log-empty">No recent records.</div>
+                <div class="log-empty"><?= t('storage.no_records') ?></div>
             <?php endif; ?>
         </div>
 

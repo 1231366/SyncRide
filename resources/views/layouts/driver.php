@@ -16,16 +16,17 @@ $userName  = isset($_SESSION['name'])  ? explode(' ', (string) $_SESSION['name']
 $userPhoto = $_SESSION['profile_photo_path'] ?? null;
 $userPhotoSrc = $userPhoto
     ? '/SRMT/' . ltrim((string) $userPhoto, '/')
-    : '/SRMT/public/assets/images/icons/SyncRide.png';
+    : '/SRMT/public/assets/images/icons/Syncride.png';
 
 $navClass = static fn(string $id): string => $id === $active ? 'active' : '';
 ?><!DOCTYPE html>
-<html lang="en" data-bs-theme="light">
+<html lang="en" translate="no" data-bs-theme="light" style="background:#f8fafc;">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#ffffff">
     <title><?= View::e($title) ?></title>
+    <meta name="csrf-token" content="<?= \App\Support\Session::csrfToken() ?>">
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -35,24 +36,31 @@ $navClass = static fn(string $id): string => $id === $active ? 'active' : '';
         :root {
             --font-primary: 'Inter', sans-serif;
             --font-display: 'Poppins', sans-serif;
-            --bg-body: #f3f4f6;
-            --bg-card: #ffffff;
-            --text-main: #111827;
-            --text-muted: #6b7280;
-            --primary-accent: #4f46e5;
-            --border-color: #e5e7eb;
-            --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
-            --radius-md: 16px;
-            --safe-top: env(safe-area-inset-top, 0px);
+            --bg-body:        #f8fafc;
+            --bg-card:        #ffffff;
+            --bg-raised:      #f1f5f9;
+            --text-main:      #0f172a;
+            --text-muted:     #475569;
+            --text-faint:     #94a3b8;
+            --primary-accent: #2563eb;
+            --accent-soft:    #eff6ff;
+            --border-color:   #e2e8f0;
+            --shadow-sm:      0 1px 3px rgb(0 0 0 / .08);
+            --radius-md:      14px;
+            --safe-top:    env(safe-area-inset-top, 0px);
             --safe-bottom: env(safe-area-inset-bottom, 0px);
         }
         [data-bs-theme="dark"] {
-            --bg-body: #0f172a;
-            --bg-card: #1e293b;
-            --text-main: #f9fafb;
-            --text-muted: #94a3b8;
-            --primary-accent: #6366f1;
-            --border-color: #334155;
+            --bg-body:        #0f172a;
+            --bg-card:        #1e293b;
+            --bg-raised:      #293548;
+            --text-main:      #f1f5f9;
+            --text-muted:     #94a3b8;
+            --text-faint:     #64748b;
+            --primary-accent: #3b82f6;
+            --accent-soft:    rgba(59,130,246,.12);
+            --border-color:   #334155;
+            --shadow-sm:      0 1px 3px rgb(0 0 0 / .4);
         }
         body {
             font-family: var(--font-primary);
@@ -84,17 +92,18 @@ $navClass = static fn(string $id): string => $id === $active ? 'active' : '';
         }
         .nav-item-mobile i { font-size: 1.5rem; margin-bottom: 4px; }
         .nav-item-mobile.active { color: var(--primary-accent); }
+        body { background-color: var(--bg-body); color: var(--text-main); }
     </style>
     <?= $extraHead ?>
 </head>
 <body>
     <header class="app-header">
-        <img src="/SRMT/public/assets/images/icons/SyncRide.png" alt="SyncRide" class="brand-logo" id="driver-logo">
+        <img src="/SRMT/public/assets/images/icons/Syncride.png" alt="SyncRide" class="brand-logo" id="driver-logo">
         <div class="d-flex align-items-center gap-3">
             <button class="btn btn-link text-muted p-0 border-0" id="theme-toggle">
                 <i class="bi bi-moon-stars-fill fs-5" id="theme-icon"></i>
             </button>
-            <img src="<?= View::e($userPhotoSrc) ?>" class="user-avatar shadow-sm" alt="">
+            <img src="<?= View::e($userPhotoSrc) ?>" class="user-avatar shadow-sm" alt="" style="cursor:pointer" onclick="openChangePassword()" title="<?= t('pwd.title') ?>">
         </div>
     </header>
 
@@ -116,22 +125,25 @@ $navClass = static fn(string $id): string => $id === $active ? 'active' : '';
             const toggle = document.getElementById('theme-toggle');
             const icon   = document.getElementById('theme-icon');
             const logo   = document.getElementById('driver-logo');
-            const logoDark  = '/SRMT/public/assets/images/icons/SyncRide.png';
+            const logoDark  = '/SRMT/public/assets/images/icons/Syncride.png';
             const logoLight = '/SRMT/public/assets/images/icons/Syncridewhite.png';
 
             function applyTheme(t) {
                 html.setAttribute('data-bs-theme', t);
                 icon.className = t === 'light' ? 'bi bi-moon-stars-fill fs-5' : 'bi bi-sun-fill fs-5';
                 if (logo) logo.src = t === 'dark' ? logoLight : logoDark;
+                document.body.style.backgroundColor = '';
             }
             applyTheme(localStorage.getItem('theme') || 'light');
             toggle.addEventListener('click', () => {
-                const next = html.getAttribute('data-bs-theme') === 'light' ? 'dark' : 'light';
+                const next = html.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
                 localStorage.setItem('theme', next);
                 applyTheme(next);
             });
         })();
     </script>
+    <?php include __DIR__ . '/_csrf.php'; ?>
     <?= $extraScripts ?>
+    <?php include __DIR__ . '/_change_password.php'; ?>
 </body>
 </html>

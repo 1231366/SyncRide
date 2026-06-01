@@ -103,6 +103,7 @@ final class AuthController
     /** @param array<string,mixed> $user */
     private function openSession(array $user): void
     {
+        session_regenerate_id(true); // prevent session fixation
         $_SESSION['user_id']            = (int) $user['id'];
         $_SESSION['email']              = $user['email'];
         $_SESSION['role']               = (int) $user['role'];
@@ -112,6 +113,29 @@ final class AuthController
         $_SESSION['company_id']         = isset($user['company_id']) && $user['company_id'] !== null
             ? (int) $user['company_id']
             : null;
+        $role = (int) $user['role'];
+        $lang = in_array($user['lang_pref'] ?? '', ['en', 'pt'], true) ? $user['lang_pref'] : 'en';
+
+        // Drivers (2) and partners (3) have no language switcher — they inherit the
+        // language of their company's admin, so the whole company stays consistent.
+        if (in_array($role, [2, 3], true) && isset($user['company_id']) && $user['company_id'] !== null) {
+            try {
+                $stmt = Database::connection()->prepare(
+                    "SELECT lang_pref FROM Users
+                     WHERE role = 1 AND company_id = :cid AND lang_pref IN ('en','pt')
+                     ORDER BY id LIMIT 1"
+                );
+                $stmt->execute(['cid' => (int) $user['company_id']]);
+                $companyLang = $stmt->fetchColumn();
+                if ($companyLang !== false && in_array($companyLang, ['en', 'pt'], true)) {
+                    $lang = $companyLang;
+                }
+            } catch (Throwable) {
+                // keep default on any DB hiccup
+            }
+        }
+
+        $_SESSION['admin_lang'] = $lang;
     }
 
     private function isAjaxCall(): bool

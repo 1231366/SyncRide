@@ -7,7 +7,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\BaseController;
 use App\Repositories\ServiceRepository;
 use App\Services\XmlVoucherImporter;
-use PDO;
 
 /**
  * Admin home page: KPI cards, performance sparkline, next-ride feed,
@@ -23,33 +22,19 @@ final class DashboardController extends BaseController
             $imported = XmlVoucherImporter::default()->importFromString($contents);
         }
 
-        $db = $this->db();
+        // All figures go through the repository, which scopes every query to the
+        // admin's company (super-admin sees all). Direct $db queries here leaked
+        // every company's data into a single company's dashboard.
         $services = ServiceRepository::default();
 
         $stats = [
-            'all_time' => (int) $db->query('SELECT COUNT(*) FROM Services')->fetchColumn(),
-            'today'    => (int) $db->query('SELECT COUNT(*) FROM Services WHERE serviceDate = CURDATE()')->fetchColumn(),
-            'week'     => (int) $db->query('SELECT COUNT(*) FROM Services WHERE WEEK(serviceDate, 1) = WEEK(CURDATE(), 1)')->fetchColumn(),
+            'all_time' => $services->countAllTime(),
+            'today'    => $services->countToday(),
+            'week'     => $services->countThisWeek(),
         ];
 
-        $nextRides = $db->query("
-            SELECT * FROM Services
-            WHERE (serviceDate > CURDATE())
-               OR (serviceDate = CURDATE() AND serviceStartTime >= CURTIME())
-            ORDER BY serviceDate ASC, serviceStartTime ASC
-            LIMIT 3
-        ")->fetchAll(PDO::FETCH_ASSOC);
-
-        $monthlyChart = array_fill(0, 12, 0);
-        $rows = $db->query("
-            SELECT MONTH(serviceDate) AS m, COUNT(*) AS c
-            FROM Services
-            WHERE YEAR(serviceDate) = YEAR(CURDATE())
-            GROUP BY m
-        ")->fetchAll(PDO::FETCH_ASSOC);
-        foreach ($rows as $row) {
-            $monthlyChart[(int) $row['m'] - 1] = (int) $row['c'];
-        }
+        $nextRides    = $services->upcoming(3);
+        $monthlyChart = $services->monthlyThisYear();
 
         $this->view('admin.dashboard', [
             'stats'        => $stats,

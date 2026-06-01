@@ -41,20 +41,10 @@ View::layout('layouts.admin', [
                 }
             });
         </script>
-        <style>
-            .modal-os { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0.9);
-                width: 90%; max-width: 420px; visibility: hidden; opacity: 0;
-                background: rgba(20,20,20,0.95); backdrop-filter: blur(30px);
-                border-radius: 28px; border: 1px solid rgba(255,255,255,0.15);
-                z-index: 4000; transition: all 0.3s; padding: 24px; }
-            .modal-os.active { visibility: visible; opacity: 1; transform: translate(-50%,-50%) scale(1); }
-            .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); visibility: hidden; opacity: 0; z-index: 3999; transition: all 0.3s; }
-            .modal-overlay.active { visibility: visible; opacity: 1; }
-        </style>
     ',
 ]);
 
-$flashMessages = ['created' => 'Expense logged.', 'deleted' => 'Expense removed.'];
+$flashMessages = ['created' => t('fin.expense_logged'), 'deleted' => t('fin.expense_removed')];
 ?>
 
 <?php if ($flash !== null && isset($flashMessages[$flash])): ?>
@@ -63,7 +53,7 @@ $flashMessages = ['created' => 'Expense logged.', 'deleted' => 'Expense removed.
 
 <section class="px-6 mt-6">
     <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-black">Financial</h2>
+        <h2 class="text-xl font-black"><?= t('fin.title') ?></h2>
         <form method="GET" class="flex items-center gap-2">
             <input type="month" name="month" value="<?= View::e($monthFilter) ?>" onchange="this.form.submit()"
                    class="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white">
@@ -72,31 +62,31 @@ $flashMessages = ['created' => 'Expense logged.', 'deleted' => 'Expense removed.
 
     <div class="grid grid-cols-3 gap-3 mb-6">
         <div class="glass p-4 rounded-2xl">
-            <p class="text-[8px] uppercase tracking-widest text-zinc-500 font-black">Revenue (est)</p>
+            <p class="text-[8px] uppercase tracking-widest text-zinc-500 font-black"><?= t('fin.revenue') ?></p>
             <h3 class="text-xl font-black mt-1 text-emerald-400">€<?= number_format($estimatedRevenue, 0) ?></h3>
             <p class="text-[9px] text-zinc-500 mt-1"><?= (int) $rideCount ?> rides × €15</p>
         </div>
         <div class="glass p-4 rounded-2xl">
-            <p class="text-[8px] uppercase tracking-widest text-zinc-500 font-black">Expenses</p>
+            <p class="text-[8px] uppercase tracking-widest text-zinc-500 font-black"><?= t('fin.expenses') ?></p>
             <h3 class="text-xl font-black mt-1 text-red-400">€<?= number_format($totalExpenses, 2) ?></h3>
         </div>
         <div class="glass p-4 rounded-2xl">
-            <p class="text-[8px] uppercase tracking-widest text-zinc-500 font-black">Net</p>
+            <p class="text-[8px] uppercase tracking-widest text-zinc-500 font-black"><?= t('fin.net') ?></p>
             <h3 class="text-xl font-black mt-1 <?= $netProfit >= 0 ? 'text-blue-400' : 'text-red-500' ?>">€<?= number_format($netProfit, 2) ?></h3>
         </div>
     </div>
 
     <?php if ($categoryLabels !== []): ?>
     <div class="glass p-5 rounded-[24px] mb-6">
-        <p class="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">By category</p>
+        <p class="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2"><?= t('fin.by_category') ?></p>
         <div id="expenseChart"></div>
     </div>
     <?php endif; ?>
 
     <div class="flex justify-between items-center mb-3">
-        <h3 class="text-sm font-black uppercase tracking-widest text-zinc-400">Expenses</h3>
+        <h3 class="text-sm font-black uppercase tracking-widest text-zinc-400"><?= t('fin.expenses') ?></h3>
         <button onclick="openExpenseModal()" class="glass rounded-full px-4 py-1.5 text-xs font-bold flex items-center gap-2">
-            <i data-lucide="plus" class="w-3.5 h-3.5 text-blue-500"></i> New
+            <i data-lucide="plus" class="w-3.5 h-3.5 text-blue-500"></i> <?= t('fin.new') ?>
         </button>
     </div>
 
@@ -119,7 +109,7 @@ $flashMessages = ['created' => 'Expense logged.', 'deleted' => 'Expense removed.
             </div>
         <?php endforeach; ?>
         <?php if ($expenses === []): ?>
-            <div class="glass p-6 rounded-2xl text-center text-zinc-500 text-xs">No expenses logged this month.</div>
+            <div class="glass p-6 rounded-2xl text-center text-zinc-500 text-xs"><?= t('fin.no_expenses') ?></div>
         <?php endif; ?>
     </div>
 </section>
@@ -127,40 +117,40 @@ $flashMessages = ['created' => 'Expense logged.', 'deleted' => 'Expense removed.
 <div class="modal-overlay" id="modalOverlay" onclick="closeModal()"></div>
 <div class="modal-os" id="expenseModal">
     <div class="flex justify-between items-start mb-6">
-        <h3 class="text-lg font-black text-white">New expense</h3>
+        <h3 class="text-lg font-black text-white"><?= t('fin.new_expense') ?></h3>
         <button onclick="closeModal()" class="text-zinc-600"><i data-lucide="x-circle"></i></button>
     </div>
     <form action="/SRMT/public/admin/save-expense.php" method="POST" enctype="multipart/form-data" class="space-y-4">
         <div>
-            <label class="text-[9px] uppercase tracking-widest text-zinc-500 font-black">Category</label>
+            <label class="text-[9px] uppercase tracking-widest text-zinc-500 font-black"><?= t('fin.category') ?></label>
             <select name="category" required class="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white">
-                <option value="">Choose…</option>
-                <option value="Fuel">Fuel</option>
-                <option value="Maintenance">Maintenance</option>
-                <option value="Insurance">Insurance</option>
-                <option value="Tolls">Tolls</option>
-                <option value="Parking">Parking</option>
-                <option value="Other">Other</option>
+                <option value=""><?= t('fin.choose') ?></option>
+                <option value="Fuel"><?= t('fin.fuel') ?></option>
+                <option value="Maintenance"><?= t('fin.maintenance') ?></option>
+                <option value="Insurance"><?= t('fin.insurance') ?></option>
+                <option value="Tolls"><?= t('fin.tolls') ?></option>
+                <option value="Parking"><?= t('fin.parking') ?></option>
+                <option value="Other"><?= t('fin.other') ?></option>
             </select>
         </div>
         <div>
-            <label class="text-[9px] uppercase tracking-widest text-zinc-500 font-black">Description</label>
+            <label class="text-[9px] uppercase tracking-widest text-zinc-500 font-black"><?= t('fin.description') ?></label>
             <input type="text" name="description" required class="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white">
         </div>
         <div class="grid grid-cols-2 gap-3">
             <div>
-                <label class="text-[9px] uppercase tracking-widest text-zinc-500 font-black">Amount (€)</label>
+                <label class="text-[9px] uppercase tracking-widest text-zinc-500 font-black"><?= t('fin.amount') ?></label>
                 <input type="number" name="amount" step="0.01" min="0.01" required class="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white">
             </div>
             <div>
-                <label class="text-[9px] uppercase tracking-widest text-zinc-500 font-black">Date</label>
+                <label class="text-[9px] uppercase tracking-widest text-zinc-500 font-black"><?= t('fin.date') ?></label>
                 <input type="date" name="date" required class="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white">
             </div>
         </div>
         <div>
-            <label class="text-[9px] uppercase tracking-widest text-zinc-500 font-black">Proof (optional)</label>
+            <label class="text-[9px] uppercase tracking-widest text-zinc-500 font-black"><?= t('fin.proof') ?></label>
             <input type="file" name="proof" accept="image/*,application/pdf" class="w-full mt-1 text-xs text-zinc-300">
         </div>
-        <button type="submit" class="w-full bg-blue-600 rounded-xl py-3 font-bold text-sm">Save</button>
+        <button type="submit" class="w-full bg-blue-600 rounded-xl py-3 font-bold text-sm"><?= t('fin.save') ?></button>
     </form>
 </div>

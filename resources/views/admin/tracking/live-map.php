@@ -1,9 +1,13 @@
 <?php
 use App\Http\View;
 /** @var string $userPhoto */
-$safePhoto = View::e($userPhoto);
+$safePhoto      = View::e($userPhoto);
+$userName       = isset($_SESSION['name']) ? explode(' ', (string) $_SESSION['name'])[0] : 'Admin';
+$initial        = mb_strtoupper(mb_substr($userName, 0, 1, 'UTF-8'));
+$svgAvatar      = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><circle cx="20" cy="20" r="20" fill="#2563eb"/><text x="50%" y="50%" dy=".35em" text-anchor="middle" fill="white" font-size="17" font-weight="bold" font-family="system-ui">' . htmlspecialchars($initial) . '</text></svg>';
+$avatarFallback = 'data:image/svg+xml;base64,' . base64_encode($svgAvatar);
 ?><!DOCTYPE html>
-<html lang="en">
+<html lang="en"><script>(function(){var t=localStorage.getItem('sr-theme')||'light';document.documentElement.dataset.theme=t;var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=t==='dark'?'#000000':'#f1f5f9';})()</script>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
@@ -23,20 +27,40 @@ $safePhoto = View::e($userPhoto);
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: #000; margin: 0; overflow: hidden; height: 100vh; color: #fff; }
 
         #adminMap { position: absolute; top: 0; bottom: 0; left: 0; right: 0; z-index: 1; background: #0b1220; }
-        .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); }
+
+        /* Glass — adapts to theme but map overlays are always on a dark bg */
+        .glass {
+            background: rgba(255,255,255,0.90);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(0,0,0,0.08);
+        }
+        [data-theme="dark"] .glass {
+            background: rgba(20,20,20,0.88);
+            border: 1px solid rgba(255,255,255,0.10);
+        }
 
         .map-header {
             position: absolute; top: 30px; left: 15px; right: 15px;
             z-index: 1000; height: 64px; display: flex; align-items: center;
             padding: 0 16px; justify-content: space-between; border-radius: 24px;
         }
+        /* Header text */
+        .map-header h2 { color: #0f172a; }
+        [data-theme="dark"] .map-header h2 { color: #fff; }
+        .map-header .icon-btn {
+            width: 40px; height: 40px; border-radius: 999px;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.07); border: 1px solid rgba(0,0,0,0.1);
+            color: #475569; transition: all .2s;
+        }
+        [data-theme="dark"] .map-header .icon-btn { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.15); color: #fff; }
 
         .radar-pill {
             position: absolute; top: 110px; left: 50%; transform: translateX(-50%);
             z-index: 1000; padding: 8px 16px; border-radius: 99px;
             display: flex; align-items: center; gap: 10px;
             font-size: 10px; font-weight: 800; letter-spacing: 0.1em; color: white;
-            background: rgba(255,255,255,0.05); backdrop-filter: blur(20px);
+            background: rgba(20,20,20,0.80); backdrop-filter: blur(20px);
             border: 1px solid rgba(255,255,255,0.1);
         }
         .pulse-dot {
@@ -49,59 +73,120 @@ $safePhoto = View::e($userPhoto);
             100% { opacity: 1; transform: scale(1);   }
         }
 
+        /* Driver sheet */
         .driver-sheet {
             position: fixed; bottom: calc(100px + var(--safe-bottom)); left: 16px; right: 16px;
             z-index: 2000; padding: 24px; border-radius: 32px; transform: translateY(150%);
             transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
-            background: rgba(20,20,20,0.95); backdrop-filter: blur(30px);
-            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.96); backdrop-filter: blur(30px);
+            border: 1px solid rgba(0,0,0,0.10); color: #0f172a;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.12);
+        }
+        [data-theme="dark"] .driver-sheet {
+            background: rgba(20,20,20,0.95);
+            border-color: rgba(255,255,255,0.15); color: #fff;
+            box-shadow: none;
         }
         .driver-sheet.active { transform: translateY(0); }
+        .driver-sheet h3 { color: #0f172a; }
+        [data-theme="dark"] .driver-sheet h3 { color: #fff; }
+        .driver-sheet .speed-label { color: #64748b; }
+        [data-theme="dark"] .driver-sheet .speed-label { color: #71717a; }
+        .driver-sheet .speed-val { color: #0f172a; }
+        [data-theme="dark"] .driver-sheet .speed-val { color: #fff; }
+        .driver-sheet .drag-handle { background: #e2e8f0; }
+        [data-theme="dark"] .driver-sheet .drag-handle { background: #3f3f46; }
+        .driver-sheet .info-block {
+            background: rgba(0,0,0,0.04); border-radius: 16px; padding: 16px;
+        }
+        [data-theme="dark"] .driver-sheet .info-block { background: rgba(255,255,255,0.05); }
+        .driver-sheet .info-text { color: #475569; }
+        [data-theme="dark"] .driver-sheet .info-text { color: #a1a1aa; }
+        .driver-sheet .close-btn {
+            background: rgba(0,0,0,0.05); color: #475569;
+        }
+        .driver-sheet .close-btn:hover { background: rgba(0,0,0,0.10); }
+        [data-theme="dark"] .driver-sheet .close-btn { background: rgba(255,255,255,0.05); color: #a1a1aa; }
+        [data-theme="dark"] .driver-sheet .close-btn:hover { background: rgba(255,255,255,0.10); }
 
         .status-pill {
             display: inline-flex; align-items: center; gap: 6px;
             font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em;
             padding: 4px 10px; border-radius: 999px; margin-top: 6px;
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(0,0,0,0.08);
         }
+        [data-theme="dark"] .status-pill { border-color: rgba(255,255,255,0.1); }
         .status-pill::before { content: ""; width: 6px; height: 6px; border-radius: 999px; }
-        .status-pill.s-pending   { color: #d4d4d8; background: rgba(255,255,255,0.04); }
-        .status-pill.s-pending::before  { background: #d4d4d8; }
-        .status-pill.s-onway    { color: #60a5fa; background: rgba(59,130,246,0.10); border-color: rgba(59,130,246,0.25); }
-        .status-pill.s-onway::before    { background: #60a5fa; box-shadow: 0 0 8px #60a5fa; }
-        .status-pill.s-arrived  { color: #fbbf24; background: rgba(251,191,36,0.10); border-color: rgba(251,191,36,0.25); }
+        .status-pill.s-pending   { color: #64748b; background: rgba(0,0,0,0.05); }
+        [data-theme="dark"] .status-pill.s-pending { color: #d4d4d8; background: rgba(255,255,255,0.04); }
+        .status-pill.s-pending::before  { background: #94a3b8; }
+        .status-pill.s-onway    { color: #2563eb; background: rgba(37,99,235,0.10); border-color: rgba(37,99,235,0.25); }
+        [data-theme="dark"] .status-pill.s-onway { color: #60a5fa; background: rgba(59,130,246,0.10); border-color: rgba(59,130,246,0.25); }
+        .status-pill.s-onway::before    { background: #3b82f6; box-shadow: 0 0 8px #3b82f6; }
+        .status-pill.s-arrived  { color: #d97706; background: rgba(251,191,36,0.10); border-color: rgba(251,191,36,0.25); }
+        [data-theme="dark"] .status-pill.s-arrived { color: #fbbf24; }
         .status-pill.s-arrived::before  { background: #fbbf24; box-shadow: 0 0 8px #fbbf24; }
-        .status-pill.s-withclient { color: #34d399; background: rgba(16,185,129,0.10); border-color: rgba(16,185,129,0.25); }
+        .status-pill.s-withclient { color: #16a34a; background: rgba(16,185,129,0.10); border-color: rgba(16,185,129,0.25); }
+        [data-theme="dark"] .status-pill.s-withclient { color: #34d399; }
         .status-pill.s-withclient::before { background: #34d399; box-shadow: 0 0 8px #34d399; }
-        .status-pill.s-intrip   { color: #a5b4fc; background: rgba(99,102,241,0.10); border-color: rgba(99,102,241,0.30); }
+        .status-pill.s-intrip   { color: #6366f1; background: rgba(99,102,241,0.10); border-color: rgba(99,102,241,0.30); }
+        [data-theme="dark"] .status-pill.s-intrip { color: #a5b4fc; }
         .status-pill.s-intrip::before   { background: #a5b4fc; box-shadow: 0 0 8px #a5b4fc; }
 
         .fit-btn {
             position: absolute; right: 20px; bottom: calc(180px + var(--safe-bottom));
             z-index: 1000; width: 44px; height: 44px; border-radius: 14px;
-            background: rgba(20,20,20,0.92); backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.12); color: #fff;
+            background: rgba(255,255,255,0.90); backdrop-filter: blur(20px);
+            border: 1px solid rgba(0,0,0,0.10); color: #0f172a;
             display: flex; align-items: center; justify-content: center; transition: all .2s;
         }
-        .fit-btn:hover { background: rgba(40,40,40,0.95); }
+        .fit-btn:hover { background: rgba(255,255,255,1); }
         .fit-btn:active { transform: scale(0.92); }
+        [data-theme="dark"] .fit-btn { background: rgba(20,20,20,0.92); border-color: rgba(255,255,255,0.12); color: #fff; }
+        [data-theme="dark"] .fit-btn:hover { background: rgba(40,40,40,0.95); }
 
-        .nav-float {
-            position: fixed; bottom: calc(16px + var(--safe-bottom)); left: 50%; transform: translateX(-50%);
-            width: calc(100% - 32px); max-width: 400px; height: 72px;
-            background: rgba(18,18,18,0.95); backdrop-filter: blur(25px);
-            border-radius: 26px; border: 1px solid rgba(255,255,255,0.1);
-            display: flex; justify-content: space-around; align-items: center; z-index: 3000;
+        /* Bottom nav — pill (identical to layout) */
+        .nav-bottom {
+            position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: calc(100% - 24px); max-width: 480px; height: 66px;
+            margin-bottom: calc(10px + var(--safe-bottom));
+            background: rgba(255,255,255,0.90);
+            backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(0,0,0,0.07); border-radius: 26px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06);
+            display: flex; align-items: stretch; z-index: 3000; overflow: hidden;
         }
-        .nav-float a { flex: 1; }
-        .nav-float .nav-extra { display: none !important; }
-        @media (min-width: 992px) {
-            .nav-float { max-width: 720px; height: 78px; border-radius: 32px; }
-            .nav-float .nav-extra { display: flex !important; }
-            .nav-float a span { font-size: 8px !important; }
+        [data-theme="dark"] .nav-bottom {
+            background: rgba(10,14,30,0.95); border-color: rgba(255,255,255,0.09);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
         }
+        .nav-bottom a, .nav-bottom button {
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 3px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
+            color: #94a3b8; background: none; border: none; cursor: pointer;
+            text-decoration: none; transition: color .15s; padding: 0;
+        }
+        .nav-bottom a i, .nav-bottom button i { width: 20px; height: 20px; display: block; }
+        .nav-bottom a:hover, .nav-bottom button:hover { color: #64748b; }
+        [data-theme="dark"] .nav-bottom a, [data-theme="dark"] .nav-bottom button { color: #475569; }
+        [data-theme="dark"] .nav-bottom a:hover, [data-theme="dark"] .nav-bottom button:hover { color: #94a3b8; }
+        .nav-bottom a.sr-nav-active { color: #2563eb; }
+        [data-theme="dark"] .nav-bottom a.sr-nav-active { color: #60a5fa; }
+        /* Full menu overlay (identical to layout) */
+        .menu-backdrop { background: rgba(248,250,252,0.98); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
+        [data-theme="dark"] .menu-backdrop { background: rgba(2,6,23,0.99); }
+        .menu-content { color: #0f172a; }
+        [data-theme="dark"] .menu-content { color: #f1f5f9; }
+        .menu-hr { border-color: #e2e8f0; }
+        [data-theme="dark"] .menu-hr { border-color: #1e293b; }
+        .menu-link { color: #0f172a !important; text-decoration: none; }
+        [data-theme="dark"] .menu-link { color: #f1f5f9 !important; }
+        .menu-link.menu-active { color: #2563eb !important; }
+        [data-theme="dark"] .menu-link.menu-active { color: #60a5fa !important; }
+        .menu-link-danger { color: #dc2626 !important; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
 
+        /* Map decorations — always dark since map is dark */
         .leaflet-vignette { position: absolute; inset: 0; pointer-events: none; z-index: 500; background: radial-gradient(circle, transparent 30%, black 150%); }
         .leaflet-control-zoom { border: none !important; margin-right: 20px !important; margin-bottom: 110px !important; }
         .leaflet-bar a { background: rgba(20,20,20,0.9) !important; color: white !important; border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 12px !important; }
@@ -125,6 +210,17 @@ $safePhoto = View::e($userPhoto);
         }
         .dest-pin.dropoff .pin-ring { border-color: rgba(239,68,68,0.55); }
         @keyframes pin-pulse { 0% { transform: scale(0.55); opacity: 1; } 100% { transform: scale(1.7); opacity: 0; } }
+
+        /* Icon btn */
+        .icon-btn {
+            width: 40px; height: 40px; border-radius: 999px;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.10);
+            color: #475569; transition: all .2s; cursor: pointer;
+        }
+        .icon-btn:hover { background: rgba(0,0,0,0.12); }
+        [data-theme="dark"] .icon-btn { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.12); color: #fff; }
+        [data-theme="dark"] .icon-btn:hover { background: rgba(255,255,255,0.14); }
     </style>
 </head>
 <body>
@@ -132,23 +228,23 @@ $safePhoto = View::e($userPhoto);
     <div id="adminMap"></div>
     <div class="leaflet-vignette"></div>
 
-    <header class="map-header glass text-white">
+    <header class="map-header glass">
         <div class="flex items-center gap-3">
-            <img src="<?= $safePhoto ?>" class="w-10 h-10 rounded-full border-2 border-blue-500/20 object-cover" alt="">
+            <img src="<?= $safePhoto ?>" onerror="this.onerror=null;this.src='<?= $avatarFallback ?>'" class="w-10 h-10 rounded-full border-2 border-blue-500/20 object-cover" alt="">
             <div>
                 <h2 class="text-[15px] font-extrabold leading-tight">SyncRide <span class="text-blue-500">Radar</span></h2>
-                <p class="text-[8px] text-zinc-500 font-black tracking-widest uppercase italic">Active Intelligence</p>
+                <p class="text-[8px] text-zinc-500 font-black tracking-widest uppercase italic"><?= t('map.subtitle') ?></p>
             </div>
         </div>
-        <button onclick="toggleMenu()" class="w-10 h-10 glass rounded-full flex items-center justify-center active:scale-90 transition-transform" aria-label="Menu">
-            <i data-lucide="menu" class="w-4 h-4 text-white"></i>
+        <button onclick="toggleMenu()" class="glass w-10 h-10 rounded-full flex items-center justify-center active:scale-90 transition-transform border-0">
+            <i data-lucide="menu" class="w-4 h-4"></i>
         </button>
     </header>
 
     <div class="radar-pill">
         <div class="pulse-dot"></div>
         <span id="activeCount" class="font-black">0</span>
-        <span class="opacity-70">ACTIVE RIDES</span>
+        <span class="opacity-70"><?= t('map.active_rides') ?></span>
     </div>
 
     <button class="fit-btn" onclick="fitAllDrivers()" aria-label="Fit all drivers">
@@ -156,74 +252,83 @@ $safePhoto = View::e($userPhoto);
     </button>
 
     <div id="driverSheet" class="driver-sheet">
-        <div class="w-12 h-1 bg-zinc-800 rounded-full mx-auto mb-6 cursor-pointer" onclick="closeSheet()"></div>
+        <div class="drag-handle w-12 h-1 rounded-full mx-auto mb-6 cursor-pointer" onclick="closeSheet()"></div>
         <div class="flex justify-between items-start mb-6">
             <div>
-                <h3 id="sDriver" class="text-lg font-black text-white" data-did="">Driver</h3>
-                <p id="sVehicle" class="text-[9px] text-blue-500 font-bold uppercase tracking-widest">Vehicle</p>
+                <h3 id="sDriver" class="text-lg font-black" data-did=""><?= t('map.driver') ?></h3>
+                <p id="sVehicle" class="text-[9px] text-blue-500 font-bold uppercase tracking-widest"><?= t('map.vehicle') ?></p>
                 <span id="sStatus" class="status-pill s-pending">—</span>
             </div>
             <div class="text-right">
-                <p class="text-zinc-500 text-[8px] font-bold uppercase">Speed</p>
-                <p id="sSpeed" class="text-xl font-black text-white">0 km/h</p>
-                <p id="sLastUpdate" class="text-zinc-500 text-[8px] font-bold uppercase mt-1">Ping —</p>
+                <p class="speed-label text-[8px] font-bold uppercase"><?= t('map.speed') ?></p>
+                <p id="sSpeed" class="speed-val text-xl font-black">0 km/h</p>
+                <p id="sLastUpdate" class="speed-label text-[8px] font-bold uppercase mt-1"><?= t('map.ping') ?> —</p>
             </div>
         </div>
         <div class="space-y-4">
-            <div class="bg-white/5 p-4 rounded-2xl space-y-3">
+            <div class="info-block space-y-3">
                 <div class="flex items-center gap-3">
                     <i data-lucide="map-pin" class="w-3 h-3 text-emerald-500"></i>
-                    <p id="sDest" class="text-[10px] font-medium text-zinc-300 truncate">---</p>
+                    <p id="sDest" class="info-text text-[10px] font-medium truncate">---</p>
                 </div>
                 <div class="flex items-center gap-3">
                     <i data-lucide="user" class="w-3 h-3 text-blue-500"></i>
-                    <p id="sClient" class="text-[10px] font-medium text-zinc-300">---</p>
+                    <p id="sClient" class="info-text text-[10px] font-medium">---</p>
                 </div>
             </div>
-            <button onclick="closeSheet()" class="w-full py-3 bg-white/5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
-                Close Details
+            <button onclick="closeSheet()" class="close-btn w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                <?= t('map.close_details') ?>
             </button>
         </div>
     </div>
 
-    <nav class="nav-float">
-        <a href="/SRMT/public/admin/" class="flex flex-col items-center gap-1 text-zinc-500"><i data-lucide="home" class="w-5 h-5"></i><span class="text-[7px] font-black uppercase">Home</span></a>
-        <a href="/SRMT/public/admin/rides.php" class="flex flex-col items-center gap-1 text-zinc-500"><i data-lucide="calendar" class="w-5 h-5"></i><span class="text-[7px] font-black uppercase">Rides</span></a>
-        <a href="/SRMT/public/admin/live-map.php" class="flex flex-col items-center gap-1 text-blue-500"><i data-lucide="locate-fixed" class="w-5 h-5"></i><span class="text-[7px] font-black uppercase">Live</span></a>
-        <a href="/SRMT/public/admin/financial.php" class="flex flex-col items-center gap-1 text-zinc-500"><i data-lucide="wallet" class="w-5 h-5"></i><span class="text-[7px] font-black uppercase">Cash</span></a>
-        <a href="/SRMT/public/admin/fleet.php"   class="nav-extra flex-col items-center gap-1 text-zinc-500"><i data-lucide="truck" class="w-5 h-5"></i><span class="text-[7px] font-black uppercase">Fleet</span></a>
-        <a href="/SRMT/public/admin/users.php"   class="nav-extra flex-col items-center gap-1 text-zinc-500"><i data-lucide="users" class="w-5 h-5"></i><span class="text-[7px] font-black uppercase">Team</span></a>
-        <a href="/SRMT/public/admin/driver-stats.php" class="nav-extra flex-col items-center gap-1 text-zinc-500"><i data-lucide="bar-chart-3" class="w-5 h-5"></i><span class="text-[7px] font-black uppercase">Stats</span></a>
-        <a href="/SRMT/public/admin/no-shows.php" class="nav-extra flex-col items-center gap-1 text-zinc-500"><i data-lucide="alert-triangle" class="w-5 h-5"></i><span class="text-[7px] font-black uppercase">No Show</span></a>
-        <a href="/SRMT/public/admin/storage.php" class="nav-extra flex-col items-center gap-1 text-zinc-500"><i data-lucide="database" class="w-5 h-5"></i><span class="text-[7px] font-black uppercase">Storage</span></a>
+    <!-- Bottom nav -->
+    <nav class="nav-bottom">
+        <a href="/SRMT/public/admin/"><i data-lucide="home"></i><?= t('nav.home') ?></a>
+        <a href="/SRMT/public/admin/rides.php"><i data-lucide="calendar"></i><?= t('nav.rides') ?></a>
+        <a href="/SRMT/public/admin/live-map.php" class="sr-nav-active"><i data-lucide="locate-fixed"></i><?= t('nav.live') ?></a>
+        <a href="/SRMT/public/admin/financial.php"><i data-lucide="wallet"></i><?= t('nav.cash') ?></a>
+        <button onclick="toggleMenu()"><i data-lucide="grid-2x2"></i><?= t('nav.more') ?></button>
     </nav>
 
+    <!-- Full-screen overlay menu -->
     <div id="fullMenu" class="fixed inset-0 z-[2000] hidden">
-        <div class="absolute inset-0 bg-black/98 backdrop-blur-2xl" onclick="toggleMenu()"></div>
-        <div class="relative h-full flex flex-col p-10 text-white overflow-y-auto no-scrollbar">
+        <div class="menu-backdrop absolute inset-0" onclick="toggleMenu()"></div>
+        <div class="menu-content relative h-full flex flex-col p-10 overflow-y-auto no-scrollbar">
             <div class="flex justify-between items-center mb-12">
                 <h2 class="text-3xl font-black italic tracking-tighter">SyncRide <span class="text-blue-600">OS</span></h2>
-                <button onclick="toggleMenu()" class="w-12 h-12 glass rounded-full flex items-center justify-center"><i data-lucide="x"></i></button>
+                <button onclick="toggleMenu()" class="glass w-12 h-12 rounded-full flex items-center justify-center border-0">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
             </div>
-            <nav class="grid grid-cols-1 gap-6 text-xl font-bold">
-                <a href="/SRMT/public/admin/"               class="flex items-center gap-4"><i data-lucide="layout-grid"></i> Dashboard</a>
-                <a href="/SRMT/public/admin/rides.php"      class="flex items-center gap-4"><i data-lucide="navigation"></i> Rides</a>
-                <a href="/SRMT/public/admin/live-map.php"   class="flex items-center gap-4 text-blue-500"><i data-lucide="map"></i> Live Map</a>
-                <hr class="border-zinc-800">
-                <a href="/SRMT/public/admin/users.php"      class="flex items-center gap-4"><i data-lucide="users"></i> Team</a>
-                <a href="/SRMT/public/admin/fleet.php"      class="flex items-center gap-4"><i data-lucide="truck"></i> Fleet</a>
-                <a href="/SRMT/public/admin/financial.php"  class="flex items-center gap-4"><i data-lucide="banknote"></i> Financial</a>
-                <hr class="border-zinc-800">
-                <a href="/SRMT/public/admin/driver-stats.php" class="flex items-center gap-4"><i data-lucide="bar-chart-3"></i> Stats</a>
-                <a href="/SRMT/public/admin/no-shows.php"   class="flex items-center gap-4"><i data-lucide="alert-triangle"></i> No-shows</a>
-                <a href="/SRMT/public/admin/storage.php"    class="flex items-center gap-4"><i data-lucide="database"></i> Storage</a>
-                <hr class="border-zinc-800">
-                <a href="/SRMT/public/auth/logout.php"      class="flex items-center gap-4 text-red-500 mt-4"><i data-lucide="log-out"></i> Logout</a>
+            <nav class="grid grid-cols-1 gap-5 text-xl font-bold">
+                <a href="/SRMT/public/admin/"                 class="menu-link flex items-center gap-4"><i data-lucide="layout-grid"></i> <?= t('nav.dashboard') ?></a>
+                <a href="/SRMT/public/admin/rides.php"        class="menu-link flex items-center gap-4"><i data-lucide="navigation"></i> <?= t('nav.rides') ?></a>
+                <a href="/SRMT/public/admin/live-map.php"     class="menu-link menu-active flex items-center gap-4"><i data-lucide="map"></i> <?= t('nav.live_map') ?></a>
+                <hr class="menu-hr border-t">
+                <a href="/SRMT/public/admin/users.php"        class="menu-link flex items-center gap-4"><i data-lucide="users"></i> <?= t('nav.team') ?></a>
+                <a href="/SRMT/public/admin/fleet.php"        class="menu-link flex items-center gap-4"><i data-lucide="truck"></i> <?= t('nav.fleet') ?></a>
+                <a href="/SRMT/public/admin/financial.php"    class="menu-link flex items-center gap-4"><i data-lucide="banknote"></i> <?= t('nav.financial') ?></a>
+                <hr class="menu-hr border-t">
+                <a href="/SRMT/public/admin/driver-stats.php" class="menu-link flex items-center gap-4"><i data-lucide="bar-chart-3"></i> <?= t('nav.stats') ?></a>
+                <a href="/SRMT/public/admin/no-shows.php"     class="menu-link flex items-center gap-4"><i data-lucide="alert-triangle"></i> <?= t('nav.noshows') ?></a>
+                <a href="/SRMT/public/admin/storage.php"      class="menu-link flex items-center gap-4"><i data-lucide="database"></i> <?= t('nav.storage') ?></a>
+                <a href="/SRMT/public/admin/settings.php"     class="menu-link flex items-center gap-4"><i data-lucide="settings-2"></i> <?= t('nav.settings') ?></a>
+                <hr class="menu-hr border-t">
+                <a href="/SRMT/public/auth/logout.php"        class="menu-link menu-link-danger flex items-center gap-4"><i data-lucide="log-out"></i> <?= t('nav.logout') ?></a>
             </nav>
         </div>
     </div>
 
     <script>
+        var SR_MAP = {
+            awaiting:   "<?= addslashes(t('map.awaiting')) ?>",
+            onTheWay:   "<?= addslashes(t('map.on_the_way')) ?>",
+            arrived:    "<?= addslashes(t('map.arrived')) ?>",
+            withClient: "<?= addslashes(t('map.with_client')) ?>",
+            inTrip:     "<?= addslashes(t('map.in_trip')) ?>",
+            ping:       "<?= addslashes(t('map.ping')) ?>"
+        };
         lucide.createIcons();
         function toggleMenu() { document.getElementById('fullMenu').classList.toggle('hidden'); }
 
@@ -315,11 +420,11 @@ $safePhoto = View::e($userPhoto);
             if (!el) return;
             const s = parseInt(d.status_id);
             el.className = 'status-pill';
-            let cls = 's-pending', label = 'Awaiting';
-            if (s === 1) { cls = 's-onway';      label = 'On the way'; }
-            else if (s === 2) { cls = 's-arrived';    label = 'Arrived'; }
-            else if (s === 5) { cls = 's-withclient'; label = 'With client'; }
-            else if (s === 3) { cls = 's-intrip';     label = 'In trip'; }
+            let cls = 's-pending', label = SR_MAP.awaiting;
+            if (s === 1) { cls = 's-onway';      label = SR_MAP.onTheWay; }
+            else if (s === 2) { cls = 's-arrived';    label = SR_MAP.arrived; }
+            else if (s === 5) { cls = 's-withclient'; label = SR_MAP.withClient; }
+            else if (s === 3) { cls = 's-intrip';     label = SR_MAP.inTrip; }
             el.classList.add(cls);
             el.textContent = label;
         }
@@ -334,7 +439,7 @@ $safePhoto = View::e($userPhoto);
                 const did = document.getElementById('sDriver').dataset.did;
                 if (!did || !drivers[did]) return;
                 const el = document.getElementById('sLastUpdate');
-                if (el) el.textContent = "Ping " + formatAgo(drivers[did].data.last_update);
+                if (el) el.textContent = SR_MAP.ping + " " + formatAgo(drivers[did].data.last_update);
             }, 1000);
         }
         function stopLastUpdateTimer() { if (lastUpdateTimer) { clearInterval(lastUpdateTimer); lastUpdateTimer = null; } }

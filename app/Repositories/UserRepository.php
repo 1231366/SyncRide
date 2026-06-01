@@ -24,22 +24,73 @@ final class UserRepository
         return new self(Database::connection(), Session::companyId());
     }
 
-    /** @return array<User> */
+    /**
+     * All users belonging to this company — including drivers shared in via
+     * UserCompanies. Super-admin (companyId = null) sees everyone.
+     * @return array<User>
+     */
     public function all(): array
     {
-        $sql  = 'SELECT * FROM Users WHERE 1=1 ' . $this->companyClause('AND') . ' ORDER BY name';
+        if ($this->companyId === null) {
+            $stmt = $this->db->query('SELECT * FROM Users ORDER BY name');
+            return array_map(User::fromRow(...), $stmt->fetchAll(PDO::FETCH_ASSOC));
+        }
+        $sql = '
+            SELECT DISTINCT u.* FROM Users u
+            LEFT JOIN UserCompanies uc ON uc.user_id = u.id AND uc.company_id = :cid2
+            WHERE u.company_id = :cid OR uc.company_id = :cid3
+            ORDER BY u.name
+        ';
         $stmt = $this->db->prepare($sql);
-        $stmt->execute($this->companyBindings());
+        $stmt->execute(['cid' => $this->companyId, 'cid2' => $this->companyId, 'cid3' => $this->companyId]);
         return array_map(User::fromRow(...), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
-    /** @return array<User> */
+    /**
+     * Users with a given role belonging to this company — including shared users
+     * added via UserCompanies (e.g. drivers shared across partner companies).
+     * @return array<User>
+     */
     public function byRole(int $role): array
     {
-        $sql  = 'SELECT * FROM Users WHERE role = :role ' . $this->companyClause('AND') . ' ORDER BY name';
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute(array_merge(['role' => $role], $this->companyBindings()));
+        if ($this->companyId === null) {
+            $sql  = 'SELECT * FROM Users WHERE role = :role ORDER BY name';
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute(['role' => $role]);
+        } else {
+            // Primary company members + shared members via UserCompanies
+            $sql  = '
+                SELECT DISTINCT u.* FROM Users u
+                LEFT JOIN UserCompanies uc ON uc.user_id = u.id AND uc.company_id = :cid2
+                WHERE u.role = :role
+                  AND (u.company_id = :cid OR uc.company_id = :cid3)
+                ORDER BY u.name
+            ';
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute(['role' => $role, 'cid' => $this->companyId, 'cid2' => $this->companyId, 'cid3' => $this->companyId]);
+        }
         return array_map(User::fromRow(...), $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    /** Add an existing user to a company via the UserCompanies join table. */
+    public function addToCompany(int $userId, int $companyId): void
+    {
+        $this->db->prepare('
+            INSERT IGNORE INTO UserCompanies (user_id, company_id) VALUES (:uid, :cid)
+        ')->execute(['uid' => $userId, 'cid' => $companyId]);
+    }
+
+    /** True if the user belongs to the company (primary OR shared). */
+    public function isInCompany(int $userId, int $companyId): bool
+    {
+        $stmt = $this->db->prepare('
+            SELECT 1 FROM Users u
+            LEFT JOIN UserCompanies uc ON uc.user_id = u.id AND uc.company_id = :cid2
+            WHERE u.id = :uid AND (u.company_id = :cid OR uc.company_id = :cid3)
+            LIMIT 1
+        ');
+        $stmt->execute(['uid' => $userId, 'cid' => $companyId, 'cid2' => $companyId, 'cid3' => $companyId]);
+        return (bool) $stmt->fetchColumn();
     }
 
     public function find(int $id): ?User
@@ -135,6 +186,22 @@ final class UserRepository
     public function delete(int $id): void
     {
         $this->db->prepare('DELETE FROM Users WHERE id = :id')->execute(['id' => $id]);
+    }
+
+    /** Verifies a plaintext password against the stored hash for a given user id. */
+    public function verifyPassword(int $userId, string $plain): bool
+    {
+        $stmt = $this->db->prepare('SELECT password FROM Users WHERE id = :id');
+        $stmt->execute(['id' => $userId]);
+        $hash = $stmt->fetchColumn();
+        return $hash !== false && password_verify($plain, (string) $hash);
+    }
+
+    /** Updates only the password for a given user (used by the self-service profile flow). */
+    public function setPassword(int $userId, string $plain): void
+    {
+        $this->db->prepare('UPDATE Users SET password = :p WHERE id = :id')
+            ->execute(['p' => password_hash($plain, PASSWORD_BCRYPT), 'id' => $userId]);
     }
 
     public function authenticate(string $email, string $password): ?User

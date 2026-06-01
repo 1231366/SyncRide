@@ -6,144 +6,136 @@ $errorCode = $errorCode ?? null;
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#f1f5f9">
     <title>Sign in — SyncRide</title>
     <link rel="icon" type="image/png" href="/SRMT/public/assets/images/icons/Syncride.png"/>
 
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-    <link rel="stylesheet" type="text/css" href="/SRMT/public/assets/vendor/bootstrap/css/bootstrap.min.css">
-    <link rel="stylesheet" type="text/css" href="/SRMT/public/assets/fonts/font-awesome-4.7.0/css/font-awesome.min.css">
-    <link rel="stylesheet" type="text/css" href="/SRMT/public/assets/fonts/iconic/css/material-design-iconic-font.min.css">
-    <link rel="stylesheet" type="text/css" href="/SRMT/public/assets/css/util.css">
-    <link rel="stylesheet" type="text/css" href="/SRMT/public/assets/css/main.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet"/>
 
     <style>
-        * { box-sizing: border-box; }
-        body, html { height: 100%; font-family: 'Poppins', sans-serif !important; }
-        .limiter {
-            width: 100%; margin: 0 auto; display: flex;
-            justify-content: center; align-items: center; height: 100vh;
-            background: linear-gradient(135deg, #00C6FF 0%, #0072FF 100%);
-            position: relative; overflow: hidden;
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            padding: 20px;
+            background: radial-gradient(circle at 50% -10%, #bfdbfe 0%, #f1f5f9 65%);
+            background-attachment: fixed;
+            color: #0f172a;
+            -webkit-font-smoothing: antialiased;
         }
-        .bg-shape { position: absolute; background: rgba(255,255,255,0.1); border-radius: 50%; backdrop-filter: blur(5px); }
-        .shape-1 { width: 300px; height: 300px; top: -50px; left: -50px; }
-        .shape-2 { width: 400px; height: 400px; bottom: -100px; right: -100px; background: rgba(255,255,255,0.05); }
-        .wrap-login100 {
-            width: 420px; background: #fff; border-radius: 20px;
-            padding: 50px 40px; box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+        /* Soft floating accents */
+        .accent { position: fixed; border-radius: 50%; filter: blur(8px); z-index: 0; pointer-events: none; }
+        .accent-1 { width: 320px; height: 320px; top: -90px; left: -80px; background: rgba(37,99,235,0.10); }
+        .accent-2 { width: 380px; height: 380px; bottom: -120px; right: -110px; background: rgba(37,99,235,0.07); }
+
+        .card {
             position: relative; z-index: 10;
+            width: 100%; max-width: 410px;
+            background: rgba(255,255,255,0.72);
+            backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255,255,255,0.8);
+            border-radius: 28px; padding: 40px 34px;
+            box-shadow: 0 24px 64px rgba(15,23,42,0.12), 0 2px 8px rgba(15,23,42,0.04);
         }
-        .login-header { text-align: center; margin-bottom: 40px; }
-        .login-header img { width: 120px; margin-bottom: 15px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1)); }
-        .login-header h3 { font-size: 24px; font-weight: 700; color: #333; margin: 0; }
-        .login-header p { font-size: 14px; color: #888; margin-top: 5px; }
-        .wrap-input100 {
-            width: 100%; position: relative; background-color: #f7f9fc;
-            border-radius: 50px; margin-bottom: 25px;
-            border: 2px solid transparent; transition: all 0.3s;
+        .header { text-align: center; margin-bottom: 32px; }
+        .header img { width: 88px; margin-bottom: 14px; filter: drop-shadow(0 6px 12px rgba(37,99,235,0.18)); }
+        .brand { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+        .brand span { color: #2563eb; }
+        .welcome { font-size: 14px; font-weight: 700; margin-top: 18px; }
+        .welcome-sub { font-size: 12px; color: #64748b; font-weight: 600; margin-top: 2px; }
+
+        .field { margin-bottom: 16px; }
+        .field label { display: block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: #64748b; margin-bottom: 6px; }
+        .input-wrap { position: relative; }
+        .input-wrap i { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 16px; transition: color .2s; }
+        .input-wrap input {
+            width: 100%; height: 50px; border-radius: 14px; padding: 0 44px 0 44px;
+            background: rgba(255,255,255,0.7); border: 1.5px solid rgba(15,23,42,0.10);
+            color: #0f172a; font-size: 14px; font-weight: 600; font-family: inherit;
+            transition: all .2s;
         }
-        .wrap-input100:focus-within {
-            background-color: #fff; border-color: #0072FF;
-            box-shadow: 0 5px 15px rgba(0,114,255,0.15);
+        .input-wrap input:focus {
+            outline: none; border-color: #2563eb; background: #fff;
+            box-shadow: 0 4px 16px rgba(37,99,235,0.12);
         }
-        .input100 {
-            font-family: 'Poppins', sans-serif; font-size: 15px; color: #333;
-            display: block; width: 100%; height: 55px;
-            background: transparent; padding: 0 30px 0 50px;
+        .input-wrap input:focus + .toggle-pass,
+        .input-wrap input:focus ~ i { color: #2563eb; }
+        .toggle-pass {
+            position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+            color: #94a3b8; cursor: pointer; font-size: 16px; background: none; border: none;
         }
-        .input-icon {
-            position: absolute; left: 20px; top: 50%;
-            transform: translateY(-50%); font-size: 18px; color: #aaa;
-            transition: color 0.3s;
+        .remember { display: flex; align-items: center; gap: 8px; margin: 4px 2px 24px; }
+        .remember input { width: 16px; height: 16px; accent-color: #2563eb; cursor: pointer; }
+        .remember label { font-size: 13px; color: #475569; font-weight: 600; cursor: pointer; user-select: none; }
+        .btn {
+            width: 100%; height: 52px; border: none; border-radius: 14px;
+            background: #2563eb; color: #fff; font-size: 15px; font-weight: 700;
+            cursor: pointer; transition: all .2s; font-family: inherit;
+            box-shadow: 0 10px 24px rgba(37,99,235,0.28);
         }
-        .wrap-input100:focus-within .input-icon { color: #0072FF; }
-        .btn-show-pass { top: 50%; transform: translateY(-50%); right: 20px; color: #aaa; cursor: pointer; }
-        .focus-input100 { display: none; }
-        .remember-me-wrapper { padding: 0 10px 25px 10px; display: flex; align-items: center; }
-        .remember-check input { accent-color: #0072FF; width: 16px; height: 16px; cursor: pointer; }
-        .remember-check label { margin-left: 8px; font-size: 14px; color: #666; cursor: pointer; user-select: none; }
-        .container-login100-form-btn { width: 100%; display: flex; justify-content: center; }
-        .login100-form-btn {
-            font-family: 'Poppins', sans-serif; font-size: 16px; color: #fff;
-            text-transform: uppercase; font-weight: 600; letter-spacing: 1px;
-            width: 100%; height: 55px; border-radius: 50px;
-            background: linear-gradient(90deg, #00C6FF 0%, #0072FF 100%);
-            border: none; cursor: pointer;
-            box-shadow: 0 10px 20px rgba(0,114,255,0.3);
-            transition: all 0.3s;
-        }
-        .login100-form-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 30px rgba(0,114,255,0.4);
-            background: linear-gradient(90deg, #0072FF 0%, #00C6FF 100%);
-        }
-        @media (max-width: 576px) {
-            .wrap-login100 { padding: 40px 25px; width: 90%; }
-            .shape-1, .shape-2 { display: none; }
-        }
-        #toast-container > div {
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
-            opacity: 1 !important; border-radius: 10px !important;
-        }
+        .btn:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 14px 30px rgba(37,99,235,0.34); }
+        .btn:active { transform: translateY(0); }
+        #toast-container > div { box-shadow: 0 10px 24px rgba(0,0,0,0.12) !important; opacity: 1 !important; border-radius: 12px !important; }
+        @media (max-width: 480px) { .card { padding: 34px 24px; } }
     </style>
 </head>
 <body>
-    <div class="limiter">
-        <div class="bg-shape shape-1"></div>
-        <div class="bg-shape shape-2"></div>
+    <div class="accent accent-1"></div>
+    <div class="accent accent-2"></div>
 
-        <div class="container-login100" style="min-height: auto; background: transparent;">
-            <div class="wrap-login100">
-                <form class="login100-form validate-form" method="POST" action="/SRMT/public/auth/login.php">
-
-                    <div class="login-header">
-                        <img src="/SRMT/public/assets/images/icons/Syncride.png" alt="SyncRide">
-                        <h3>Welcome back</h3>
-                        <p>Sign in to continue</p>
-                    </div>
-
-                    <div class="wrap-input100 validate-input" data-validate="Invalid email">
-                        <i class="fa fa-envelope input-icon"></i>
-                        <input class="input100" type="text" name="email" placeholder="Email" required>
-                    </div>
-
-                    <div class="wrap-input100 validate-input" data-validate="Enter your password">
-                        <i class="fa fa-lock input-icon"></i>
-                        <span class="btn-show-pass"><i class="zmdi zmdi-eye"></i></span>
-                        <input class="input100" type="password" name="pass" placeholder="Password" required>
-                    </div>
-
-                    <div class="remember-me-wrapper">
-                        <div class="remember-check">
-                            <input type="checkbox" name="remember" id="rememberBox">
-                            <label for="rememberBox">Keep me signed in</label>
-                        </div>
-                    </div>
-
-                    <div class="container-login100-form-btn">
-                        <button class="login100-form-btn">Sign in</button>
-                    </div>
-
-                </form>
-            </div>
+    <div class="card">
+        <div class="header">
+            <img src="/SRMT/public/assets/images/icons/Syncride.png" alt="SyncRide">
+            <div class="brand">SyncRide<span> OS</span></div>
+            <div class="welcome">Welcome back</div>
+            <div class="welcome-sub">Sign in to continue</div>
         </div>
+
+        <form method="POST" action="/SRMT/public/auth/login.php">
+            <div class="field">
+                <label>Email</label>
+                <div class="input-wrap">
+                    <i class="bi bi-envelope-fill"></i>
+                    <input type="email" name="email" placeholder="you@example.com" required autofocus>
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Password</label>
+                <div class="input-wrap">
+                    <i class="bi bi-lock-fill"></i>
+                    <input type="password" name="pass" id="passInput" placeholder="••••••••" required>
+                    <button type="button" class="toggle-pass" onclick="togglePass()"><i class="bi bi-eye" id="passIcon"></i></button>
+                </div>
+            </div>
+
+            <div class="remember">
+                <input type="checkbox" name="remember" id="rememberBox">
+                <label for="rememberBox">Keep me signed in</label>
+            </div>
+
+            <button type="submit" class="btn">Sign in</button>
+        </form>
     </div>
 
-    <script src="/SRMT/public/assets/vendor/jquery/jquery-3.2.1.min.js"></script>
-    <script src="/SRMT/public/assets/vendor/bootstrap/js/popper.js"></script>
-    <script src="/SRMT/public/assets/vendor/bootstrap/js/bootstrap.min.js"></script>
-    <script src="/SRMT/public/assets/js/main.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <script>
+        function togglePass() {
+            const inp = document.getElementById('passInput');
+            const ico = document.getElementById('passIcon');
+            const show = inp.type === 'password';
+            inp.type = show ? 'text' : 'password';
+            ico.className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+        }
+    </script>
 
     <?php if ($errorCode !== null): ?>
     <script>
-        toastr.options = {
-            "closeButton": true, "progressBar": true,
-            "positionClass": "toast-top-center", "timeOut": "5000"
-        };
+        toastr.options = { closeButton: true, progressBar: true, positionClass: 'toast-top-center', timeOut: '5000' };
         const messages = {
             invalid_credentials: 'Invalid email or password.',
             user_not_found:      'Account not found.',

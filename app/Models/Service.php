@@ -46,7 +46,8 @@ final class Service
         public readonly ?int $driverRating,       // driver_rating
         public readonly bool    $hasKey,            // has_key
         public readonly ?string $tsCompleted,      // ts_completed
-        public readonly ?int    $companyId,        // company_id
+        public readonly ?int    $companyId,         // company_id
+        public readonly ?string $companyName = null, // joined from Companies.name (optional)
     ) {
     }
 
@@ -74,6 +75,7 @@ final class Service
             hasKey:           (bool) ($row['has_key'] ?? false),
             tsCompleted:      $row['ts_completed'] ?? null,
             companyId:        isset($row['company_id']) ? (int) $row['company_id'] : null,
+            companyName:      $row['company_name'] ?? null,
         );
     }
 

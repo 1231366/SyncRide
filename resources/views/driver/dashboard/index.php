@@ -11,107 +11,492 @@ use App\Http\View;
 $firstName    = explode(' ', trim($userName))[0];
 $userPhotoSrc = isset($_SESSION['profile_photo_path']) && $_SESSION['profile_photo_path'] !== ''
     ? '/SRMT/' . ltrim((string) $_SESSION['profile_photo_path'], '/')
-    : '/SRMT/public/assets/images/icons/SyncRide.png';
+    : '/SRMT/public/assets/images/icons/Syncride.png';
 ?><!DOCTYPE html>
 <html lang="en" data-bs-theme="light">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#09090f">
     <title>Rides — SyncRide</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Poppins:wght@700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <style>
+        /* ── Tokens ──────────────────────────────────────────────────────── */
         :root {
-            --font-primary: 'Inter', sans-serif;
+            --font-body:    'Inter', sans-serif;
             --font-display: 'Poppins', sans-serif;
-            --bg-body: #f3f4f6; --bg-card: #ffffff;
-            --text-main: #111827; --text-muted: #6b7280;
-            --primary-accent: #4f46e5; --primary-hover: #4338ca;
-            --border-color: #e5e7eb; --shadow-sm: 0 1px 3px rgba(0,0,0,.1);
-            --radius-md: 16px;
-            --safe-top: env(safe-area-inset-top, 0px);
+
+            /* Light (default) — mirrors admin design system */
+            --bg:        #f8fafc;
+            --bg-card:   #ffffff;
+            --bg-raised: #f1f5f9;
+            --bg-input:  #f8fafc;
+            --border:    #e2e8f0;
+            --border-strong: #cbd5e0;
+            --text-1:    #0f172a;
+            --text-2:    #475569;
+            --text-3:    #94a3b8;
+
+            --accent:       #2563eb;
+            --accent-glow:  rgba(37,99,235,.2);
+            --accent-soft:  #eff6ff;
+            --success:      #16a34a;
+            --success-soft: #f0fdf4;
+            --warning:      #d97706;
+            --warning-soft: #fffbeb;
+            --danger:       #dc2626;
+            --danger-soft:  #fef2f2;
+            --info:         #2563eb;
+
+            --radius-sm: 8px;
+            --radius:    14px;
+            --radius-lg: 20px;
+            --shadow:    0 1px 3px rgb(0 0 0 / .1), 0 1px 2px -1px rgb(0 0 0 / .1);
+            --safe-top:    env(safe-area-inset-top, 0px);
             --safe-bottom: env(safe-area-inset-bottom, 0px);
         }
         [data-bs-theme="dark"] {
-            --bg-body: #0f172a; --bg-card: #1e293b;
-            --text-main: #f9fafb; --text-muted: #94a3b8;
-            --primary-accent: #6366f1; --primary-hover: #818cf8;
-            --border-color: #334155;
+            --bg:        #0f172a;
+            --bg-card:   #1e293b;
+            --bg-raised: #293548;
+            --bg-input:  #1e293b;
+            --border:    #334155;
+            --border-strong: #475569;
+            --text-1:    #f1f5f9;
+            --text-2:    #94a3b8;
+            --text-3:    #64748b;
+            --accent:       #3b82f6;
+            --accent-glow:  rgba(59,130,246,.25);
+            --accent-soft:  rgba(59,130,246,.12);
+            --success:      #22c55e;
+            --success-soft: rgba(34,197,94,.12);
+            --warning:      #f59e0b;
+            --warning-soft: rgba(245,158,11,.12);
+            --danger:       #ef4444;
+            --danger-soft:  rgba(239,68,68,.12);
+            --shadow:    0 2px 12px rgba(0,0,0,.5);
         }
-        body { font-family: var(--font-primary); background-color: var(--bg-body); color: var(--text-main); padding-bottom: calc(80px + var(--safe-bottom)); margin: 0; min-height: 100vh; }
-        .app-header { background-color: var(--bg-card); border-bottom: 1px solid var(--border-color); padding: calc(15px + var(--safe-top)) 20px 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1080; }
-        .brand-logo  { height: 30px; width: auto; }
-        .user-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); }
-        .stat-card { background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 15px; display: flex; align-items: center; gap: 15px; box-shadow: var(--shadow-sm); }
-        .stat-icon { width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
-        .bg-indigo-soft  { background: rgba(79,70,229,.1); color: var(--primary-accent); }
-        .bg-emerald-soft { background: rgba(16,185,129,.1); color: #10b981; }
-        .stat-info h3 { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; margin: 0; line-height: 1; }
-        .stat-info p  { margin: 0; font-size: .8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
-        .filter-container { background-color: var(--bg-card); padding: 5px; border-radius: 50px; display: flex; justify-content: space-between; border: 1px solid var(--border-color); margin-bottom: 20px; }
-        .filter-btn { flex: 1; text-align: center; padding: 8px 0; border-radius: 50px; border: none; background: transparent; color: var(--text-muted); font-size: .9rem; font-weight: 500; transition: all .2s; }
-        .filter-btn.active { background-color: var(--primary-accent); color: white; box-shadow: 0 2px 5px rgba(79,70,229,.3); }
-        .ride-card { background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); margin-bottom: 15px; padding: 16px; position: relative; transition: transform .1s; box-shadow: var(--shadow-sm); }
-        .ride-card:active { transform: scale(.98); }
-        .ride-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-        .ride-time   { font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; color: var(--text-main); }
-        .ride-badges-container { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
-        .ride-badge  { font-size: .7rem; font-weight: 600; padding: 4px 10px; border-radius: 50px; text-transform: uppercase; display: inline-flex; align-items: center; gap: 4px; }
-        .badge-private { background: rgba(79,70,229,.1); color: var(--primary-accent); border: 1px solid rgba(79,70,229,.2); }
-        .badge-shared  { background: rgba(245,158,11,.1); color: #d97706;             border: 1px solid rgba(245,158,11,.2); }
-        .card-timeline { position: relative; padding-left: 20px; border-left: 2px dashed var(--border-color); margin-left: 6px; }
-        .ct-point { position: relative; margin-bottom: 15px; }
-        .ct-point:last-child { margin-bottom: 0; }
-        .ct-dot { width: 12px; height: 12px; border-radius: 50%; position: absolute; left: -27px; top: 4px; border: 2px solid var(--bg-card); }
-        .dot-pickup  { background-color: #10b981; }
-        .dot-dropoff { background-color: #ef4444; }
-        .ct-text  { font-size: .95rem; color: var(--text-main); line-height: 1.3; }
-        .price-tag { position: absolute; bottom: 16px; right: 16px; background-color: #10b981; color: white; font-weight: 700; font-size: .85rem; padding: 4px 10px; border-radius: 8px; display: flex; align-items: center; gap: 4px; }
-        .modal-content { background-color: var(--bg-card); border-radius: 24px; border: none; }
-        .modal-header  { border-bottom: 1px solid var(--border-color); padding: 1rem 1.2rem; }
-        .modal-title   { font-family: var(--font-display); font-weight: 700; color: var(--text-main); font-size: 1.1rem; }
-        .modal-body    { padding: 1rem; }
-        .info-box   { background-color: var(--bg-body); border-radius: 12px; padding: 10px; border: 1px solid var(--border-color); margin-bottom: 8px; }
-        .info-label { font-size: .65rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 2px; }
-        .info-value { font-size: .95rem; color: var(--text-main); font-weight: 600; line-height: 1.2; }
-        .btn-dynamic-action { width: 100%; padding: 12px; font-size: 1rem; font-weight: 700; font-family: var(--font-display); border-radius: 12px; border: none; color: white; text-transform: uppercase; letter-spacing: .5px; box-shadow: 0 4px 12px rgba(0,0,0,.15); transition: transform .2s; margin-bottom: 10px; }
-        .btn-dynamic-action:active { transform: scale(.97); }
-        .status-btn-0 { background: var(--primary-accent); }
-        .status-btn-1 { background: #f59e0b; }
-        .status-btn-2 { background: #3b82f6; }
-        .status-btn-5 { background: #10b981; }
-        .status-btn-3 { background: #ef4444; }
-        .status-btn-4 { background: #6b7280; opacity: .7; }
-        .btn-whatsapp { background-color: #25D366; color: white; border: none; border-radius: 8px; padding: 8px; width: 100%; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; margin-top: 8px; font-size: .9rem; }
-        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: calc(70px + var(--safe-bottom)); background-color: var(--bg-card); border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; align-items: flex-start; z-index: 1080; padding-bottom: var(--safe-bottom); padding-top: 10px; }
-        .nav-item-mobile { display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); text-decoration: none; font-size: .75rem; font-weight: 500; width: 100%; height: 50px; transition: color .2s; }
-        .nav-item-mobile i { font-size: 1.5rem; margin-bottom: 4px; }
-        .nav-item-mobile.active { color: var(--primary-accent); }
-        /* Airport overlay */
-        #airportOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; z-index: 2000; display: none; flex-direction: column; justify-content: center; align-items: center; overflow: hidden; color: white; }
-        #airportContentWrapper { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow: hidden; }
-        #airportOverlay.landscape-mode #airportContentWrapper { position: absolute; top: 50%; left: 50%; width: 100vh; height: 100vw; transform: translate(-50%,-50%) rotate(90deg); }
-        #airportClientName { font-family: var(--font-display); font-weight: 900; line-height: .9; text-transform: uppercase; width: 100%; margin: 0; padding: 0 4vw; font-size: 15vw; word-wrap: normal; display: block; }
+
+        /* ── Base ────────────────────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            font-family: var(--font-body);
+            background: var(--bg);
+            color: var(--text-1);
+            margin: 0;
+            min-height: 100dvh;
+            padding-bottom: calc(72px + var(--safe-bottom));
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* ── Header ──────────────────────────────────────────────────────── */
+        .app-header {
+            position: sticky; top: 0; z-index: 200;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: calc(14px + var(--safe-top)) 20px 14px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .brand-logo { height: 28px; width: auto; }
+        .header-right { display: flex; align-items: center; gap: 14px; }
+        .theme-btn {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: var(--bg-raised); border: 1px solid var(--border);
+            color: var(--text-2); display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: .95rem; transition: color .2s, background .2s;
+        }
+        .theme-btn:hover { color: var(--text-1); background: var(--bg-input); }
+        .user-avatar {
+            width: 36px; height: 36px; border-radius: 50%;
+            object-fit: cover; border: 2px solid var(--border-strong);
+            cursor: pointer; transition: opacity .15s;
+        }
+        .user-avatar:active { opacity: .75; }
+
+        /* ── Greeting ────────────────────────────────────────────────────── */
+        .greeting-row { padding: 20px 20px 4px; }
+        .greeting-row h4 {
+            font-family: var(--font-display); font-size: 1.4rem;
+            font-weight: 700; margin: 0; color: var(--text-1);
+        }
+        .greeting-row p { font-size: .8rem; color: var(--text-2); margin: 4px 0 0; }
+
+        /* ── Stat chips ──────────────────────────────────────────────────── */
+        .stat-row { display: flex; gap: 12px; padding: 16px 20px; }
+        .stat-chip {
+            flex: 1; display: flex; align-items: center; gap: 12px;
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 14px 16px;
+            box-shadow: var(--shadow);
+        }
+        .stat-icon {
+            width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+        }
+        .stat-icon.indigo { background: var(--accent-soft); color: var(--accent); }
+        .stat-icon.green  { background: var(--success-soft); color: var(--success); }
+        .stat-num { font-family: var(--font-display); font-size: 1.6rem; font-weight: 800; line-height: 1; color: var(--text-1); }
+        .stat-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .6px; color: var(--text-2); margin-top: 2px; }
+
+        /* ── Filter tabs ─────────────────────────────────────────────────── */
+        .filter-bar { padding: 0 20px 16px; }
+        .filter-pills {
+            display: flex; gap: 0; padding: 4px;
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 50px; overflow: hidden;
+        }
+        .filter-btn {
+            flex: 1; padding: 9px 0; border: none; background: transparent;
+            color: var(--text-2); font-size: .85rem; font-weight: 500;
+            border-radius: 50px; transition: all .2s; cursor: pointer;
+        }
+        .filter-btn.active {
+            background: var(--accent); color: #fff;
+            box-shadow: 0 2px 10px var(--accent-glow);
+        }
+
+        /* ── Ride cards ──────────────────────────────────────────────────── */
+        .ride-list { padding: 0 20px; }
+        .ride-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); margin-bottom: 12px;
+            padding: 16px; position: relative; cursor: pointer;
+            transition: transform .12s, box-shadow .12s;
+            border-left: 3px solid var(--accent);
+            overflow: hidden;
+        }
+        .ride-card:active { transform: scale(.98); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+        .ride-card[data-stype="1"] { border-left-color: var(--accent); }
+        .ride-card[data-stype="2"] { border-left-color: var(--warning); }
+        .ride-card[data-stype="0"] { border-left-color: var(--text-3); }
+        .ride-card.is-done { opacity: .55; border-left-color: var(--success); }
+        .ride-card.is-done::after {
+            content: ''; position: absolute; inset: 0;
+            background: repeating-linear-gradient(
+                -45deg,
+                transparent, transparent 6px,
+                rgba(16,185,129,.04) 6px, rgba(16,185,129,.04) 7px
+            );
+            pointer-events: none;
+        }
+
+        .ride-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .ride-time { font-family: var(--font-display); font-size: 1.3rem; font-weight: 800; color: var(--text-1); line-height: 1; }
+        .ride-client-name { font-size: .8rem; color: var(--text-2); margin-top: 3px; font-weight: 500; }
+        .badge-row { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+        .ride-badge {
+            font-size: .65rem; font-weight: 600; padding: 3px 8px;
+            border-radius: 20px; text-transform: uppercase; letter-spacing: .3px;
+            display: inline-flex; align-items: center; gap: 3px;
+        }
+        .badge-private { background: var(--accent-soft); color: var(--accent); border: 1px solid rgba(99,102,241,.2); }
+        .badge-shared   { background: var(--warning-soft); color: var(--warning); border: 1px solid rgba(245,158,11,.2); }
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 6px;
+        }
+        .dot-0 { background: var(--text-3); }
+        .dot-1, .dot-2, .dot-5, .dot-3 { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+        .dot-4 { background: var(--success); }
+
+        .route-line { display: flex; gap: 10px; align-items: stretch; }
+        .route-dots { display: flex; flex-direction: column; align-items: center; gap: 0; padding-top: 5px; }
+        .rdot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .rdot-pickup  { background: var(--success); }
+        .rdot-dropoff { background: var(--danger); }
+        .rdot-line {
+            width: 2px; flex: 1; min-height: 12px;
+            background: repeating-linear-gradient(to bottom, var(--border-strong) 0, var(--border-strong) 3px, transparent 3px, transparent 6px);
+            margin: 2px 0;
+        }
+        .route-text { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+        .rt-point { font-size: .88rem; color: var(--text-1); font-weight: 500; line-height: 1.3; }
+        .rt-label { font-size: .65rem; text-transform: uppercase; letter-spacing: .5px; color: var(--text-3); margin-bottom: 1px; }
+
+        .price-badge {
+            position: absolute; bottom: 14px; right: 14px;
+            background: var(--success); color: #fff;
+            font-size: .75rem; font-weight: 700; padding: 3px 9px;
+            border-radius: 8px; display: flex; align-items: center; gap: 4px;
+        }
+
+        /* ── Empty state ─────────────────────────────────────────────────── */
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-3); }
+        .empty-state i { font-size: 2.5rem; opacity: .4; }
+        .empty-state p { font-size: .9rem; margin-top: 12px; }
+
+        /* ── Bottom nav ──────────────────────────────────────────────────── */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            height: calc(64px + var(--safe-bottom));
+            background: var(--bg-card); border-top: 1px solid var(--border);
+            display: flex; z-index: 500; padding-bottom: var(--safe-bottom);
+        }
+        .nav-item {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            color: var(--text-3); text-decoration: none;
+            font-size: .68rem; font-weight: 500;
+            gap: 4px; transition: color .2s;
+        }
+        .nav-item i { font-size: 1.35rem; }
+        .nav-item.active { color: var(--accent); }
+        .nav-item.danger  { color: var(--danger); }
+
+        /* ── Details modal — bottom sheet ────────────────────────────────── */
+        #detailsModal .modal-dialog {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            margin: 0; width: 100%; max-width: 100%;
+            max-height: 93dvh;
+        }
+        #detailsModal.fade .modal-dialog {
+            transform: translateY(110%);
+            transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        #detailsModal.show .modal-dialog { transform: translateY(0); }
+        #detailsModal .modal-content {
+            border-radius: 24px 24px 0 0;
+            border: 1px solid var(--border);
+            border-bottom: none;
+            background: var(--bg-card);
+            max-height: 93dvh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            transition: background .4s, border-color .4s;
+        }
+        #detailsModal .modal-content.is-completed {
+            background: #f0f4f8;
+            border-color: #cbd5e0;
+        }
+        [data-bs-theme="dark"] #detailsModal .modal-content.is-completed {
+            background: #1a2235;
+            border-color: #334155;
+        }
+        .drag-handle {
+            width: 36px; height: 4px; border-radius: 2px;
+            background: var(--border-strong); margin: 10px auto 0;
+        }
+        .modal-top-bar {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            padding: 12px 20px 8px;
+        }
+        .modal-ride-id { font-size: .72rem; color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+        .modal-status-badge {
+            font-size: .68rem; font-weight: 700; padding: 4px 10px;
+            border-radius: 20px; text-transform: uppercase; letter-spacing: .4px;
+        }
+        .modal-close-btn {
+            width: 30px; height: 30px; border-radius: 50%;
+            background: var(--bg-raised); border: none; color: var(--text-2);
+            display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: .85rem;
+        }
+
+        /* Status stepper */
+        .status-stepper {
+            display: flex; align-items: center; padding: 0 20px 16px; gap: 0;
+        }
+        .step-node {
+            display: flex; flex-direction: column; align-items: center; flex: 1;
+        }
+        .step-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: var(--bg-raised); border: 2px solid var(--border-strong);
+            transition: background .3s, border-color .3s, box-shadow .3s;
+        }
+        .step-node.done .step-dot   { background: var(--success); border-color: var(--success); }
+        .step-node.active .step-dot { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+        .step-line {
+            flex: 1; height: 2px; margin-bottom: 0; align-self: center;
+            background: var(--border-strong); transition: background .3s;
+        }
+        .step-line.done { background: var(--success); }
+        .step-label {
+            font-size: .55rem; color: var(--text-3); margin-top: 5px;
+            text-transform: uppercase; letter-spacing: .3px; text-align: center;
+        }
+        .step-node.active .step-label,
+        .step-node.done .step-label  { color: var(--text-2); }
+
+        /* Modal body sections */
+        .modal-section { padding: 0 20px 16px; }
+        .modal-section + .modal-section { border-top: 1px solid var(--border); padding-top: 16px; }
+
+        /* Compact client block */
+        .client-name-row {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 9px;
+        }
+        .client-name  { font-size: 1rem; font-weight: 700; color: var(--text-1); line-height: 1.2; }
+        .wa-icon-btn {
+            width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+            background: #25D366; color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-size: .72rem; text-decoration: none;
+            transition: opacity .15s;
+        }
+        .wa-icon-btn:active { opacity: .75; }
+        .badge-row-inline {
+            display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+        }
+        .pax-pill {
+            display: inline-flex; align-items: center; gap: 5px;
+            background: var(--accent-soft); color: var(--accent);
+            border: 1px solid rgba(37,99,235,.2); border-radius: 20px;
+            font-size: .72rem; font-weight: 600; padding: 4px 10px;
+            transition: background .2s, color .2s, border-color .2s;
+        }
+        .pax-pill.has-baby {
+            background: var(--warning-soft); color: var(--warning);
+            border-color: rgba(217,119,6,.3);
+        }
+
+        /* Route boarding-pass style */
+        .route-card {
+            background: var(--bg-raised); border: 1px solid var(--border);
+            border-radius: var(--radius); overflow: hidden;
+        }
+        .route-point {
+            display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px;
+        }
+        .route-point + .route-point { border-top: 1px dashed var(--border); }
+        .route-indicator {
+            width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; font-size: .85rem;
+        }
+        .ri-pickup  { background: var(--success-soft); color: var(--success); }
+        .ri-dropoff { background: var(--danger-soft);  color: var(--danger); }
+        .route-loc-label { font-size: .65rem; text-transform: uppercase; letter-spacing: .5px; color: var(--text-3); }
+        .route-loc-text  { font-size: .92rem; font-weight: 600; color: var(--text-1); line-height: 1.3; margin-top: 2px; }
+
+        /* Utility buttons row */
+        .util-row { display: flex; gap: 10px; margin-top: 14px; }
+        .util-btn {
+            flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+            padding: 10px 0; border-radius: 10px; font-size: .82rem; font-weight: 600;
+            border: 1px solid var(--border-strong); background: var(--bg-raised);
+            color: var(--text-1); cursor: pointer; text-decoration: none;
+            transition: opacity .15s;
+        }
+        .util-btn:active { opacity: .7; }
+        .util-btn.dark-bg { background: #000; border-color: rgba(255,255,255,.15); color: #fff; }
+        .util-btn.info-bg { background: var(--info); border-color: var(--info); color: #fff; }
+
+        .badge-strip { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+        .strip-badge {
+            font-size: .7rem; font-weight: 600; padding: 4px 10px; border-radius: 20px;
+            display: inline-flex; align-items: center; gap: 4px;
+        }
+        .sb-green  { background: var(--success-soft); color: var(--success); border: 1px solid rgba(16,185,129,.2); }
+        .sb-red    { background: var(--danger-soft);  color: var(--danger);  border: 1px solid rgba(239,68,68,.2); }
+        .sb-blue   { background: rgba(59,130,246,.12); color: var(--info);   border: 1px solid rgba(59,130,246,.2); }
+        .sb-purple { background: var(--accent-soft);  color: var(--accent);  border: 1px solid rgba(99,102,241,.2); }
+
+        /* Action button */
+        .action-btn {
+            width: 100%; padding: 15px; font-size: 1rem; font-weight: 700;
+            font-family: var(--font-display); border-radius: 14px; border: none;
+            color: #fff; text-transform: uppercase; letter-spacing: .6px;
+            transition: transform .15s, box-shadow .15s; cursor: pointer;
+        }
+        .action-btn:active { transform: scale(.97); }
+        .action-btn:disabled { opacity: .45; cursor: default; transform: none; }
+        .status-btn-0 { background: linear-gradient(135deg, #2563eb, #1d4ed8); box-shadow: 0 4px 16px rgba(37,99,235,.35); }
+        .status-btn-1 { background: linear-gradient(135deg, #f59e0b, #d97706); box-shadow: 0 4px 16px rgba(245,158,11,.4); }
+        .status-btn-2 { background: linear-gradient(135deg, #3b82f6, #2563eb); box-shadow: 0 4px 16px rgba(59,130,246,.4); }
+        .status-btn-5 { background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 16px rgba(16,185,129,.4); }
+        .status-btn-3 { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 4px 16px rgba(239,68,68,.4); }
+        .status-btn-4 { background: var(--bg-raised); color: var(--success); border: 1px solid rgba(16,185,129,.3); box-shadow: none; }
+
+        .secondary-row { display: flex; gap: 10px; margin-top: 10px; }
+        .sec-btn {
+            flex: 1; padding: 11px 0; border-radius: 10px; font-size: .82rem; font-weight: 600;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            border: 1px solid var(--border-strong); background: transparent;
+            color: var(--text-2); cursor: pointer; transition: opacity .15s;
+        }
+        .sec-btn-danger { color: var(--danger); border-color: rgba(239,68,68,.3); background: var(--danger-soft); }
+        .sec-btn:active, .sec-btn-danger:active { opacity: .7; }
+
+        .wa-btn {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; padding: 12px; border-radius: 12px;
+            background: #128C7E; color: #fff; font-weight: 600; font-size: .88rem;
+            text-decoration: none; border: none; margin-top: 10px;
+            transition: opacity .15s;
+        }
+        .wa-btn:active { opacity: .8; color: #fff; }
+
+        /* ── Airport sign overlay ────────────────────────────────────────── */
+        #airportOverlay {
+            position: fixed; inset: 0; background: #000; z-index: 2000;
+            display: none; flex-direction: column; justify-content: center;
+            align-items: center; overflow: hidden; color: white;
+        }
+        #airportContentWrapper {
+            width: 100%; height: 100%; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; text-align: center; overflow: hidden;
+        }
+        #airportOverlay.landscape-mode #airportContentWrapper {
+            position: absolute; top: 50%; left: 50%;
+            width: 100vh; height: 100vw; transform: translate(-50%,-50%) rotate(90deg);
+        }
+        #airportClientName {
+            font-family: var(--font-display); font-weight: 900; line-height: .9;
+            text-transform: uppercase; width: 100%; margin: 0; padding: 0 4vw;
+            font-size: 15vw; word-wrap: normal; display: block;
+        }
         .name-part { display: inline-block; white-space: nowrap; }
-        #airportFlight { font-family: var(--font-primary); font-weight: 600; color: #FFD700; margin-top: 2vh; font-size: 6vw; letter-spacing: 2px; }
-        .airport-controls { position: absolute; top: 20px; right: 20px; display: flex; gap: 25px; z-index: 2001; opacity: .2; transition: opacity .3s; }
+        #airportFlight { font-family: var(--font-body); font-weight: 600; color: #FFD700; margin-top: 2vh; font-size: 6vw; letter-spacing: 2px; }
+        .airport-controls {
+            position: absolute; top: 20px; right: 20px;
+            display: flex; gap: 25px; z-index: 2001; opacity: .2; transition: opacity .3s;
+        }
         .airport-controls:hover { opacity: 1; }
-        .airport-zoom-controls { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 2002; opacity: .2; transition: opacity .3s; }
+        .airport-zoom-controls {
+            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 20px; z-index: 2002; opacity: .2; transition: opacity .3s;
+        }
         .airport-zoom-controls:hover { opacity: 1; }
-        .zoom-btn { width: 60px; height: 60px; border-radius: 50%; background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; backdrop-filter: blur(5px); cursor: pointer; }
-        /* Camera overlay */
-        #cameraOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 99999; display: none; flex-direction: column; }
+        .zoom-btn {
+            width: 60px; height: 60px; border-radius: 50%;
+            background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3);
+            color: white; display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; backdrop-filter: blur(5px); cursor: pointer;
+        }
+
+        /* ── Camera overlay ──────────────────────────────────────────────── */
+        #cameraOverlay {
+            position: fixed; inset: 0; background: #000; z-index: 99999;
+            display: none; flex-direction: column;
+        }
         #cameraViewArea { flex: 1; position: relative; overflow: hidden; background: #000; }
-        #cameraStream, #photoCanvas { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
-        .camera-ui-controls { position: absolute; bottom: 0; left: 0; width: 100%; padding: 40px 20px calc(40px + var(--safe-bottom)) 20px; background: linear-gradient(to top, #000, transparent); display: flex; justify-content: center; gap: 20px; align-items: center; }
-        .camera-btn { width: 70px; height: 70px; border-radius: 50%; border: 4px solid white; background: transparent; display: flex; align-items: center; justify-content: center; padding: 0; }
+        #cameraStream, #photoCanvas {
+            width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0;
+        }
+        .camera-ui-controls {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            padding: 40px 20px calc(40px + var(--safe-bottom)) 20px;
+            background: linear-gradient(to top, #000, transparent);
+            display: flex; justify-content: center; gap: 20px; align-items: center;
+        }
+        .camera-btn {
+            width: 70px; height: 70px; border-radius: 50%;
+            border: 4px solid white; background: transparent;
+            display: flex; align-items: center; justify-content: center; padding: 0;
+        }
         .camera-btn-inner { width: 56px; height: 56px; background: white; border-radius: 50%; transition: transform .1s; }
-        .btn-circle-action { width: 50px; height: 50px; border-radius: 50%; border: none; background: rgba(255,255,255,.2); color: white; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        .btn-circle-action {
+            width: 50px; height: 50px; border-radius: 50%; border: none;
+            background: rgba(255,255,255,.2); color: white;
+            display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px);
+        }
     </style>
 </head>
 <body>
 
+<!-- ── Airport sign ───────────────────────────────────────────────────── -->
 <div id="airportOverlay">
     <div class="airport-controls">
         <i class="bi bi-arrow-repeat text-white fs-1" id="rotateScreenBtn"></i>
@@ -127,6 +512,7 @@ $userPhotoSrc = isset($_SESSION['profile_photo_path']) && $_SESSION['profile_pho
     </div>
 </div>
 
+<!-- ── Camera ─────────────────────────────────────────────────────────── -->
 <div id="cameraOverlay">
     <div style="position:absolute;top:max(20px,env(safe-area-inset-top));left:0;width:100%;text-align:center;color:white;z-index:10;font-weight:600;text-shadow:0 2px 4px rgba(0,0,0,.8);" id="cameraInstruction">Photograph</div>
     <div id="cameraViewArea">
@@ -153,142 +539,189 @@ $userPhotoSrc = isset($_SESSION['profile_photo_path']) && $_SESSION['profile_pho
     </div>
 </div>
 
+<!-- ── App header ─────────────────────────────────────────────────────── -->
 <header class="app-header">
-    <img src="/SRMT/public/assets/images/icons/SyncRide.png" alt="SyncRide" class="brand-logo" id="driver-logo">
-    <div class="d-flex align-items-center gap-3">
-        <button class="btn btn-link text-muted p-0 border-0" id="theme-toggle">
-            <i class="bi bi-moon-stars-fill fs-5" id="theme-icon"></i>
-        </button>
-        <img src="<?= View::e($userPhotoSrc) ?>" class="user-avatar shadow-sm" alt="" data-bs-toggle="modal" data-bs-target="#photoModal">
+    <img src="/SRMT/public/assets/images/icons/Syncride.png" alt="SyncRide" class="brand-logo" id="driver-logo">
+    <div class="header-right">
+        <button class="theme-btn" id="theme-toggle"><i class="bi bi-sun-fill" id="theme-icon"></i></button>
+        <img src="<?= View::e($userPhotoSrc) ?>" class="user-avatar" alt="" data-bs-toggle="modal" data-bs-target="#photoModal">
     </div>
 </header>
 
-<div class="container-fluid px-3 pt-3">
-    <div class="mb-4">
-        <h4 class="fw-bold mb-3">Hello, <?= View::e($firstName) ?>!</h4>
-        <div class="row g-3">
-            <div class="col-6">
-                <div class="stat-card">
-                    <div class="stat-icon bg-indigo-soft"><i class="bi bi-calendar-check"></i></div>
-                    <div class="stat-info"><h3><?= $todayCount ?></h3><p>Today</p></div>
-                </div>
-            </div>
-            <div class="col-6">
-                <div class="stat-card">
-                    <div class="stat-icon bg-emerald-soft"><i class="bi bi-calendar-week"></i></div>
-                    <div class="stat-info"><h3><?= $weekCount ?></h3><p>This Week</p></div>
-                </div>
-            </div>
-        </div>
-    </div>
+<!-- ── Main content ───────────────────────────────────────────────────── -->
+<div class="greeting-row">
+    <h4>Hey, <?= View::e($firstName) ?> 👋</h4>
+    <p>Here's your schedule</p>
+</div>
 
-    <div class="filter-container">
+<div class="stat-row">
+    <div class="stat-chip">
+        <div class="stat-icon indigo"><i class="bi bi-calendar-check-fill"></i></div>
+        <div><div class="stat-num"><?= $todayCount ?></div><div class="stat-label">Today</div></div>
+    </div>
+    <div class="stat-chip">
+        <div class="stat-icon green"><i class="bi bi-calendar-week-fill"></i></div>
+        <div><div class="stat-num"><?= $weekCount ?></div><div class="stat-label">This Week</div></div>
+    </div>
+</div>
+
+<div class="filter-bar">
+    <div class="filter-pills">
         <button class="filter-btn" data-filter="yesterday">Yesterday</button>
         <button class="filter-btn active" data-filter="today">Today</button>
         <button class="filter-btn" data-filter="tomorrow">Tomorrow</button>
     </div>
+</div>
 
-    <div id="rideList">
-        <div class="text-center py-5 text-muted">
-            <div class="spinner-border text-primary" role="status"></div>
-            <div class="mt-2 small">Loading rides…</div>
-        </div>
+<div class="ride-list" id="rideList">
+    <div class="empty-state">
+        <div class="spinner-border" style="color:var(--accent);" role="status"></div>
+        <p style="margin-top:14px;">Loading…</p>
     </div>
 </div>
 
-<!-- Details modal -->
+<!-- ── Details modal (bottom sheet) ───────────────────────────────────── -->
 <div class="modal fade" id="detailsModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="drag-handle"></div>
+
+            <div class="modal-top-bar">
                 <div>
-                    <h5 class="modal-title">Details</h5>
-                    <small class="text-muted">ID #<span id="modalIdDisplay"></span></small>
+                    <div class="modal-ride-id">Ride #<span id="modalIdDisplay"></span></div>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button class="modal-close-btn" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i></button>
             </div>
-            <div class="modal-body">
-                <div class="info-box d-flex align-items-start gap-3">
-                    <div class="bg-body-secondary rounded-circle p-2 mt-1"><i class="bi bi-person-fill fs-5 text-primary"></i></div>
-                    <div class="flex-grow-1">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <span class="info-label">Client</span>
-                                <div id="modalClient" class="info-value text-break"></div>
-                                <div id="modalClientNumber" class="small text-muted mt-1"></div>
-                            </div>
-                            <div class="text-end">
-                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-2" id="modalPaxBadge">
-                                    <i class="bi bi-people-fill"></i> <span id="modalADT"></span>+<span id="modalCHD"></span>
-                                </span>
-                            </div>
+
+            <!-- Status stepper -->
+            <div class="status-stepper" id="statusStepper">
+                <div class="step-node" data-step="0">
+                    <div class="step-dot"></div>
+                    <div class="step-label">Pickup</div>
+                </div>
+                <div class="step-line" data-line="0"></div>
+                <div class="step-node" data-step="1">
+                    <div class="step-dot"></div>
+                    <div class="step-label">Arrived</div>
+                </div>
+                <div class="step-line" data-line="1"></div>
+                <div class="step-node" data-step="2">
+                    <div class="step-dot"></div>
+                    <div class="step-label">Client</div>
+                </div>
+                <div class="step-line" data-line="2"></div>
+                <div class="step-node" data-step="3">
+                    <div class="step-dot"></div>
+                    <div class="step-label">Trip</div>
+                </div>
+                <div class="step-line" data-line="3"></div>
+                <div class="step-node" data-step="4">
+                    <div class="step-dot"></div>
+                    <div class="step-label">Done</div>
+                </div>
+            </div>
+
+            <!-- Client section -->
+            <div class="modal-section">
+                <div class="client-name-row">
+                    <div class="client-name" id="modalClient">—</div>
+                    <div id="whatsappContainer" style="display:none;"></div>
+                </div>
+
+                <div class="badge-row-inline">
+                    <span class="pax-pill" id="paxPill">
+                        <i class="bi bi-people-fill"></i>
+                        <span id="modalADT"></span>A + <span id="modalCHD"></span>C<span id="modalBBYPart" style="display:none;"> + <span id="modalBBY"></span>B</span>
+                    </span>
+                    <div id="modalBadgesContainer" style="display:contents;"></div>
+                </div>
+
+                <div class="util-row">
+                    <button class="util-btn dark-bg" id="btnAirportMode"><i class="bi bi-signpost-2-fill"></i> Sign</button>
+                    <a href="#" id="trackFlightLink" target="_blank" class="util-btn info-bg" style="display:none;">
+                        <i class="bi bi-airplane-fill"></i> <span id="modalFlight"></span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Route section -->
+            <div class="modal-section">
+                <div class="route-card">
+                    <div class="route-point">
+                        <div class="route-indicator ri-pickup"><i class="bi bi-geo-alt-fill"></i></div>
+                        <div>
+                            <div class="route-loc-label">Pickup</div>
+                            <div class="route-loc-text" id="modalPickup">—</div>
                         </div>
-                        <div class="d-flex flex-wrap gap-2 mt-2" id="modalBadgesContainer"></div>
-                        <div id="modalPassengerAlert" style="display:none;background:rgba(234,179,8,0.12);border:1px solid rgba(234,179,8,0.35);" class="mt-2 p-2 rounded-3 d-flex align-items-center gap-2">
-                            <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
-                            <span id="modalPassengerAlertText" class="small fw-semibold text-warning"></span>
+                    </div>
+                    <div class="route-point">
+                        <div class="route-indicator ri-dropoff"><i class="bi bi-flag-fill"></i></div>
+                        <div>
+                            <div class="route-loc-label">Dropoff</div>
+                            <div class="route-loc-text" id="modalDropoff">—</div>
                         </div>
-                        <div id="whatsappContainer" style="display:none;"></div>
                     </div>
                 </div>
+            </div>
 
-                <div class="row g-2 mb-2">
-                    <div class="col-6"><button class="btn btn-sm btn-dark w-100 py-2 rounded-3 fw-bold" id="btnAirportMode"><i class="bi bi-signpost-2-fill me-1"></i> Sign</button></div>
-                    <div class="col-6"><a href="#" id="trackFlightLink" target="_blank" class="btn btn-sm btn-info w-100 py-2 rounded-3 fw-bold text-white" style="display:none;"><i class="bi bi-airplane-fill me-1"></i> <span id="modalFlight"></span></a></div>
+            <!-- Actions section -->
+            <div class="modal-section">
+                <button id="btnDynamicAction" class="action-btn status-btn-0">START PICKUP</button>
+
+                <div class="secondary-row">
+                    <button class="sec-btn" id="uploadVoucher"><i class="bi bi-ticket-perforated"></i> Voucher</button>
+                    <button class="sec-btn sec-btn-danger" id="uploadNoShow"><i class="bi bi-camera"></i> No-Show</button>
                 </div>
 
-                <div class="card p-2 border border-color shadow-none mb-3">
-                    <div class="card-timeline" style="margin-left:0;padding-left:20px;">
-                        <div class="ct-point"><div class="ct-dot dot-pickup"></div><span class="info-label">Pickup</span><div id="modalPickup" class="ct-text fw-bold lh-sm"></div></div>
-                        <div class="ct-point mb-0"><div class="ct-dot dot-dropoff"></div><span class="info-label">Dropoff</span><div id="modalDropoff" class="ct-text fw-bold lh-sm"></div></div>
-                    </div>
-                </div>
-
-                <button id="btnDynamicAction" class="btn-dynamic-action status-btn-0">START PICKUP</button>
-
-                <div class="row g-2">
-                    <div class="col-6"><button class="btn btn-sm btn-outline-secondary w-100 py-2 rounded-pill fw-bold" id="uploadVoucher"><i class="bi bi-ticket-perforated"></i> Voucher</button></div>
-                    <div class="col-6"><button class="btn btn-sm btn-outline-danger w-100 py-2 rounded-pill fw-bold" id="uploadNoShow"><i class="bi bi-camera"></i> No-Show</button></div>
-                </div>
-
-                <a href="#" id="whatsappAlojamento" target="_blank" class="btn-whatsapp mt-2" style="display:none;">
+                <a href="#" id="whatsappAlojamento" target="_blank" class="wa-btn" style="display:none;">
                     <i class="bi bi-whatsapp"></i> Leaving airport
                 </a>
             </div>
+
+            <div style="height: calc(10px + var(--safe-bottom));"></div>
         </div>
     </div>
 </div>
 
-<!-- Profile photo modal -->
+<!-- ── Profile photo modal ────────────────────────────────────────────── -->
 <div class="modal fade" id="photoModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header border-0"><h5 class="modal-title">Profile Photo</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-            <div class="modal-body text-center">
+        <div class="modal-content" style="background:var(--bg-card);border:1px solid var(--border);border-radius:20px;">
+            <div class="modal-header" style="border-bottom:1px solid var(--border);">
+                <h5 class="modal-title" style="color:var(--text-1);">Profile Photo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                    style="filter:<?= strpos($_SESSION['theme'] ?? 'dark', 'light') !== false ? 'none' : 'invert(1)' ?>"></button>
+            </div>
+            <div class="modal-body p-4 text-center" style="background:var(--bg-card);">
                 <form action="/SRMT/public/save-profile-photo.php" method="POST" enctype="multipart/form-data">
-                    <img id="currentProfilePhoto" src="<?= View::e($userPhotoSrc) ?>" class="rounded-circle shadow mb-4" style="width:120px;height:120px;object-fit:cover;">
-                    <input type="file" name="profile_photo" id="profilePhotoInput" class="form-control mb-3" accept="image/*" required>
-                    <button type="submit" class="btn btn-primary rounded-pill w-100 py-2 fw-bold">Save</button>
+                    <img id="currentProfilePhoto" src="<?= View::e($userPhotoSrc) ?>"
+                        class="rounded-circle mb-4" style="width:110px;height:110px;object-fit:cover;border:3px solid var(--border-strong);">
+                    <input type="file" name="profile_photo" id="profilePhotoInput"
+                        class="form-control mb-3" accept="image/*" required
+                        style="background:var(--bg-input);border-color:var(--border);color:var(--text-1);">
+                    <button type="submit"
+                        class="btn w-100 py-2 fw-bold rounded-pill"
+                        style="background:var(--accent);color:#fff;border:none;">Save Photo</button>
                 </form>
             </div>
         </div>
     </div>
 </div>
 
+<!-- ── Bottom nav ─────────────────────────────────────────────────────── -->
 <nav class="bottom-nav">
-    <a href="/SRMT/public/driver/"           class="nav-item-mobile active"><i class="bi bi-car-front-fill"></i><span>Rides</span></a>
-    <a href="/SRMT/public/driver/agenda.php" class="nav-item-mobile"><i class="bi bi-calendar3"></i><span>Agenda</span></a>
-    <a href="/SRMT/public/driver/stats.php"  class="nav-item-mobile"><i class="bi bi-bar-chart-fill"></i><span>Stats</span></a>
-    <a href="/SRMT/public/auth/logout.php"   class="nav-item-mobile text-danger"><i class="bi bi-box-arrow-right"></i><span>Logout</span></a>
+    <a href="/SRMT/public/driver/"           class="nav-item active"><i class="bi bi-car-front-fill"></i>Rides</a>
+    <a href="/SRMT/public/driver/agenda.php" class="nav-item"><i class="bi bi-calendar3"></i>Agenda</a>
+    <a href="/SRMT/public/driver/stats.php"  class="nav-item"><i class="bi bi-bar-chart-fill"></i>Stats</a>
+    <a href="/SRMT/public/auth/logout.php"   class="nav-item danger"><i class="bi bi-box-arrow-right"></i>Logout</a>
 </nav>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// Initial data from PHP
 var viagens = <?= json_encode($rides, JSON_UNESCAPED_UNICODE) ?>;
 var currentDriverId = <?= $driverId ?>;
 
-// Theme
+// ── Theme ─────────────────────────────────────────────────────────────────
 (function () {
     const html   = document.documentElement;
     const toggle = document.getElementById('theme-toggle');
@@ -297,7 +730,7 @@ var currentDriverId = <?= $driverId ?>;
     function applyTheme(t) {
         html.setAttribute('data-bs-theme', t);
         icon.className = t === 'light' ? 'bi bi-moon-stars-fill fs-5' : 'bi bi-sun-fill fs-5';
-        if (logo) logo.src = t === 'dark' ? '/SRMT/public/assets/images/icons/Syncridewhite.png' : '/SRMT/public/assets/images/icons/SyncRide.png';
+        if (logo) logo.src = t === 'dark' ? '/SRMT/public/assets/images/icons/Syncridewhite.png' : '/SRMT/public/assets/images/icons/Syncride.png';
     }
     applyTheme(localStorage.getItem('theme') || 'light');
     toggle.addEventListener('click', () => {
@@ -307,14 +740,14 @@ var currentDriverId = <?= $driverId ?>;
     });
 })();
 
-// State
+// ── State ─────────────────────────────────────────────────────────────────
 let backgroundWatcherId = null, trackingInterval = null, currentRideId = null, currentRideData = null;
 let localTripStatus = {}, currentFilter = 'today', stream = null, currentMode = 'noshow';
 let currentFacingMode = 'environment', locationWatcher = null, currentLat = null, currentLng = null;
 let cameraZoomLevel = 1, pinchInitialDistance = 0, wakeLock = null;
 viagens.forEach(v => { localTripStatus[String(v.ServiceID)] = parseInt(v.status_id) || 0; });
 
-// Auto-refresh
+// ── Auto-refresh ──────────────────────────────────────────────────────────
 function fetchLatestRides() {
     fetch('/SRMT/public/driver/?api=refresh').then(r => r.json()).then(data => {
         if (!Array.isArray(data)) return;
@@ -325,7 +758,7 @@ function fetchLatestRides() {
 }
 setInterval(fetchLatestRides, 15000);
 
-// GPS
+// ── GPS ───────────────────────────────────────────────────────────────────
 function sendPosition(position) {
     const finishBg = () => { if (window.Capacitor?.Plugins?.BackgroundGeolocation) Capacitor.Plugins.BackgroundGeolocation.finish(); };
     if (!currentRideId) { finishBg(); return; }
@@ -361,7 +794,7 @@ function stopLiveTracking() {
     if (trackingInterval) { clearInterval(trackingInterval); trackingInterval = null; }
 }
 
-// DOMContentLoaded
+// ── DOMContentLoaded ──────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     if (window.Capacitor?.isNativePlatform()) {
         const { Geolocation, Camera, BackgroundGeolocation } = Capacitor.Plugins;
@@ -385,7 +818,7 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-// External links
+// ── External links ────────────────────────────────────────────────────────
 async function openExternal(url) {
     try { if (window.Capacitor?.Plugins?.App?.openUrl) { await Capacitor.Plugins.App.openUrl({ url }); return; } } catch(e) {}
     window.open(url, '_system');
@@ -399,20 +832,35 @@ document.addEventListener('click', e => {
     if (window.Capacitor?.isNativePlatform?.()) { e.preventDefault(); openExternal(href); }
 });
 
-// Status UI
+// ── Status UI ─────────────────────────────────────────────────────────────
+const STEP_MAP = {0:0, 1:1, 2:2, 5:3, 3:4, 4:5};
 function updateButtonUI(status) {
     const btn = document.getElementById('btnDynamicAction'); if (!btn) return;
-    btn.className = 'btn-dynamic-action';
+    btn.className = 'action-btn';
     const map = {
-        0: ['status-btn-0', '<i class="bi bi-car-front-fill me-2"></i> START PICKUP',    false],
-        1: ['status-btn-1', '<i class="bi bi-geo-alt-fill me-2"></i> ARRIVED',           false],
-        2: ['status-btn-2', '<i class="bi bi-person-check-fill me-2"></i> WITH CLIENT',  false],
-        5: ['status-btn-5', '<i class="bi bi-play-circle-fill me-2"></i> START TRIP',    false],
-        3: ['status-btn-3', '<i class="bi bi-stop-circle-fill me-2"></i> FINISH',        false],
+        0: ['status-btn-0', '<i class="bi bi-car-front-fill me-2"></i>START PICKUP',    false],
+        1: ['status-btn-1', '<i class="bi bi-geo-alt-fill me-2"></i>ARRIVED',           false],
+        2: ['status-btn-2', '<i class="bi bi-person-check-fill me-2"></i>WITH CLIENT',  false],
+        5: ['status-btn-5', '<i class="bi bi-play-circle-fill me-2"></i>START TRIP',    false],
+        3: ['status-btn-3', '<i class="bi bi-stop-circle-fill me-2"></i>FINISH',        false],
     };
-    const def = ['status-btn-4', '<i class="bi bi-check-circle-fill me-2"></i> COMPLETED', true];
+    const def = ['status-btn-4', '<i class="bi bi-check-circle-fill me-2"></i>COMPLETED', true];
     const [cls, html, dis] = map[parseInt(status)] ?? def;
     btn.classList.add(cls); btn.innerHTML = html; btn.disabled = dis;
+
+    // Stepper
+    const currentStep = STEP_MAP[parseInt(status)] ?? 0;
+    document.querySelectorAll('#statusStepper .step-node').forEach((node, i) => {
+        node.classList.toggle('done',   i < currentStep);
+        node.classList.toggle('active', i === currentStep && parseInt(status) !== 4);
+    });
+    document.querySelectorAll('#statusStepper .step-line').forEach((line, i) => {
+        line.classList.toggle('done', i < currentStep);
+    });
+
+    // Darken modal when completed
+    const mc = document.getElementById('detailsModal').querySelector('.modal-content');
+    mc.classList.toggle('is-completed', parseInt(status) === 4);
 }
 function updateStatusBackend(rideId, nextStatus) {
     const fd = new FormData(); fd.append('ride_id', rideId); fd.append('status', nextStatus);
@@ -422,7 +870,7 @@ function updateStatusBackend(rideId, nextStatus) {
             localTripStatus[rideId] = nextStatus; updateButtonUI(nextStatus);
             if (parseInt(nextStatus) === 4) {
                 fetch('/SRMT/public/api/final-trip-report.php?ride_id=' + rideId);
-                setTimeout(() => { bootstrap.Modal.getInstance(document.getElementById('detailsModal')).hide(); fetchLatestRides(); }, 1000);
+                setTimeout(() => { bootstrap.Modal.getInstance(document.getElementById('detailsModal')).hide(); fetchLatestRides(); }, 1200);
             }
         });
 }
@@ -450,7 +898,7 @@ document.getElementById('btnDynamicAction').addEventListener('click', function (
     updateStatusBackend(rideId, nextStatus);
 });
 
-// Render
+// ── Render ────────────────────────────────────────────────────────────────
 function formatDate(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 function filterTrips(filter) {
     currentFilter = filter;
@@ -461,20 +909,72 @@ function filterTrips(filter) {
 }
 function renderList(data) {
     const el = document.getElementById('rideList'); if (!el) return; el.innerHTML = '';
-    if (data.length === 0) { el.innerHTML = "<div class='text-center py-5 text-muted'><i class='bi bi-calendar-x fs-1 opacity-50'></i><p class='mt-2'>No services.</p></div>"; return; }
+    if (data.length === 0) {
+        el.innerHTML = "<div class='empty-state'><i class='bi bi-calendar-x'></i><p>No services.</p></div>";
+        return;
+    }
     data.forEach(v => {
-        const isPriv = v.serviceType == 1;
-        const badgeClass = isPriv ? 'badge-private' : 'badge-shared';
+        const status = localTripStatus[String(v.ServiceID)] ?? parseInt(v.status_id) ?? 0;
+        const isDone = status === 4;
+        const stype  = parseInt(v.serviceType) || 0;
+        const isPriv = stype === 1;
+        const badgeCls  = isPriv ? 'badge-private' : 'badge-shared';
+        const badgeText = isPriv ? 'Private' : 'Shared';
+        const dotCls    = 'dot-' + (isDone ? 4 : (status >= 1 ? status : 0));
+
         let extraBadges = '';
         if (v.partner_id && v.partner_id > 0) {
-            if (v.AgencyName) extraBadges += `<span class="ride-badge bg-info bg-opacity-10 text-info border border-info border-opacity-25"><i class="bi bi-building-fill"></i> ${v.AgencyName}</span>`;
-            extraBadges += `<span class="ride-badge ${v.has_key == 1 ? 'bg-success bg-opacity-10 text-success border border-success border-opacity-25' : 'bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25'}"><i class="bi bi-key-fill"></i> ${v.has_key == 1 ? 'Key' : 'No Key'}</span>`;
+            if (v.AgencyName) extraBadges += `<span class="ride-badge" style="background:rgba(59,130,246,.12);color:#3b82f6;border:1px solid rgba(59,130,246,.2);"><i class="bi bi-building-fill"></i> ${v.AgencyName}</span>`;
+            extraBadges += `<span class="ride-badge ${v.has_key == 1 ? 'sb-green' : 'sb-red'} ride-badge"><i class="bi bi-key-fill"></i> ${v.has_key == 1 ? 'Key' : 'No Key'}</span>`;
         }
-        el.innerHTML += `<div class="ride-card open-modal" data-id="${v.ServiceID}" data-start="${v.serviceStartPoint}" data-end="${v.serviceTargetPoint}" data-time="${v.serviceStartTime.substr(0,5)}" data-date="${v.serviceDate}" data-paxadt="${v.paxADT||0}" data-paxchd="${v.paxCHD||0}" data-paxbby="${v.paxBBY||0}" data-flight="${v.FlightNumber||''}" data-client="${v.NomeCliente||''}" data-clientnumber="${v.ClientNumber||''}" data-price="${v.total_price||''}" data-haskey="${v.has_key||0}" data-partnerid="${v.partner_id||0}" data-agencyname="${v.AgencyName||''}" data-agencyphone="${v.AgencyPhone||''}">
-            <div class="ride-header"><div class="ride-time">${v.serviceStartTime.substr(0,5)}</div><div class="ride-badges-container"><span class="ride-badge ${badgeClass}">${isPriv?'Private':'Shared'}</span>${extraBadges}</div></div>
-            <div class="card-timeline"><div class="ct-point"><div class="ct-dot dot-pickup"></div><span class="ct-text">${v.serviceStartPoint}</span></div><div class="ct-point"><div class="ct-dot dot-dropoff"></div><span class="ct-text">${v.serviceTargetPoint}</span></div></div>
-            ${v.total_price > 0 ? `<div class="price-tag"><i class="bi bi-cash"></i> ${parseFloat(v.total_price).toFixed(2)}€</div>` : ''}</div>`;
+
+        el.innerHTML += `
+<div class="ride-card open-modal${isDone ? ' is-done' : ''}"
+    data-stype="${stype}"
+    data-id="${v.ServiceID}"
+    data-start="${v.serviceStartPoint}"
+    data-end="${v.serviceTargetPoint}"
+    data-time="${v.serviceStartTime.substr(0,5)}"
+    data-date="${v.serviceDate}"
+    data-paxadt="${v.paxADT||0}"
+    data-paxchd="${v.paxCHD||0}"
+    data-paxbby="${v.paxBBY||0}"
+    data-flight="${v.FlightNumber||''}"
+    data-client="${v.NomeCliente||''}"
+    data-clientnumber="${v.ClientNumber||''}"
+    data-price="${v.total_price||''}"
+    data-haskey="${v.has_key||0}"
+    data-partnerid="${v.partner_id||0}"
+    data-agencyname="${v.AgencyName||''}"
+    data-agencyphone="${v.AgencyPhone||''}">
+    <div class="ride-top">
+        <div>
+            <div class="ride-time">${v.serviceStartTime.substr(0,5)}</div>
+            <div class="ride-client-name">${v.NomeCliente || ''}</div>
+        </div>
+        <div class="d-flex align-items-start gap-2">
+            <div class="badge-row">
+                <span class="ride-badge ${badgeCls}">${badgeText}</span>
+                ${extraBadges}
+            </div>
+            <div class="status-dot ${dotCls} mt-1"></div>
+        </div>
+    </div>
+    <div class="route-line">
+        <div class="route-dots">
+            <div class="rdot rdot-pickup"></div>
+            <div class="rdot-line"></div>
+            <div class="rdot rdot-dropoff"></div>
+        </div>
+        <div class="route-text">
+            <div class="rt-point"><div class="rt-label">From</div>${v.serviceStartPoint}</div>
+            <div class="rt-point"><div class="rt-label">To</div>${v.serviceTargetPoint}</div>
+        </div>
+    </div>
+    ${v.total_price > 0 ? `<div class="price-badge"><i class="bi bi-cash-coin"></i>${parseFloat(v.total_price).toFixed(2)}€</div>` : ''}
+</div>`;
     });
+
     document.querySelectorAll('.open-modal').forEach(card => {
         card.addEventListener('click', () => {
             const d = card.dataset; currentRideData = d;
@@ -485,41 +985,58 @@ function renderList(data) {
             m.querySelector('#modalADT').textContent      = d.paxadt;
             m.querySelector('#modalCHD').textContent      = d.paxchd;
             m.querySelector('#modalClient').textContent   = d.client || 'Client';
-            m.querySelector('#modalClientNumber').textContent = d.clientnumber;
+
             const wa = document.getElementById('whatsappContainer'); wa.innerHTML = ''; wa.style.display = 'none';
-            if (d.clientnumber && d.clientnumber.replace(/[^0-9]/g,'').length > 7) { wa.style.display = 'block'; wa.innerHTML = `<a href="https://wa.me/${d.clientnumber.replace(/[^0-9]/g,'')}" target="_blank" class="btn-whatsapp"><i class="bi bi-whatsapp"></i> WhatsApp</a>`; }
+            if (d.clientnumber && d.clientnumber.replace(/[^0-9]/g,'').length > 7) {
+                wa.style.display = 'flex';
+                wa.innerHTML = `<a href="https://wa.me/${d.clientnumber.replace(/[^0-9]/g,'')}" target="_blank" class="wa-icon-btn"><i class="bi bi-whatsapp"></i></a>`;
+            }
+
             const waAloj = document.getElementById('whatsappAlojamento');
             if (d.partnerid && d.partnerid > 0 && d.agencyphone) {
                 const ph = '351' + String(d.agencyphone).replace(/[^0-9]/g,'');
                 waAloj.href = 'https://wa.me/' + ph + '?text=' + encodeURIComponent(`Leaving the airport 🛬\nClient: ${d.client}\nDestination: ${d.end}`);
                 waAloj.style.display = 'flex';
             } else { waAloj.style.display = 'none'; }
+
             const bc = document.getElementById('modalBadgesContainer'); bc.innerHTML = '';
-            if (d.price && parseFloat(d.price) > 0) bc.innerHTML += `<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-2"><i class="bi bi-currency-euro"></i> ${parseFloat(d.price).toFixed(2)}</span>`;
+            if (d.price && parseFloat(d.price) > 0) bc.innerHTML += `<span class="strip-badge sb-green"><i class="bi bi-currency-euro"></i>${parseFloat(d.price).toFixed(2)}</span>`;
             if (d.partnerid && d.partnerid > 0) {
-                if (d.agencyname) bc.innerHTML += `<span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill px-2"><i class="bi bi-building"></i> ${d.agencyname}</span>`;
-                bc.innerHTML += `<span class="badge bg-${d.haskey==1?'success':'danger'} bg-opacity-10 text-${d.haskey==1?'success':'danger'} border border-${d.haskey==1?'success':'danger'} border-opacity-25 rounded-pill px-2"><i class="bi bi-key-fill"></i> ${d.haskey==1?'With Key':'No Key'}</span>`;
+                if (d.agencyname) bc.innerHTML += `<span class="strip-badge sb-blue"><i class="bi bi-building"></i>${d.agencyname}</span>`;
+                bc.innerHTML += `<span class="strip-badge ${d.haskey==1?'sb-green':'sb-red'}"><i class="bi bi-key-fill"></i>${d.haskey==1?'With Key':'No Key'}</span>`;
             }
+
             const tl = document.getElementById('trackFlightLink');
-            if (d.flight && d.flight.trim()) { tl.style.display = 'inline-flex'; document.getElementById('modalFlight').textContent = d.flight; tl.href = 'https://www.flightradar24.com/data/flights/' + d.flight.replace(/\s/g,''); }
-            else { tl.style.display = 'none'; }
-            const passengerAlert = document.getElementById('modalPassengerAlert');
+            if (d.flight && d.flight.trim()) {
+                tl.style.display = 'inline-flex'; document.getElementById('modalFlight').textContent = d.flight;
+                tl.href = 'https://www.flightradar24.com/data/flights/' + d.flight.replace(/\s/g,'');
+            } else { tl.style.display = 'none'; }
+
             const bebes = parseInt(d.paxbby || 0, 10);
+            const paxPill = document.getElementById('paxPill');
+            const bbyPart = document.getElementById('modalBBYPart');
             if (bebes > 0) {
-                document.getElementById('modalPassengerAlertText').textContent = `${bebes} bebé${bebes > 1 ? 's' : ''}`;
-                passengerAlert.style.display = 'flex';
-            } else { passengerAlert.style.display = 'none'; }
-            updateButtonUI(localTripStatus[d.id]); new bootstrap.Modal(m).show();
+                document.getElementById('modalBBY').textContent = bebes;
+                bbyPart.style.display = 'inline';
+                paxPill.classList.add('has-baby');
+            } else {
+                bbyPart.style.display = 'none';
+                paxPill.classList.remove('has-baby');
+            }
+
+            updateButtonUI(localTripStatus[d.id]);
+            new bootstrap.Modal(m).show();
         });
     });
 }
+
 document.querySelectorAll('.filter-btn').forEach(b => b.addEventListener('click', function () {
     document.querySelectorAll('.filter-btn').forEach(x => x.classList.remove('active'));
     this.classList.add('active'); filterTrips(this.dataset.filter);
 }));
 filterTrips('today');
 
-// Airport sign
+// ── Airport sign ──────────────────────────────────────────────────────────
 const airportOverlay = document.getElementById('airportOverlay');
 const nameEl = document.getElementById('airportClientName');
 let currentFontSize = 15;
@@ -556,7 +1073,7 @@ document.addEventListener('visibilitychange', async () => {
     }
 });
 
-// Camera
+// ── Camera ────────────────────────────────────────────────────────────────
 const video = document.getElementById('cameraStream'), canvas = document.getElementById('photoCanvas');
 const camOverlay = document.getElementById('cameraOverlay'), loading = document.getElementById('cameraLoading');
 const btnSend = document.getElementById('btnConfirmSend');
@@ -576,7 +1093,7 @@ async function startCamera() {
     catch(e) { alert('Camera error: ' + e.message); closeCameraOverlay(); }
     if ('geolocation' in navigator) locationWatcher = navigator.geolocation.watchPosition(p => { currentLat = p.coords.latitude; currentLng = p.coords.longitude; });
 }
-document.getElementById('uploadNoShow').onclick = () => { currentMode = 'noshow'; document.getElementById('cameraInstruction').textContent = 'Photograph No-Show'; startCamera(); };
+document.getElementById('uploadNoShow').onclick  = () => { currentMode = 'noshow';  document.getElementById('cameraInstruction').textContent = 'Photograph No-Show';  startCamera(); };
 document.getElementById('uploadVoucher').onclick = () => { currentMode = 'voucher'; document.getElementById('cameraInstruction').textContent = 'Photograph Voucher'; startCamera(); };
 document.getElementById('btnRotateCamera').onclick = () => { currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment'; startCamera(); };
 document.getElementById('btnCapture').onclick = () => {

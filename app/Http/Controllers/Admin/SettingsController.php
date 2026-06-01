@@ -22,6 +22,7 @@ final class SettingsController extends BaseController
         'trip_report_cc',
         'voucher_cc',
         'no_show_cc',
+        'no_show_cc_always',
         'schedule_recipient',
     ];
 
@@ -48,6 +49,7 @@ final class SettingsController extends BaseController
             'trip_report_cc'    => $s->get('trip_report_cc',    ''),
             'voucher_cc'        => $s->get('voucher_cc',        ''),
             'no_show_cc'        => $s->get('no_show_cc',        ''),
+            'no_show_cc_always' => $s->get('no_show_cc_always', ''),
             'schedule_recipient'=> $s->get('schedule_recipient',''),
             // Flash
             'flash' => $_GET['success'] ?? null,

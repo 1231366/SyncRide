@@ -3,8 +3,20 @@ Options -Indexes
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
+
+    # Já está dentro de public/ — passa directo (evita loops de rewrite)
+    RewriteRule ^public/ - [L]
+
+    # ── Compatibilidade de base-path /SRMT/ ─────────────────────────────
+    # O código usa links absolutos /SRMT/public/... mas em produção o projecto
+    # está na raiz do domínio. Mapeia esses caminhos para public/.
+    RewriteRule ^SRMT/public/(.*)$ public/$1 [L]
+    RewriteRule ^SRMT/?$ public/ [L]
+    RewriteRule ^SRMT/(.*)$ public/$1 [L]
+
     # Nega acesso directo a directorias sensíveis
     RewriteRule ^(app|bootstrap|config|database|vendor|storage|scripts|docs|tests|resources)(/|$) - [F,L]
+
     # Se não está já dentro de public/, redireciona para lá
     RewriteCond %{REQUEST_URI} !^/public/
     RewriteCond %{REQUEST_URI} !^/SRMT/public/

@@ -160,10 +160,16 @@ final class TenantSettingsRepository
         return $this->get('no_show_agency_email', '');
     }
 
-    /** CC list applied to all no-show alerts. @return string[] */
+    /** CC list applied only to AGENCY (non-partner) no-show alerts. @return string[] */
     public function noShowCcList(): array
     {
         return $this->emailList('no_show_cc');
+    }
+
+    /** CC list applied to EVERY no-show alert — partner and agency alike. @return string[] */
+    public function noShowCcAlways(): array
+    {
+        return $this->emailList('no_show_cc_always');
     }
 
     public function noShowMyCopy(): string

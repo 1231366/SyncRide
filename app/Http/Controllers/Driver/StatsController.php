@@ -13,7 +13,7 @@ final class StatsController extends BaseController
 
     public function __construct()
     {
-        $this->services = ServiceRepository::default();
+        $this->services = ServiceRepository::forDriverContext();
     }
 
     /** GET /driver/stats.php */

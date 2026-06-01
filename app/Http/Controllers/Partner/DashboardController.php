@@ -21,8 +21,9 @@ final class DashboardController extends BaseController
     {
         $partnerId = (int) ($_SESSION['user_id'] ?? 0);
         $counts    = $this->services->partnerCounts($partnerId);
+        $noShows   = $this->services->partnerNoShows($partnerId);
         $userName  = (string) ($_SESSION['name'] ?? 'Partner');
 
-        $this->view('partner.dashboard.index', compact('counts', 'userName'));
+        $this->view('partner.dashboard.index', compact('counts', 'noShows', 'userName'));
     }
 }

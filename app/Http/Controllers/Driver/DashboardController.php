@@ -13,7 +13,7 @@ final class DashboardController extends BaseController
 
     public function __construct()
     {
-        $this->services = ServiceRepository::default();
+        $this->services = ServiceRepository::forDriverContext();
     }
 
     /** GET /driver/ or GET /driver/index.php */

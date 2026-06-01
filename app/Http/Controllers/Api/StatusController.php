@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\BaseController;
 use App\Repositories\LogRepository;
 use App\Repositories\ServiceRepository;
+use App\Support\Session;
 
 final class StatusController extends BaseController
 {
@@ -15,7 +16,11 @@ final class StatusController extends BaseController
 
     public function __construct()
     {
-        $this->services = ServiceRepository::default();
+        // Drivers act on rides assigned to them (across every company they belong to);
+        // admins act on rides scoped to their own company.
+        $this->services = Session::role() === 2
+            ? ServiceRepository::forDriverContext()
+            : ServiceRepository::default();
         $this->logs     = LogRepository::default();
     }
 
@@ -34,6 +39,11 @@ final class StatusController extends BaseController
 
         if ($rideId === 0 || $status === -1) {
             $this->json(['success' => false, 'error' => 'Incomplete data'], 422);
+        }
+
+        // A driver may only change the status of rides assigned to them
+        if (Session::role() === 2 && $this->services->assignedDriver($rideId) !== Session::userId()) {
+            $this->json(['success' => false, 'error' => 'Not your ride'], 403);
         }
 
         $this->services->updateStatus($rideId, $status);

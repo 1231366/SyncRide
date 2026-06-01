@@ -16,11 +16,12 @@ $navItem = static function(string $id, string $href, string $icon, string $label
     return "<a href=\"{$href}\" class=\"{$cls}\"><i data-lucide=\"{$icon}\" class=\"w-5 h-5\"></i><span>{$label}</span></a>";
 };
 ?><!DOCTYPE html>
-<html lang="en">
+<html lang="en" translate="no">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= View::e($title) ?></title>
+    <meta name="csrf-token" content="<?= \App\Support\Session::csrfToken() ?>">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -57,6 +58,9 @@ $navItem = static function(string $id, string $href, string $icon, string $label
                 <div class="text-xs text-slate-500 truncate"><?= View::e((string) ($_SESSION['email'] ?? '')) ?></div>
             </div>
         </div>
+        <a href="#" onclick="event.preventDefault();openChangePassword();" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
+            <i data-lucide="key-round" class="w-5 h-5"></i><span><?= t('pwd.title') ?></span>
+        </a>
         <a href="/SRMT/public/auth/logout.php" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-red-900/40 hover:text-red-400 transition-colors">
             <i data-lucide="log-out" class="w-5 h-5"></i><span>Logout</span>
         </a>
@@ -69,6 +73,8 @@ $navItem = static function(string $id, string $href, string $icon, string $label
 </main>
 
 <script>lucide.createIcons();</script>
+<?php include __DIR__ . '/_csrf.php'; ?>
 <?= $extraScripts ?>
+<?php include __DIR__ . '/_change_password.php'; ?>
 </body>
 </html>

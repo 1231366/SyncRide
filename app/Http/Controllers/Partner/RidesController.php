@@ -45,12 +45,12 @@ final class RidesController extends BaseController
                 . '<span class="text-truncate" style="max-width:150px"><i class="bi bi-geo-alt-fill text-success me-1"></i>' . htmlspecialchars((string) ($r['serviceStartPoint'] ?? ''), ENT_QUOTES, 'UTF-8') . '</span>'
                 . '<span class="text-truncate" style="max-width:150px"><i class="bi bi-pin-map-fill text-danger me-1"></i>' . htmlspecialchars((string) ($r['serviceTargetPoint'] ?? ''), ENT_QUOTES, 'UTF-8') . '</span></div>',
             'voo'           => !empty($r['FlightNumber'])
-                ? '<span class="badge bg-light text-dark border">' . htmlspecialchars((string) $r['FlightNumber'], ENT_QUOTES, 'UTF-8') . '</span>'
-                : '-',
+                ? '<span class="badge" style="background:rgba(37,99,235,.10);color:#2563eb;border:1px solid rgba(37,99,235,.18)">' . htmlspecialchars((string) $r['FlightNumber'], ENT_QUOTES, 'UTF-8') . '</span>'
+                : '<span style="color:#94a3b8">—</span>',
             'pax'           => '<i class="bi bi-people-fill text-muted me-1"></i> ' . ((int)($r['paxADT'] ?? 0) + (int)($r['paxCHD'] ?? 0)),
             'status'        => ucfirst((string) ($r['status_pedido'] ?? '')),
             'acoes'         => (string) ($r['status_pedido'] ?? '') === 'pendente'
-                ? '<button class="btn btn-sm btn-outline-primary rounded-pill px-3 btn-edit-ride" data-id="' . (int) $r['ID'] . '"><i class="bi bi-pencil-fill me-1"></i>Edit</button>'
+                ? '<button class="btn-act btn-edit-ride" data-id="' . (int) $r['ID'] . '" title="Edit"><i class="bi bi-pencil-fill" style="font-size:.7rem"></i></button>'
                 : '',
         ], $rows);
 

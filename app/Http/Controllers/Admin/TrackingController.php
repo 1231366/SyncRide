@@ -12,8 +12,15 @@ final class TrackingController extends BaseController
     /** GET /admin/live-map.php */
     public function liveMap(): void
     {
-        $userPhoto = $_SESSION['profile_photo_path']
-            ?? '/SRMT/public/uploads/profiles/default.png';
+        $raw = $_SESSION['profile_photo_path'] ?? null;
+        if ($raw !== null && $raw !== '') {
+            $raw       = str_replace('Includes/dist/pages/', '', $raw);
+            $userPhoto = str_starts_with($raw, '/') || str_starts_with($raw, 'http')
+                ? $raw
+                : '/SRMT/public/' . $raw;
+        } else {
+            $userPhoto = '';
+        }
 
         $this->view('admin.tracking.live-map', ['userPhoto' => $userPhoto]);
     }

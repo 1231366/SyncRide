@@ -6,8 +6,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\BaseController;
 use App\Repositories\LogRepository;
+use App\Repositories\ServiceRepository;
+use App\Repositories\TenantSettingsRepository;
 use App\Services\VoucherMailer;
 use App\Services\XmlVoucherImporter;
+use App\Support\Session;
 
 /**
  * Handles file upload endpoints that are not tied to a specific resource controller.
@@ -18,11 +21,16 @@ use App\Services\XmlVoucherImporter;
  */
 final class UploadController extends BaseController
 {
-    private LogRepository $logs;
+    private LogRepository    $logs;
+    private ServiceRepository $services;
 
     public function __construct()
     {
-        $this->logs = LogRepository::default();
+        $this->logs     = LogRepository::default();
+        // Drivers (incl. shared) act on their assigned rides; admins on their company's.
+        $this->services = Session::role() === 2
+            ? ServiceRepository::forDriverContext()
+            : ServiceRepository::default();
     }
 
     /** POST /admin/upload-xml.php */
@@ -70,6 +78,22 @@ final class UploadController extends BaseController
             $this->json(['success' => false, 'message' => 'Missing data.'], 400);
         }
 
+        // Authorisation: driver may only act on rides assigned to them; admin on own company's.
+        $ride = $this->services->find($tripId);
+        if ($ride === null) {
+            $this->json(['success' => false, 'message' => 'Ride not found.'], 404);
+        }
+        if (Session::role() === 2) {
+            if ($this->services->assignedDriver($tripId) !== Session::userId()) {
+                $this->json(['success' => false, 'message' => 'Not your ride.'], 403);
+            }
+        } else {
+            $sessionCompany = Session::companyId();
+            if ($sessionCompany !== null && $ride->companyId !== $sessionCompany) {
+                $this->json(['success' => false, 'message' => 'Not authorised.'], 403);
+            }
+        }
+
         $parts    = explode(';base64,', $imgData, 2);
         $imgBytes = base64_decode($parts[1] ?? '');
         if ($imgBytes === false || $imgBytes === '') {
@@ -89,7 +113,9 @@ final class UploadController extends BaseController
             $this->json(['success' => false, 'message' => 'Failed to save image.'], 500);
         }
 
-        $s = $this->settings();
+        // Use the owning company's settings (shared driver may submit for another company).
+        $ownerCompanyId = ($ride->companyId ?? 0) ?: null;
+        $s = new TenantSettingsRepository($this->db(), $ownerCompanyId);
         if ($s->voucherEnabled()) {
             try {
                 (new VoucherMailer())->send(

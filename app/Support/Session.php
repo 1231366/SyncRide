@@ -49,6 +49,24 @@ final class Session
         return self::userId() !== null;
     }
 
+    /** Returns (and lazily creates) the CSRF token for the current session. */
+    public static function csrfToken(): string
+    {
+        if (empty($_SESSION['csrf_token'])) {
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        }
+        return (string) $_SESSION['csrf_token'];
+    }
+
+    public static function verifyCsrf(): bool
+    {
+        $token = $_POST['csrf_token']
+            ?? $_SERVER['HTTP_X_CSRF_TOKEN']
+            ?? '';
+        $stored = $_SESSION['csrf_token'] ?? '';
+        return $stored !== '' && hash_equals($stored, $token);
+    }
+
     public static function destroy(): void
     {
         $_SESSION = [];

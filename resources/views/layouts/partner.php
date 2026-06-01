@@ -20,11 +20,13 @@ $userName = isset($_SESSION['name']) ? explode(' ', (string) $_SESSION['name'])[
 
 $navClass = static fn(string $id): string => $id === $active ? 'active' : '';
 ?><!DOCTYPE html>
-<html lang="en">
+<html lang="en" translate="no">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= View::e($title) ?></title>
+    <meta name="csrf-token" content="<?= \App\Support\Session::csrfToken() ?>">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -46,7 +48,9 @@ $navClass = static fn(string $id): string => $id === $active ? 'active' : '';
 <body>
     <nav class="navbar d-flex justify-content-between align-items-center">
         <span class="navbar-brand">SyncRide <span style="color:#3b82f6;">Partner</span></span>
-        <span style="font-size:14px;color:#6c7080;">Hi, <?= View::e($userName) ?> <a href="/SRMT/public/auth/logout.php" style="margin-left:12px;color:#dc2626;text-decoration:none;">Logout</a></span>
+        <span style="font-size:14px;color:#6c7080;">Hi, <?= View::e($userName) ?>
+            <a href="#" onclick="event.preventDefault();openChangePassword();" style="margin-left:12px;color:#3b82f6;text-decoration:none;"><?= t('pwd.title') ?></a>
+            <a href="/SRMT/public/auth/logout.php" style="margin-left:12px;color:#dc2626;text-decoration:none;">Logout</a></span>
     </nav>
 
     <main class="container"><?= $content ?></main>
@@ -56,6 +60,8 @@ $navClass = static fn(string $id): string => $id === $active ? 'active' : '';
     </nav>
 
     <script>lucide.createIcons();</script>
+    <?php include __DIR__ . '/_csrf.php'; ?>
     <?= $extraScripts ?>
+    <?php include __DIR__ . '/_change_password.php'; ?>
 </body>
 </html>

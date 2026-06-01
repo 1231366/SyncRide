@@ -109,10 +109,11 @@ final class FleetController extends BaseController
         $this->redirect('/SRMT/public/admin/fleet.php?success=' . $verb);
     }
 
-    /** GET /admin/save-vehicle.php?action=delete&id=… (legacy URL kept). */
+    /** POST /admin/save-vehicle.php?action=delete — delete vehicle (POST-only, prevents CSRF via GET). */
     public function delete(): never
     {
-        $id = (int) ($_GET['id'] ?? 0);
+        $this->requirePost();
+        $id = (int) ($this->input('id') ?? 0);
         if ($id <= 0) {
             $this->abort(400, 'Missing vehicle id.');
         }

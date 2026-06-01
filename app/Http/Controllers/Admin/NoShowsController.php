@@ -8,6 +8,7 @@ use App\Http\Controllers\BaseController;
 use App\Repositories\LogRepository;
 use App\Repositories\ServiceRepository;
 use App\Services\NoShowMailer;
+use App\Services\NoShowReportGenerator;
 
 /**
  * Manages the no-show incident records for the admin panel,
@@ -20,7 +21,11 @@ final class NoShowsController extends BaseController
 
     public function __construct()
     {
-        $this->services = ServiceRepository::default();
+        // Drivers (incl. shared) act on rides assigned to them across companies;
+        // admins are scoped to their own company.
+        $this->services = \App\Support\Session::role() === 2
+            ? ServiceRepository::forDriverContext()
+            : ServiceRepository::default();
         $this->logs     = LogRepository::default();
     }
 
@@ -58,6 +63,23 @@ final class NoShowsController extends BaseController
             $this->json(['success' => false, 'message' => 'Missing data.'], 400);
         }
 
+        // Authorisation: a driver may only act on rides assigned to them (any company
+        // they belong to); an admin only on rides within their own company.
+        $ride = $this->services->find($tripId);
+        if ($ride === null) {
+            $this->json(['success' => false, 'message' => 'Ride not found.'], 404);
+        }
+        if (\App\Support\Session::role() === 2) {
+            if ($this->services->assignedDriver($tripId) !== \App\Support\Session::userId()) {
+                $this->json(['success' => false, 'message' => 'Not your ride.'], 403);
+            }
+        } else {
+            $companyId = \App\Support\Session::companyId();
+            if ($companyId !== null && $ride->companyId !== $companyId) {
+                $this->json(['success' => false, 'message' => 'Not authorised.'], 403);
+            }
+        }
+
         $parts     = explode(';base64,', $imgData, 2);
         $imgBytes  = base64_decode($parts[1] ?? '');
         if ($imgBytes === false || $imgBytes === '') {
@@ -78,18 +100,35 @@ final class NoShowsController extends BaseController
             $this->json(['success' => false, 'message' => 'Failed to save image.'], 500);
         }
 
-        $this->services->markNoShow($tripId, $dbPath, $lat, $lng);
         $this->logs->record("Driver no-show reported for ride #{$tripId}");
 
-        $s        = $this->settings();
-        $tripData = $this->services->findWithPartner($tripId);
+        $tripData   = $this->services->findWithPartner($tripId);
+        $reportPath = null;
+        $reportDb   = null;
+
+        // Generate PDF report
+        try {
+            $reportDb   = (new NoShowReportGenerator())->generate($tripId, $tripData ?? [], $serverPath, $lat, $lng);
+            $reportPath = dirname(__DIR__, 4) . '/public/' . $reportDb;
+        } catch (\Throwable $e) {
+            error_log('NoShowReportGenerator failed for ride #' . $tripId . ': ' . $e->getMessage());
+        }
+
+        $this->services->markNoShow($tripId, $dbPath, $lat, $lng, $reportDb);
+
+        // Use the settings of the company that OWNS the ride (not the driver's session
+        // company — a shared driver may report a no-show for another company's ride).
+        $ownerCompanyId = (int) ($tripData['company_id'] ?? $ride->companyId ?? 0) ?: null;
+        $s = new \App\Repositories\TenantSettingsRepository($this->db(), $ownerCompanyId);
         if ($tripData !== null && $s->noShowEnabled()) {
             try {
                 (new NoShowMailer())->send(
                     $tripId, $tripData, $serverPath, $lat, $lng,
                     $s->noShowAgencyEmail(),
                     $s->noShowCcList(),
-                    $s->noShowMyCopy()
+                    $s->noShowMyCopy(),
+                    $reportPath,
+                    $s->noShowCcAlways()
                 );
             } catch (\Throwable $e) {
                 error_log('NoShowMailer failed for ride #' . $tripId . ': ' . $e->getMessage());
@@ -104,12 +143,22 @@ final class NoShowsController extends BaseController
         $dateTime   = htmlspecialchars($row['serviceDate'] . ' ' . substr((string) $row['serviceStartTime'], 0, 5));
         $driverName = $row['driverName'] ? htmlspecialchars((string) $row['driverName']) : 'N.A.';
         $route      = htmlspecialchars($row['serviceStartPoint'] . ' → ' . $row['serviceTargetPoint']);
-        $photoPath  = htmlspecialchars((string) ($row['noShowPhotoPath'] ?? ''));
+        $rawPath    = (string) ($row['noShowPhotoPath']   ?? '');
+        $rawReport  = (string) ($row['noShowReportPath'] ?? '');
+        $photoUrl   = $rawPath   !== '' ? '/SRMT/public/' . ltrim($rawPath,   '/') : '';
+        $reportUrl  = $rawReport !== '' ? '/SRMT/public/' . ltrim($rawReport, '/') : '';
+        $photoPath  = htmlspecialchars($photoUrl);
+        $reportHref = htmlspecialchars($reportUrl);
         $id         = (int) $row['ID'];
 
-        $actions = '<div class="btn-group-sm d-flex justify-content-center">'
+        $pdfBtn = $reportUrl !== ''
+            ? '<a href="' . $reportHref . '" class="btn btn-primary rounded-circle" download="NoShow-Report-' . $id . '.pdf" title="Download Report PDF"><i class="bi bi-file-earmark-pdf-fill"></i></a>'
+            : '';
+
+        $actions = '<div class="btn-group-sm d-flex justify-content-center gap-1">'
             . '<a href="#" class="btn btn-info rounded-circle" onclick="event.preventDefault();openPhotoModal(' . $id . ',\'' . $photoPath . '\')" title="View Photo"><i class="bi bi-camera-fill"></i></a>'
-            . '<a href="' . $photoPath . '" class="btn btn-success rounded-circle" download="NoShow-Ride-' . $id . '.jpg" title="Download"><i class="bi bi-download"></i></a>'
+            . '<a href="' . $photoPath . '" class="btn btn-success rounded-circle" download="NoShow-Ride-' . $id . '.jpg" title="Download Photo"><i class="bi bi-download"></i></a>'
+            . $pdfBtn
             . '</div>';
 
         return [

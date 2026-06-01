@@ -261,7 +261,7 @@ $vehiclePlate = $trip['license_plate'] ?? 'N/A';
 
         <div class="driver-card">
             <div class="profile-group">
-                <img src="<?php echo $driverPhotoURL; ?>" class="driver-img">
+                <img src="<?php echo htmlspecialchars($driverPhotoURL, ENT_QUOTES, 'UTF-8'); ?>" class="driver-img">
                 <div class="driver-info">
                     <div class="rating-badge"><i class="bi bi-star-fill"></i> <?php echo $driverRating; ?></div>
                     <h4><?php echo htmlspecialchars($driverName); ?></h4>
@@ -272,8 +272,8 @@ $vehiclePlate = $trip['license_plate'] ?? 'N/A';
                 </div>
             </div>
             <div class="action-group">
-                <a href="tel:<?php echo $driverPhone; ?>" class="btn-circle btn-call"><i class="bi bi-telephone-fill"></i></a>
-                <a href="<?php echo $whatsappLink; ?>" target="_blank" class="btn-circle btn-wa"><i class="bi bi-whatsapp"></i></a>
+                <a href="tel:<?php echo htmlspecialchars($driverPhone, ENT_QUOTES, 'UTF-8'); ?>" class="btn-circle btn-call"><i class="bi bi-telephone-fill"></i></a>
+                <a href="<?php echo htmlspecialchars($whatsappLink, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" class="btn-circle btn-wa"><i class="bi bi-whatsapp"></i></a>
             </div>
         </div>
     </div>
@@ -285,7 +285,7 @@ $vehiclePlate = $trip['license_plate'] ?? 'N/A';
     const RIDE_ID = <?php echo $rideId; ?>;
     const PICKUP_TXT = "<?php echo htmlspecialchars($pickUpPoint); ?>";
     const DROPOFF_TXT = "<?php echo htmlspecialchars($dropOffPoint); ?>";
-    const CAR_IMG = "<?php echo $vehiclePhotoURL; ?>";
+    const CAR_IMG = <?php echo json_encode($vehiclePhotoURL); ?>;
     let selectedRating = 0;
 
     const map = L.map('map', { zoomControl: false, attributionControl: false })

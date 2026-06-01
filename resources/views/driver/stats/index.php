@@ -35,14 +35,14 @@ View::layout('layouts.driver', [
 
     const ctx  = document.getElementById("monthlyChart").getContext("2d");
     const grad = ctx.createLinearGradient(0, 0, 0, 300);
-    grad.addColorStop(0, "rgba(79,70,229,.5)");
-    grad.addColorStop(1, "rgba(79,70,229,0)");
+    grad.addColorStop(0, "rgba(37,99,235,.5)");
+    grad.addColorStop(1, "rgba(37,99,235,0)");
 
     new Chart(ctx, {
         type: "bar",
         data: {
             labels,
-            datasets: [{ label: "Rides", data, backgroundColor: grad, borderColor: "#4f46e5", borderWidth: 2, borderRadius: 6, maxBarThickness: 30 }]
+            datasets: [{ label: "Rides", data, backgroundColor: grad, borderColor: "#2563eb", borderWidth: 2, borderRadius: 6, maxBarThickness: 30 }]
         },
         options: {
             responsive: true, maintainAspectRatio: false,

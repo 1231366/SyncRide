@@ -27,6 +27,14 @@ if (!Session::isAuthenticated()) {
         $_SESSION['role']               = (int) $user['role'];
         $_SESSION['name']               = $user['name'];
         $_SESSION['profile_photo_path'] = $user['profile_photo_path'] ?? null;
+        // CRITICAL: without company_id the whole tenant scope breaks — rides created
+        // in this session land with company_id NULL and become invisible to the admin.
+        $_SESSION['company_id']         = isset($user['company_id']) && $user['company_id'] !== null
+            ? (int) $user['company_id']
+            : null;
+        $_SESSION['admin_lang']         = in_array($user['lang_pref'] ?? '', ['en', 'pt'], true)
+            ? $user['lang_pref']
+            : 'en';
     }
 }
 

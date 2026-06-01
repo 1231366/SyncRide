@@ -50,8 +50,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete') {
 // Lógica para UPLOAD DE FOTO
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['profile_photo'])) {
     
-    $dbUploadDir = 'Includes/dist/pages/uploads/profiles/';
-    $fullUploadPath = __DIR__ . '/' . $dbUploadDir; 
+    $dbUploadDir = 'uploads/profiles/';
+    $fullUploadPath = __DIR__ . '/' . $dbUploadDir;
 
     if (!is_dir($fullUploadPath)) {
         // Criar diretório se não existir
@@ -68,6 +68,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['profile_photo'])) {
     $maxFileSize = 5 * 1024 * 1024; // 5MB
 
     if (!in_array($fileExt, $allowedTypes)) {
+        header("Location: $redirectUrl?error=invalid_file");
+        exit();
+    }
+
+    // Verify actual MIME type via magic bytes — extension alone can be spoofed
+    $finfo    = finfo_open(FILEINFO_MIME_TYPE);
+    $mimeType = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+    if (!in_array($mimeType, ['image/jpeg', 'image/png'], true)) {
         header("Location: $redirectUrl?error=invalid_file");
         exit();
     }

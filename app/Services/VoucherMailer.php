@@ -6,13 +6,12 @@ namespace App\Services;
 
 use App\Support\Database;
 use PDO;
-use PHPMailer\PHPMailer\PHPMailer;
 
 final class VoucherMailer
 {
     /**
-     * Routes TO based on partner: partner rides → partner email; normal rides → $agencyEmail.
-     * $ccList and $myCopyEmail are CC'd on both cases.
+     * Partner rides  → TO: partner email only (no CC)
+     * Normal rides   → TO: $agencyEmail + CC: $ccList + $myCopyEmail
      *
      * @param string[] $ccList
      */
@@ -43,34 +42,25 @@ final class VoucherMailer
         $destination = htmlspecialchars((string) ($trip['serviceTargetPoint']?? 'N/A'));
         $safeDriver  = htmlspecialchars($driverName);
 
-        $mail = new PHPMailer(true);
-        $mail->isSMTP();
-        $mail->Host       = 'cloud865.thundercloud.uk';
-        $mail->SMTPAuth   = true;
-        $mail->Username   = 'no-reply@syncride.wmservers.pt';
-        $mail->Password   = (string) (getenv('MAIL_PASSWORD') ?: '');
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-        $mail->Port       = 465;
-        $mail->setFrom('no-reply@syncride.wmservers.pt', 'SyncRide Vouchers');
+        $mail = Mailer::make();
 
-        // Route primary TO
+        // Route primary TO; CCs only on agency rides (never sent to partner)
         $partnerEmail = (string) ($trip['partner_email'] ?? '');
         $partnerName  = (string) ($trip['partner_name']  ?? '');
         if ($partnerEmail !== '') {
             $mail->addAddress($partnerEmail, $partnerName);
         } elseif ($agencyEmail !== '') {
             $mail->addAddress($agencyEmail);
+            foreach ($ccList as $cc) {
+                if (filter_var($cc, FILTER_VALIDATE_EMAIL)) {
+                    $mail->addCC($cc);
+                }
+            }
+            if ($myCopyEmail !== '' && filter_var($myCopyEmail, FILTER_VALIDATE_EMAIL)) {
+                $mail->addCC($myCopyEmail);
+            }
         } else {
             return; // nowhere to send
-        }
-
-        foreach ($ccList as $cc) {
-            if (filter_var($cc, FILTER_VALIDATE_EMAIL)) {
-                $mail->addCC($cc);
-            }
-        }
-        if ($myCopyEmail !== '' && filter_var($myCopyEmail, FILTER_VALIDATE_EMAIL)) {
-            $mail->addCC($myCopyEmail);
         }
 
         $mail->isHTML(true);

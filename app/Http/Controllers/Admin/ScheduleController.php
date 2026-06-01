@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\BaseController;
 use App\Repositories\LogRepository;
 use App\Services\ScheduleMailer;
+use App\Support\Session;
 
 /** Sends the next-day operations schedule by email. */
 final class ScheduleController extends BaseController
@@ -20,7 +21,7 @@ final class ScheduleController extends BaseController
             $this->json(['success' => false, 'message' => 'Schedule email is disabled in settings.']);
         }
 
-        $ok = ScheduleMailer::default()->sendForTomorrow($s->scheduleRecipients(), $s->scheduleMyCopy());
+        $ok = ScheduleMailer::default()->sendForTomorrow($s->scheduleRecipients(), $s->scheduleMyCopy(), Session::companyId());
 
         LogRepository::default()->record(
             $ok ? 'Operations schedule emailed for tomorrow' : 'Schedule email FAILED'

@@ -55,3 +55,6 @@ error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED & ~E_NOTICE & ~E_STRI
 
 // --- Timezone ---------------------------------------------------------------
 date_default_timezone_set((string) Env::get('APP_TIMEZONE', 'UTC'));
+
+// --- Language helper --------------------------------------------------------
+require __DIR__ . '/app/Helpers/Lang.php';

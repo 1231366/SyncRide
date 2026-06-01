@@ -8,19 +8,18 @@ use App\Http\Controllers\BaseController;
 use App\Repositories\LogRepository;
 use App\Repositories\ServiceRepository;
 use App\Repositories\TenantSettingsRepository;
-use PHPMailer\PHPMailer\PHPMailer;
+use App\Services\Mailer;
+use App\Support\Session;
 
 final class TripReportController extends BaseController
 {
-    private ServiceRepository        $services;
-    private LogRepository            $logs;
-    private TenantSettingsRepository $tenantSettings;
+    private ServiceRepository $services;
+    private LogRepository     $logs;
 
     public function __construct()
     {
-        $this->services        = ServiceRepository::default();
-        $this->logs            = LogRepository::default();
-        $this->tenantSettings  = TenantSettingsRepository::default();
+        $this->services = ServiceRepository::default();
+        $this->logs     = LogRepository::default();
     }
 
     /** GET /api/final-trip-report.php?ride_id=N */
@@ -28,10 +27,6 @@ final class TripReportController extends BaseController
     {
         header('Content-Type: application/json');
         ini_set('display_errors', '0');
-
-        if (!$this->tenantSettings->tripReportEnabled()) {
-            $this->json(['success' => false, 'message' => 'Trip reports are disabled for this tenant.']);
-        }
 
         $rideId = (int) ($_GET['ride_id'] ?? 0);
         if ($rideId === 0) {
@@ -43,11 +38,21 @@ final class TripReportController extends BaseController
             $this->json(['success' => false, 'message' => 'Ride not found']);
         }
 
+        // Always use the company that OWNS the ride — a shared driver may be completing
+        // a ride for a company other than their own primary one, and the report must use
+        // that company's recipients/toggles. Fall back to session only if ride has none.
+        $companyId = ((int) ($ride['company_id'] ?? 0)) ?: Session::companyId();
+        $tenantSettings = new TenantSettingsRepository($this->db(), $companyId);
+
+        if (!$tenantSettings->tripReportEnabled()) {
+            $this->json(['success' => false, 'message' => 'Trip reports are disabled for this tenant.']);
+        }
+
         $rideLogRows = $this->logs->forRide($rideId);
         $logsHtml    = $this->buildLogsHtml($rideLogRows, $rideId);
 
         try {
-            $this->sendEmail($rideId, $ride, $logsHtml);
+            $this->sendEmail($rideId, $ride, $logsHtml, $tenantSettings);
             $this->json(['success' => true, 'message' => 'Report sent.']);
         } catch (\Throwable $e) {
             $this->json(['success' => false, 'message' => $e->getMessage()]);
@@ -71,44 +76,29 @@ final class TripReportController extends BaseController
         return $html;
     }
 
-    private function sendEmail(int $rideId, array $ride, string $logsHtml): void
+    private function sendEmail(int $rideId, array $ride, string $logsHtml, TenantSettingsRepository $tenantSettings): void
     {
-        $baseDir = dirname(__DIR__, 4) . '/vendor/phpmailer/PHPMailer/';
-        require_once $baseDir . 'Exception.php';
-        require_once $baseDir . 'PHPMailer.php';
-        require_once $baseDir . 'SMTP.php';
+        $mail = Mailer::make();
 
-        $mail = new PHPMailer(true);
-        $mail->isSMTP();
-        $mail->Host       = 'cloud865.thundercloud.uk';
-        $mail->SMTPAuth   = true;
-        $mail->Username   = 'no-reply@syncride.wmservers.pt';
-        $mail->Password   = (string) (getenv('MAIL_PASSWORD') ?: '');
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-        $mail->Port       = 465;
-        $mail->CharSet    = 'UTF-8';
-        $mail->setFrom('no-reply@syncride.wmservers.pt', 'SyncRide Alerts');
-
-        // Route primary TO: partner → partner email; normal → configured agency email
+        // Partner rides → TO: partner email only (no CC)
+        // Agency rides  → TO: agency email + CC: recipients + my_copy
         $partnerEmail = (string) ($ride['partner_email'] ?? '');
         if (!empty($ride['partner_id']) && $partnerEmail !== '') {
             $mail->addAddress($partnerEmail, (string) ($ride['partner_name'] ?? ''));
         } else {
-            $agencyEmail = $this->tenantSettings->tripReportAgencyEmail();
+            $agencyEmail = $tenantSettings->tripReportAgencyEmail();
             if ($agencyEmail !== '') {
                 $mail->addAddress($agencyEmail);
             }
-        }
-
-        // CC: extra recipients + admin self-copy
-        foreach ($this->tenantSettings->tripReportRecipients() as $ccEmail) {
-            if (filter_var($ccEmail, FILTER_VALIDATE_EMAIL)) {
-                $mail->addCC($ccEmail);
+            foreach ($tenantSettings->tripReportRecipients() as $ccEmail) {
+                if (filter_var($ccEmail, FILTER_VALIDATE_EMAIL)) {
+                    $mail->addCC($ccEmail);
+                }
             }
-        }
-        $myCopy = $this->tenantSettings->tripReportMyCopy();
-        if ($myCopy !== '' && filter_var($myCopy, FILTER_VALIDATE_EMAIL)) {
-            $mail->addCC($myCopy);
+            $myCopy = $tenantSettings->tripReportMyCopy();
+            if ($myCopy !== '' && filter_var($myCopy, FILTER_VALIDATE_EMAIL)) {
+                $mail->addCC($myCopy);
+            }
         }
 
         $mail->isHTML(true);

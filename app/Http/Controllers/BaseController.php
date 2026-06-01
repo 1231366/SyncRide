@@ -45,9 +45,14 @@ abstract class BaseController
 
     /**
      * Emit JSON and terminate. Use for AJAX endpoints.
+     * Cleans any buffered output (e.g. PHP warnings from SMTP/SSL in debug mode)
+     * so they never corrupt the JSON response body.
      */
     protected function json(array $payload, int $status = 200): never
     {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
         http_response_code($status);
         header('Content-Type: application/json');
         echo json_encode($payload, JSON_UNESCAPED_UNICODE);
@@ -112,11 +117,14 @@ abstract class BaseController
         return Session::role() ?? -1;
     }
 
-    /** Lightweight CSRF-style guard for state-changing endpoints. */
+    /** Requires POST and a valid CSRF token. */
     protected function requirePost(): void
     {
         if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
             $this->abort(405, 'Method not allowed');
+        }
+        if (!\App\Support\Session::verifyCsrf()) {
+            $this->abort(403, 'Invalid or missing CSRF token');
         }
     }
 

@@ -14,12 +14,12 @@ View::layout('layouts.admin', [
     'extraHead' => '
         <style>
             .filter-input {
-                background: rgba(255,255,255,0.05) !important;
-                border: 1px solid rgba(255,255,255,0.1) !important;
-                color: white !important; outline: none;
-                border-radius: 12px; padding: 8px 12px;
-                font-size: 11px; font-weight: 600;
+                outline: none; border-radius: 12px; padding: 8px 12px;
+                font-size: 11px; font-weight: 600; font-family: inherit;
+                transition: border-color .2s;
             }
+            [data-theme="dark"]  .filter-input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #f1f5f9; }
+            [data-theme="light"] .filter-input { background: rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.12); color: #0f172a; }
             .rank-badge {
                 width: 22px; height: 22px; border-radius: 6px;
                 display: flex; align-items: center; justify-content: center;
@@ -28,7 +28,8 @@ View::layout('layouts.admin', [
             .rank-1 { background: #fbbf24; color: #000; }
             .rank-2 { background: #94a3b8; color: #000; }
             .rank-3 { background: #cd7f32; color: #000; }
-            .rank-n { background: rgba(255,255,255,0.08); color: #a1a1aa; }
+            [data-theme="dark"]  .rank-n { background: rgba(255,255,255,0.08); color: #a1a1aa; }
+            [data-theme="light"] .rank-n { background: rgba(0,0,0,0.07); color: #64748b; }
         </style>
     ',
     'extraScripts' => '
@@ -47,7 +48,7 @@ View::layout('layouts.admin', [
                 yaxis: { labels: { show: false } },
                 grid: { show: false },
                 dataLabels: { enabled: false },
-                tooltip: { theme: "dark" }
+                tooltip: { theme: document.documentElement.dataset.theme === "dark" ? "dark" : "light" }
             }).render();
         </script>
     ',
@@ -61,7 +62,7 @@ View::layout('layouts.admin', [
         <div class="grid grid-cols-2 gap-2">
             <select name="driver_id" class="filter-input"
                     onchange="if(this.value){this.form.partner_id.value='';}this.form.submit();">
-                <option value="">Drivers</option>
+                <option value=""><?= t('stats.drivers') ?></option>
                 <?php foreach ($drivers as $d): ?>
                     <option value="<?= (int) $d->id ?>"
                         <?= ((int) $d->id === $driverId) ? 'selected' : '' ?>>
@@ -71,7 +72,7 @@ View::layout('layouts.admin', [
             </select>
             <select name="partner_id" class="filter-input"
                     onchange="if(this.value){this.form.driver_id.value='';}this.form.submit();">
-                <option value="">Partners</option>
+                <option value=""><?= t('stats.partners') ?></option>
                 <?php foreach ($partners as $p): ?>
                     <option value="<?= (int) $p->id ?>"
                         <?= ((int) $p->id === $partnerId) ? 'selected' : '' ?>>
@@ -98,7 +99,7 @@ View::layout('layouts.admin', [
         <div class="mb-4">
             <h1 class="text-[20px] font-extrabold tracking-tight"><?= htmlspecialchars($subjectName) ?></h1>
             <p class="text-[10px] text-zinc-500 font-semibold uppercase tracking-widest mt-0.5">
-                <?= $mode === 'driver' ? 'Driver Performance' : 'Partner Statistics' ?>
+                <?= $mode === 'driver' ? t('stats.driver_perf') : t('stats.partner_stats') ?>
             </p>
         </div>
     <?php endif; ?>
@@ -123,7 +124,7 @@ View::layout('layouts.admin', [
     <section class="mb-6">
         <div class="glass rounded-[28px] p-5">
             <h3 class="text-[10px] font-black text-white uppercase tracking-widest mb-4 italic">
-                Monthly Trend
+                <?= t('stats.monthly_trend') ?>
             </h3>
             <div id="mainChart"></div>
         </div>
@@ -137,7 +138,7 @@ View::layout('layouts.admin', [
 
         <?php if ($mode === 'overview' && !empty($leaderboard)): ?>
             <!-- Driver leaderboard -->
-            <p class="text-[9px] font-black uppercase text-zinc-600 tracking-widest mb-2 px-1">Drivers</p>
+            <p class="text-[9px] font-black uppercase text-zinc-600 tracking-widest mb-2 px-1"><?= t('stats.drivers') ?></p>
             <div class="space-y-2 mb-4">
                 <?php foreach ($leaderboard['drivers'] as $k => $d): ?>
                     <a href="?driver_id=<?= (int) $d['id'] ?>&start_date=<?= htmlspecialchars($startDate) ?>&end_date=<?= htmlspecialchars($endDate) ?>"
@@ -154,14 +155,14 @@ View::layout('layouts.admin', [
                                 </p>
                             </div>
                         </div>
-                        <span class="text-xs font-black text-blue-500"><?= (int) $d['trips_period'] ?> rides</span>
+                        <span class="text-xs font-black text-blue-500"><?= (int) $d['trips_period'] ?> <?= t('stats.rides') ?></span>
                     </a>
                 <?php endforeach; ?>
             </div>
 
             <!-- Partner leaderboard -->
             <?php if (!empty($leaderboard['partners'])): ?>
-                <p class="text-[9px] font-black uppercase text-zinc-600 tracking-widest mb-2 px-1">Partners</p>
+                <p class="text-[9px] font-black uppercase text-zinc-600 tracking-widest mb-2 px-1"><?= t('stats.partners') ?></p>
                 <div class="space-y-2">
                     <?php foreach ($leaderboard['partners'] as $k => $p): ?>
                         <a href="?partner_id=<?= (int) $p['id'] ?>&start_date=<?= htmlspecialchars($startDate) ?>&end_date=<?= htmlspecialchars($endDate) ?>"
@@ -172,7 +173,7 @@ View::layout('layouts.admin', [
                                 </div>
                                 <h4 class="text-xs font-bold text-white"><?= htmlspecialchars($p['name']) ?></h4>
                             </div>
-                            <span class="text-xs font-black text-purple-400"><?= (int) $p['trips_period'] ?> rides</span>
+                            <span class="text-xs font-black text-purple-400"><?= (int) $p['trips_period'] ?> <?= t('stats.rides') ?></span>
                         </a>
                     <?php endforeach; ?>
                 </div>
@@ -199,7 +200,7 @@ View::layout('layouts.admin', [
                     </div>
                 <?php endforeach; ?>
                 <?php if (empty($tableRows)): ?>
-                    <p class="text-center text-zinc-600 text-xs py-8">No rides found for this period.</p>
+                    <p class="text-center text-zinc-600 text-xs py-8"><?= t('stats.no_rides') ?></p>
                 <?php endif; ?>
             </div>
         <?php endif; ?>

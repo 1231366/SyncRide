@@ -45,12 +45,39 @@ final class UsersController extends BaseController
     {
         $this->requirePost();
 
+        $email     = trim((string) ($this->input('email') ?? ''));
+        $role      = (int) ($this->input('role') ?? 0);
+        $companyId = \App\Support\Session::companyId();
+
+        // If the email already exists and the role is driver, offer to share instead of error
+        if ($email !== '' && $role === User::ROLE_DRIVER && $this->users->emailExists($email)) {
+            $existing = $this->users->findByEmail($email);
+            if ($existing !== null && $existing->role === User::ROLE_DRIVER) {
+                $driverData = ['id' => $existing->id, 'name' => $existing->name, 'email' => $existing->email];
+                // Already in this company — show the modal in "already in" mode
+                if ($companyId !== null && $this->users->isInCompany($existing->id, $companyId)) {
+                    $this->json([
+                        'exists'             => true,
+                        'already_in_company' => true,
+                        'driver'             => $driverData,
+                        'message'            => 'driver_already_in_company',
+                    ], 409);
+                }
+                // Not yet in company — return driver info so UI can show the confirmation modal
+                $this->json([
+                    'exists'  => true,
+                    'driver'  => $driverData,
+                    'message' => 'driver_exists',
+                ], 409);
+            }
+        }
+
         $payload = [
             'name'     => $this->input('name'),
-            'email'    => $this->input('email'),
+            'email'    => $email,
             'password' => $_POST['password'] ?? '',
             'phone'    => $this->input('phone'),
-            'role'     => (int) ($this->input('role') ?? 0),
+            'role'     => $role,
         ];
 
         $this->validate($payload);
@@ -59,6 +86,32 @@ final class UsersController extends BaseController
         $this->logs->record("Admin created user #{$user->id} ({$user->email}, role={$user->role})");
 
         $this->redirect('/SRMT/public/admin/users.php?success=user_created');
+    }
+
+    /** POST /admin/user-add-to-company.php — add an existing driver to this company. */
+    public function addToCompany(): void
+    {
+        $this->requirePost();
+
+        $userId    = (int) ($this->input('user_id') ?? 0);
+        $companyId = \App\Support\Session::companyId();
+
+        if ($userId <= 0 || $companyId === null) {
+            $this->json(['success' => false, 'error' => 'Invalid data.'], 422);
+        }
+
+        $user = $this->users->find($userId);
+        if ($user === null || $user->role !== User::ROLE_DRIVER) {
+            $this->json(['success' => false, 'error' => 'Driver not found.'], 404);
+        }
+
+        if ($this->users->isInCompany($userId, $companyId)) {
+            $this->json(['success' => false, 'error' => 'Driver already in this company.'], 409);
+        }
+
+        $this->users->addToCompany($userId, $companyId);
+        $this->logs->record("Admin added shared driver #{$userId} ({$user->email}) to company #{$companyId}");
+        $this->json(['success' => true, 'name' => $user->name]);
     }
 
     /** POST /admin/user-edit.php — update an existing user. */
@@ -129,9 +182,10 @@ final class UsersController extends BaseController
         $this->redirect('/SRMT/public/admin/users.php?success=user_deleted');
     }
 
-    /** GET /admin/delete.php?id=X — legacy direct-link delete for users. */
+    /** POST /admin/delete.php — delete a user (POST-only, prevents CSRF via GET). */
     public function destroyLink(): void
     {
+        $this->requirePost();
         $id = (int) ($this->input('id') ?? 0);
         if ($id <= 0) {
             $this->abort(400, 'Missing user id.');

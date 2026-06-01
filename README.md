@@ -2,6 +2,7 @@
 
 > **A production fleet & transfer-management platform** — schedules drivers, dispatches services, tracks vehicles in real time, and ships paperwork (vouchers, reports, post-trip emails) without a human in the loop.
 
+[![CI](https://github.com/1231366/SyncRide/actions/workflows/ci.yml/badge.svg)](https://github.com/1231366/SyncRide/actions/workflows/ci.yml)
 [![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4.svg?logo=php&logoColor=white)](https://www.php.net/)
 [![PSR-4](https://img.shields.io/badge/Autoload-PSR--4-blue.svg)](https://www.php-fig.org/psr/psr-4/)
 [![PHPUnit](https://img.shields.io/badge/Tested%20with-PHPUnit%2010-78c041.svg?logo=php)](https://phpunit.de/)

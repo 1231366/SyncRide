@@ -34,8 +34,15 @@
     .nav-mid { display: flex; gap: 26px; }
     .nav-mid a { color: var(--muted); text-decoration: none; font-weight: 600; font-size: 14px; }
     .nav-mid a:hover { color: var(--ink); }
-    .nav-right { display: flex; gap: 8px; }
-    @media (max-width: 760px){ .nav-mid { display: none; } }
+    .nav-right { display: flex; gap: 8px; align-items: center; }
+    @media (max-width: 760px){
+        .nav-mid { display: none; }
+        nav .wrap { height: 56px; padding: 0 16px; }
+        .brand { font-size: 16px; gap: 7px; }
+        .brand img { height: 24px; }
+        .nav-right .btn-ghost { display: none; }   /* "Entrar" escondido no mobile — fica só o CTA */
+        .nav-right .btn { padding: 9px 15px; font-size: 13px; }
+    }
 
     /* Hero */
     .hero { text-align: center; padding: 84px 0 56px; }
@@ -90,6 +97,21 @@
     .price li::before { content: '\F26E'; font-family: 'bootstrap-icons'; position: absolute; left: 0; color: #10b981; }
     @media (max-width: 760px){ .prices { grid-template-columns: 1fr; } }
 
+    /* Integration */
+    .integ-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .integ-card { border-radius: 22px; padding: 32px 28px; background: rgba(255,255,255,0.7); border: 1px solid var(--line); }
+    .integ-card.hl { background: linear-gradient(160deg, #2563eb, #1d4ed8); color: #fff; border: none; box-shadow: 0 24px 50px rgba(37,99,235,.28); }
+    .integ-ico { width: 52px; height: 52px; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 18px; background: rgba(37,99,235,.10); color: var(--blue); }
+    .integ-card.hl .integ-ico { background: rgba(255,255,255,.18); color: #fff; }
+    .integ-card h3 { font-size: 22px; font-weight: 800; letter-spacing: -.6px; margin-bottom: 10px; }
+    .integ-card p { font-size: 15px; color: var(--muted); margin-bottom: 16px; }
+    .integ-card.hl p { color: rgba(255,255,255,.9); }
+    .integ-card ul { list-style: none; }
+    .integ-card li { padding: 5px 0 5px 26px; position: relative; font-size: 14px; font-weight: 600; }
+    .integ-card li::before { content: '\F26E'; font-family: 'bootstrap-icons'; position: absolute; left: 0; color: #10b981; }
+    .integ-card.hl li::before { color: #fff; }
+    @media (max-width: 760px){ .integ-grid { grid-template-columns: 1fr; } }
+
     /* Form / CTA */
     .signup { background: rgba(255,255,255,0.72); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.8); border-radius: 28px; padding: 48px 40px; max-width: 720px; margin: 0 auto; box-shadow: 0 30px 70px rgba(15,23,42,.10); }
     .signup h2 { font-size: 32px; font-weight: 800; letter-spacing: -1px; text-align: center; margin-bottom: 6px; }
@@ -116,7 +138,7 @@
         <div class="brand"><img src="/SRMT/public/assets/images/icons/Syncride.png" alt="">SyncRide</div>
         <div class="nav-mid">
             <a href="#como">Como funciona</a>
-            <a href="#resultados">Resultados</a>
+            <a href="#integracao">Integração</a>
             <a href="#precos">Preços</a>
         </div>
         <div class="nav-right">
@@ -130,7 +152,7 @@
     <div class="wrap">
         <span class="pill"><i class="bi bi-lightning-charge-fill"></i> Operação de transfers no piloto automático</span>
         <h1>Acaba com o caos<br><span class="grad">das folhas de cálculo.</span></h1>
-        <p class="sub">As agendas chegam sozinhas ao WhatsApp dos condutores. Os clientes seguem a viagem em tempo real. As faturas saem automaticamente. Tu só geres — o resto trata-se sozinho.</p>
+        <p class="sub">As agendas chegam sozinhas aos condutores, os operadores parceiros pedem sem te ligar, e as reservas do teu site caem direto no sistema. Tu só geres — o resto trata-se sozinho.</p>
         <div class="hero-cta">
             <a href="#comecar" class="btn btn-primary btn-lg"><i class="bi bi-rocket-takeoff"></i> Começar 14 dias grátis</a>
             <a href="#como" class="btn btn-ghost btn-lg"><i class="bi bi-play-circle"></i> Ver como funciona</a>
@@ -216,6 +238,38 @@
             <div class="outcome"><div class="big">0</div><p>Folhas de cálculo para manter</p></div>
             <div class="outcome"><div class="big">−90%</div><p>Telefonemas de "onde estás?"</p></div>
             <div class="outcome"><div class="big">100%</div><p>Viagens com registo e prova</p></div>
+        </div>
+    </div>
+</section>
+
+<section id="integracao" style="padding-top:0;">
+    <div class="wrap">
+        <div class="sec-head">
+            <div class="eyebrow">Integração com o teu site</div>
+            <h2>As reservas caem direto no sistema</h2>
+            <p>Liga o teu site ao SyncRide e cada reserva de cliente entra automaticamente na tua operação — sem copiar, sem colar, sem erros de transcrição.</p>
+        </div>
+        <div class="integ-grid">
+            <div class="integ-card">
+                <div class="integ-ico"><i class="bi bi-plug"></i></div>
+                <h3>Já tens site? Integramos.</h3>
+                <p>Ligamos o teu site, motor de reservas ou o formulário das agências ao SyncRide. A reserva aparece na hora na lista de viagens, pronta a despachar a um condutor.</p>
+                <ul>
+                    <li>Reservas entram em tempo real, sem trabalho manual</li>
+                    <li>Funciona com o teu site atual ou com as agências parceiras</li>
+                    <li>Zero erros de transcrição de moradas e horas</li>
+                </ul>
+            </div>
+            <div class="integ-card hl">
+                <div class="integ-ico"><i class="bi bi-window-stack"></i></div>
+                <h3>Não tens site? Fazemos à medida.</h3>
+                <p>Desenhamos e desenvolvemos um site profissional para a tua operação — já ligado ao SyncRide de raiz, com motor de reservas próprio. Tu só recebes as viagens.</p>
+                <ul>
+                    <li>Site moderno e rápido, feito à medida da tua marca</li>
+                    <li>Motor de reservas integrado no SyncRide desde o dia um</li>
+                    <li>Os clientes reservam online → cai direto na operação</li>
+                </ul>
+            </div>
         </div>
     </div>
 </section>

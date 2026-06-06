@@ -339,6 +339,11 @@ final class ServiceRepository
         if ($filter === 'delegated' && $this->companyId !== null) {
             $tenancyWhere  = ' AND s.original_company_id = ?';
             $tenancyParams = [$this->companyId];
+        } elseif ($filter === 'today' && $this->companyId !== null) {
+            // Include rides delegated out by this company so they remain visible
+            // in the Today tab for flow-control purposes.
+            $tenancyWhere  = ' AND (s.company_id = ? OR s.original_company_id = ?)';
+            $tenancyParams = [$this->companyId, $this->companyId];
         } else {
             $tenancyWhere  = $this->companyId !== null ? ' AND s.company_id = ?' : '';
             $tenancyParams = $this->companyId !== null ? [$this->companyId]      : [];
@@ -402,6 +407,13 @@ final class ServiceRepository
                 $row['_delegated_out'] = 1;
             }
             unset($row);
+        } elseif ($filter === 'today' && $this->companyId !== null) {
+            foreach ($rows as &$row) {
+                if (!empty($row['original_company_id']) && (int) $row['original_company_id'] === $this->companyId) {
+                    $row['_delegated_out'] = 1;
+                }
+            }
+            unset($row);
         }
 
         return [
@@ -435,10 +447,11 @@ final class ServiceRepository
                 '', // count: no join needed
             ],
             'today' => [
-                "{$joinSR} {$joinU} {$joinP}",
+                // dc join needed to show the partner company name on delegated-out rows
+                "{$joinSR} {$joinU} {$joinP} LEFT JOIN Companies dc ON s.company_id = dc.id",
                 "s.serviceDate = CURDATE() AND {$active}",
                 [],
-                'u.name AS driverName',
+                "CASE WHEN s.original_company_id IS NOT NULL THEN COALESCE(u.name, dc.name) ELSE u.name END AS driverName",
                 '',
             ],
             'tomorrow' => [
@@ -557,9 +570,15 @@ final class ServiceRepository
 
     public function countToday(): int
     {
-        $sql  = "SELECT COUNT(*) FROM Services WHERE serviceDate = CURDATE() AND (status_pedido = 'aprovado' OR status_pedido IS NULL) " . $this->sc('AND');
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute($this->cb());
+        if ($this->companyId !== null) {
+            $sql  = "SELECT COUNT(*) FROM Services WHERE serviceDate = CURDATE() AND (status_pedido = 'aprovado' OR status_pedido IS NULL) AND (company_id = :cid OR original_company_id = :cid2)";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute(['cid' => $this->companyId, 'cid2' => $this->companyId]);
+        } else {
+            $sql  = "SELECT COUNT(*) FROM Services WHERE serviceDate = CURDATE() AND (status_pedido = 'aprovado' OR status_pedido IS NULL)";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([]);
+        }
         return (int) $stmt->fetchColumn();
     }
 
@@ -694,9 +713,35 @@ final class ServiceRepository
             $updated = $stmt->rowCount() > 0;
 
             if ($updated) {
-                // Remove driver assignment — the partner company assigns their own drivers
-                $this->db->prepare('DELETE FROM Services_Rides WHERE RideID = :id')
-                    ->execute(['id' => $rideId]);
+                // Only remove the driver if they don't also belong to the target company.
+                // Shared drivers (in UserCompanies for both companies) stay assigned.
+                $driverStmt = $this->db->prepare(
+                    'SELECT UserID FROM Services_Rides WHERE RideID = :rid LIMIT 1'
+                );
+                $driverStmt->execute(['rid' => $rideId]);
+                $assignedUserId = $driverStmt->fetchColumn();
+
+                $keepDriver = false;
+                if ($assignedUserId !== false) {
+                    $inTargetStmt = $this->db->prepare('
+                        SELECT 1 FROM Users u
+                        LEFT JOIN UserCompanies uc ON uc.user_id = u.id
+                        WHERE u.id = :uid
+                          AND (u.company_id = :cid OR uc.company_id = :cid2)
+                        LIMIT 1
+                    ');
+                    $inTargetStmt->execute([
+                        'uid'  => $assignedUserId,
+                        'cid'  => $targetCompanyId,
+                        'cid2' => $targetCompanyId,
+                    ]);
+                    $keepDriver = $inTargetStmt->fetchColumn() !== false;
+                }
+
+                if (!$keepDriver) {
+                    $this->db->prepare('DELETE FROM Services_Rides WHERE RideID = :id')
+                        ->execute(['id' => $rideId]);
+                }
             }
 
             $this->db->commit();

@@ -320,12 +320,54 @@ ob_start();
     [data-theme="dark"] .logs-title { color: #fff; }
     .logs-date { font-size: 12px; color: #71717a; }
     @media (max-width: 576px) { .modal-body { padding: 1rem !important; } .modal-title { font-size: 1rem; } .form-control-custom, .form-select-custom { padding: 10px 12px; font-size: 13px; } }
+    @media (max-width: 991px) {
+        /* ── Tab pills: single horizontally-scrollable row ── */
+        #ride-tabs {
+            flex-wrap: nowrap !important;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+        #ride-tabs::-webkit-scrollbar { display: none; }
+
+        /* ── Toolbar: search on its own full-width row (rendered first),
+              action buttons below in a tight row ── */
+        #filter-container {
+            flex: 0 0 100%;
+            order: -1;
+        }
+        /* Push + Novo to the far right of the tools row */
+        .rides-toolbar .btn-primary-modern { margin-left: auto; }
+        /* Selection-mode toggle is a desktop bulk-action; hide on mobile */
+        #toggleSelectionMode { display: none; }
+        /* Slightly smaller icon buttons to give breathing room */
+        .rides-toolbar .icon-btn { width: 36px; height: 36px; }
+
+        /* ── Pagination: horizontal scroll if many pages ── */
+        .p-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .dataTables_paginate { padding: 16px 0 8px 0; }
+    }
     .page-title { font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; }
     [data-theme="dark"] .page-title { color: #fff; }
     .page-subtitle { font-size: 11px; color: #94a3b8; font-weight: 600; }
     .btn-circle-mobile { width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; }
     .edit-type-row { border-top: 1px solid rgba(0,0,0,0.08); }
     [data-theme="dark"] .edit-type-row { border-top: 1px solid rgba(255,255,255,0.08); }
+    /* Tabs scroll wrapper — fade right edge to hint at more pills */
+    .ride-tabs-wrap { position: relative; }
+    @media (max-width: 991px) {
+        .ride-tabs-wrap::after {
+            content: '';
+            position: absolute;
+            right: 0; top: 0; bottom: 4px;
+            width: 40px;
+            background: linear-gradient(to right, transparent, rgba(241,245,249,0.98));
+            pointer-events: none;
+            z-index: 2;
+        }
+        [data-theme="dark"] .ride-tabs-wrap::after {
+            background: linear-gradient(to right, transparent, rgba(2,6,23,0.98));
+        }
+    }
 </style>
 <?php $ridesHead = ob_get_clean(); ?>
 <?php
@@ -380,7 +422,6 @@ ob_start();
                     let html = '';
                     if (row.partner_name && row.partner_name.trim() !== '') html += '<span class="agency-badge"><i class="bi bi-shop"></i> ' + row.partner_name + '</span> ';
                     if (data) html += '<span>' + data + '</span>'; else html += '<span class="text-zinc-500 fst-italic">No Driver</span>';
-                    if (row.chave && row.chave.includes('bi-key-fill')) html += ' <span>' + row.chave + '</span>';
                     return html;
                 }},
                 { data: 'recolha' },
@@ -620,8 +661,13 @@ ob_start();
     }
 
     // ── Recall / Return ───────────────────────────────────────────
-    async function recallTrip(rideId) {
-        const isDelegatedOut = $('#ride-tabs a.active').data('status') === 'delegated';
+    // isDelegatedOut=true  → caller is the original owner (recalls the trip)
+    // isDelegatedOut=false → caller is the receiver (returns the trip)
+    // isDelegatedOut=null  → infer from active tab (legacy path)
+    async function recallTrip(rideId, isDelegatedOut = null) {
+        if (isDelegatedOut === null) {
+            isDelegatedOut = $('#ride-tabs a.active').data('status') === 'delegated';
+        }
         const msg = isDelegatedOut
             ? '<?= t('rides.recall_success') ?>'
             : '<?= t('rides.return_success') ?>';
@@ -634,7 +680,7 @@ ob_start();
             const data = await res.json();
             if (data.success) {
                 toastr.success(msg);
-                ridesTable.ajax.reload(null, false);
+                tabelaViagens.ajax.reload(null, false);
             } else {
                 toastr.error(data.error || 'Failed.');
             }
@@ -673,7 +719,7 @@ ob_start();
             if (data.success) {
                 bootstrap.Modal.getInstance(document.getElementById('delegateModal')).hide();
                 toastr.success('<?= t('rides.delegate_success') ?>');
-                ridesTable.ajax.reload(null, false);
+                tabelaViagens.ajax.reload(null, false);
             } else {
                 toastr.error(data.error || 'Failed to delegate.');
             }
@@ -702,7 +748,8 @@ View::layout('layouts.admin', [
         <p class="page-subtitle mt-1"><?= t('rides.subtitle') ?></p>
     </div>
 
-    <div class="flex flex-wrap gap-2 no-scrollbar pb-2 mb-3" id="ride-tabs">
+    <div class="ride-tabs-wrap mb-3">
+    <div class="flex flex-wrap gap-2 no-scrollbar pb-2" id="ride-tabs">
         <a class="pill active" data-bs-toggle="tab" href="#today" data-status="today">
             <?= t('rides.today') ?>
             <span id="todayBadge" class="pill-count" data-tab="today"><?= $todayCount ?></span>
@@ -727,6 +774,7 @@ View::layout('layouts.admin', [
         </a>
         <?php endif; ?>
     </div>
+    </div><!-- /.ride-tabs-wrap -->
 
     <div class="glass rounded-[22px] p-3 mb-4 flex items-center gap-2 flex-wrap rides-toolbar">
         <div id="filter-container" class="search-wrap">

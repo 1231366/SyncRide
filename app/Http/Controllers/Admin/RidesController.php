@@ -353,7 +353,7 @@ final class RidesController extends BaseController
     private function actionsDelegatedOut(int $id): string
     {
         return '<div class="d-flex gap-1 justify-content-end align-items-center">'
-            . '<button class="btn btn-outline-warning rounded-circle" title="' . t('rides.recall_btn') . '" onclick="recallTrip(' . $id . ')">'
+            . '<button class="btn btn-outline-warning rounded-circle" title="' . t('rides.recall_btn') . '" onclick="recallTrip(' . $id . ', true)">'
             . '<i class="bi bi-arrow-counterclockwise"></i>'
             . '</button></div>';
     }

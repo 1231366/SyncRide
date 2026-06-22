@@ -194,4 +194,11 @@ final class TenantSettingsRepository
     {
         return $this->get('schedule_my_copy', '');
     }
+
+    // WhatsApp agenda ──────────────────────────────────────────────────────────
+
+    public function wppAgendaEnabled(): bool
+    {
+        return $this->get('wpp_agenda_enabled', '0') === '1';
+    }
 }

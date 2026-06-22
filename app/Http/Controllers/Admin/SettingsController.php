@@ -37,6 +37,7 @@ final class SettingsController extends BaseController
             'voucher_enabled'     => $s->voucherEnabled(),
             'no_show_enabled'     => $s->noShowEnabled(),
             'schedule_enabled'    => $s->scheduleEnabled(),
+            'wpp_agenda_enabled'  => $s->wppAgendaEnabled(),
             // Routing — single emails
             'trip_report_agency_email' => $s->tripReportAgencyEmail(),
             'trip_report_my_copy'      => $s->tripReportMyCopy(),
@@ -66,7 +67,7 @@ final class SettingsController extends BaseController
         $s = $this->settings();
 
         // Toggles (unchecked checkbox = not in POST = '0')
-        foreach (['trip_report_enabled', 'voucher_enabled', 'no_show_enabled', 'schedule_enabled'] as $key) {
+        foreach (['trip_report_enabled', 'voucher_enabled', 'no_show_enabled', 'schedule_enabled', 'wpp_agenda_enabled'] as $key) {
             $s->set($key, $this->input($key) === '1' ? '1' : '0');
         }
 

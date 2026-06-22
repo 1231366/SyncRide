@@ -21,12 +21,26 @@ final class UserInviteRepository
     }
 
     /** Creates an invite and returns [id, token]. Expires in $days days. */
-    public function create(int $companyId, int $role, ?string $label, ?int $createdBy, int $days = 7): array
-    {
-        $token = bin2hex(random_bytes(24));
+    public function create(
+        int     $companyId,
+        int     $role,
+        ?string $label,
+        ?int    $createdBy,
+        int     $days            = 7,
+        ?string $driverCode      = null,
+        ?string $defaultPayBasis = null,
+    ): array {
+        $token    = bin2hex(random_bytes(24));
+        $driverMeta = null;
+        if ($driverCode !== null || $defaultPayBasis !== null) {
+            $driverMeta = json_encode(array_filter([
+                'driver_code'       => $driverCode      ?: null,
+                'default_pay_basis' => $defaultPayBasis ?: null,
+            ]));
+        }
         $this->db->prepare('
-            INSERT INTO UserInvites (token, company_id, role, label, created_by, expires_at)
-            VALUES (:t, :cid, :role, :label, :by, DATE_ADD(NOW(), INTERVAL :days DAY))
+            INSERT INTO UserInvites (token, company_id, role, label, created_by, expires_at, driver_meta)
+            VALUES (:t, :cid, :role, :label, :by, DATE_ADD(NOW(), INTERVAL :days DAY), :dm)
         ')->execute([
             't'     => $token,
             'cid'   => $companyId,
@@ -34,6 +48,7 @@ final class UserInviteRepository
             'label' => $label !== '' ? $label : null,
             'by'    => $createdBy,
             'days'  => $days,
+            'dm'    => $driverMeta,
         ]);
         return ['id' => (int) $this->db->lastInsertId(), 'token' => $token];
     }

@@ -10,6 +10,7 @@ use App\Repositories\CompanyPartnershipRepository;
 use App\Repositories\LogRepository;
 use App\Repositories\ServiceRepository;
 use App\Repositories\UserRepository;
+use App\Services\PricingEngine;
 use App\Support\Session;
 
 /**
@@ -87,6 +88,9 @@ final class RidesController extends BaseController
         $rawPrice = str_replace(',', '.', (string) $this->input('totalPrice', ''));
         $price    = is_numeric($rawPrice) ? (float) $rawPrice : null;
 
+        $rawDriverPay = str_replace(',', '.', (string) $this->input('valorMotorista', ''));
+        $driverPay    = is_numeric($rawDriverPay) ? (float) $rawDriverPay : null;
+
         $ride = $this->services->create([
             'serviceDate'        => $date,
             'serviceStartTime'   => $time,
@@ -100,6 +104,7 @@ final class RidesController extends BaseController
             'NomeCliente'        => $this->input('NomeCliente')  ?: null,
             'ClientNumber'       => $this->input('ClientNumber') ?: null,
             'total_price'        => $price,
+            'valor_motorista'    => $driverPay,
         ]);
 
         $driver = $this->input('driver', '');
@@ -132,6 +137,9 @@ final class RidesController extends BaseController
         $rawPrice = str_replace(',', '.', (string) $this->input('edit_totalPrice', '0'));
         $price    = is_numeric($rawPrice) ? (float) $rawPrice : 0.0;
 
+        $rawDriverPay = str_replace(',', '.', (string) $this->input('edit_valorMotorista', ''));
+        $driverPay    = is_numeric($rawDriverPay) ? (float) $rawDriverPay : null;
+
         $this->services->update($id, [
             'serviceDate'        => $date,
             'serviceStartTime'   => $time,
@@ -144,6 +152,7 @@ final class RidesController extends BaseController
             'NomeCliente'        => $this->input('edit_clientName')   ?: null,
             'ClientNumber'       => $this->input('edit_clientNumber') ?: null,
             'total_price'        => $price,
+            'valor_motorista'    => $driverPay,
         ]);
 
         $this->logs->record("Admin updated ride #{$id}");
@@ -199,12 +208,14 @@ final class RidesController extends BaseController
 
         $rideId   = (int) $this->input('viagemId',   0);
         $driverId = (int) $this->input('condutorId', 0);
+        $payBasis = (string) $this->input('payBasis', '');
 
         if ($rideId <= 0 || $driverId <= 0) {
             $this->redirect('/SRMT/public/admin/rides.php?error=dadosInvalidos');
         }
 
         $this->services->assignDriver($rideId, $driverId);
+        $this->applyDriverPayout($rideId, $driverId, $payBasis);
         $this->logs->record("Admin assigned driver #{$driverId} to ride #{$rideId}");
         $this->redirect('/SRMT/public/admin/rides.php?success=viagemAtribuida');
     }
@@ -272,6 +283,88 @@ final class RidesController extends BaseController
         $this->json(['success' => true]);
     }
 
+    /** POST /admin/ride-aggregate.php — cria viagem multi-paragem a partir de 2+ serviços. */
+    public function aggregate(): never
+    {
+        $this->requirePost();
+
+        $decoded = json_decode((string) $this->input('ids_bulk', '[]'), true);
+        $ids     = is_array($decoded) ? array_map('intval', $decoded) : [];
+
+        $masterId = $this->services->aggregate($ids);
+        if ($masterId === null) {
+            $this->json(['success' => false, 'error' => 'Selecione pelo menos 2 serviços independentes válidos.'], 422);
+        }
+
+        $this->logs->record('Admin aggregated rides ' . implode(',', $ids) . " → master #{$masterId}");
+        $this->json(['success' => true, 'master_id' => $masterId]);
+    }
+
+    /** POST /admin/ride-disaggregate.php — desagrega a viagem mestre inteira. */
+    public function disaggregate(): never
+    {
+        $this->requirePost();
+
+        $id = (int) $this->input('ride_id', 0);
+        if ($id <= 0) {
+            $this->json(['success' => false, 'error' => 'Missing ride id.'], 422);
+        }
+
+        $this->services->disaggregate($id);
+        $this->logs->record("Admin disaggregated master ride #{$id}");
+        $this->json(['success' => true]);
+    }
+
+    /** GET /admin/ride-stops.php?ride_id=N — devolve paragens de uma viagem mestre. */
+    public function getStops(): never
+    {
+        $id = (int) ($_GET['ride_id'] ?? 0);
+        if ($id <= 0) {
+            $this->json(['success' => false, 'error' => 'Missing ride id.'], 422);
+        }
+        $stops = $this->services->getStops($id);
+        $this->json(['success' => true, 'stops' => $stops]);
+    }
+
+    /** POST /admin/ride-stops-save.php — guarda ordem + campos de todas as paragens. */
+    public function saveStops(): never
+    {
+        $this->requirePost();
+
+        $masterId = (int) $this->input('master_id', 0);
+        $decoded  = json_decode((string) $this->input('stops', '[]'), true);
+
+        if ($masterId <= 0 || !is_array($decoded) || $decoded === []) {
+            $this->json(['success' => false, 'error' => 'Invalid data.'], 422);
+        }
+
+        // Verificar ownership antes de gravar.
+        $companyId = \App\Support\Session::companyId();
+        if ($companyId !== null && !$this->services->ownedBy($masterId)) {
+            $this->json(['success' => false, 'error' => 'Forbidden.'], 403);
+        }
+
+        $this->services->saveStops($masterId, $decoded);
+        $this->json(['success' => true]);
+    }
+
+    /** POST /admin/ride-stops-reorder.php — reordena paragens de uma viagem mestre. */
+    public function reorderStops(): never
+    {
+        $this->requirePost();
+
+        $masterId   = (int) $this->input('master_id', 0);
+        $decoded    = json_decode((string) $this->input('ordered_ids', '[]'), true);
+        $orderedIds = is_array($decoded) ? array_map('intval', $decoded) : [];
+
+        if ($masterId <= 0 || $orderedIds === []) {
+            $this->json(['success' => false, 'error' => 'Invalid data.'], 422);
+        }
+
+        $this->services->reorderStops($masterId, $orderedIds);
+        $this->json(['success' => true]);
+    }
+
     /** POST /api/request-handle.php — approve or reject a partner request. */
     public function handleRequest(): void
     {
@@ -292,6 +385,32 @@ final class RidesController extends BaseController
         $status = $action === 'approve' ? 'aprovado' : 'rejeitado';
         $this->services->setApprovalStatus($id, $status);
         $this->json(['success' => true]);
+    }
+
+    /**
+     * Calcula e grava o valor a pagar ao motorista pelo preçário, no momento
+     * da atribuição. A base de pagamento vem do pedido ou, em falta, do default
+     * do motorista. Se o preçário não tiver tarifa, mantém o valor existente.
+     */
+    private function applyDriverPayout(int $rideId, int $driverId, string $payBasisInput): void
+    {
+        $ride = $this->services->find($rideId);
+        if ($ride === null) {
+            return;
+        }
+        $basis = in_array($payBasisInput, ['company_vehicle', 'own_vehicle'], true)
+            ? $payBasisInput
+            : $this->users->defaultPayBasis($driverId);
+
+        $payout = PricingEngine::default()->driverPayout(
+            $ride->resort,
+            $ride->vehicleLabel,
+            $ride->type,
+            $ride->totalPax(),
+            $ride->hotelExtra,
+            $basis
+        );
+        $this->services->setDriverPricing($rideId, $basis, $payout);
     }
 
     /** Format a raw DB row for the DataTable JSON response. */
@@ -334,7 +453,15 @@ final class RidesController extends BaseController
             'entrega'             => htmlspecialchars((string) $row['serviceTargetPoint']),
             'tipo'                => '<span style="cursor:pointer;" onclick="changeTripType('
                                      . $row['ID'] . ',' . $row['serviceType'] . ')">'
-                                     . ($row['serviceType'] == 1 ? 'Private' : 'Shared') . '</span>',
+                                     . ($row['serviceType'] == 1 ? 'Private' : 'Shared') . '</span>'
+                                     . ((int) ($row['is_aggregate_master'] ?? 0) === 1
+                                        ? ' <span class="badge" style="background:rgba(6,182,212,.12);color:#06b6d4;border:1px solid rgba(6,182,212,.25);font-size:.62rem" title="' . t('rides.stops_badge_title') . '">'
+                                          . '<i class="bi bi-signpost-2"></i> ' . (int) ($row['stop_count'] ?? 0) . ' ' . t('rides.stops_badge') . '</span>'
+                                        : ''),
+            'grouping_ref'        => $row['grouping_ref'] ?? null,
+            'is_aggregate_master' => (int) ($row['is_aggregate_master'] ?? 0),
+            'stop_count'          => (int) ($row['stop_count'] ?? 0),
+            'raw_type'            => (int) $row['serviceType'],
             'chave'               => $keyBadge,
             'status_pedido'       => $row['status_pedido'] ?? null,
             'partner_name'        => htmlspecialchars((string) ($row['partner_name'] ?? '')),
@@ -376,6 +503,9 @@ final class RidesController extends BaseController
         $client     = htmlspecialchars(addslashes((string) ($row['NomeCliente']   ?? '')), ENT_QUOTES);
         $phone      = htmlspecialchars(addslashes((string) ($row['ClientNumber']  ?? '')), ENT_QUOTES);
         $price      = htmlspecialchars(addslashes((string) ($row['total_price']   ?? '0')), ENT_QUOTES);
+        $driverPay  = $row['valor_motorista'] !== null && $row['valor_motorista'] !== ''
+            ? htmlspecialchars(addslashes((string) $row['valor_motorista']), ENT_QUOTES)
+            : '';
         $deleteName = htmlspecialchars(
             addslashes($row['serviceStartPoint'] . ' — ' . $row['serviceTargetPoint']),
             ENT_QUOTES
@@ -384,7 +514,7 @@ final class RidesController extends BaseController
         $assignBtn  = $row['driverName'] ? 'btn-info'             : 'btn-primary';
 
         $editCall = sprintf(
-            "editTravel(%d,'%sT%s','%s','%s','%s',%d,%d,%d,'%s','%s','%s',%d,'%s')",
+            "editTravel(%d,'%sT%s','%s','%s','%s',%d,%d,%d,'%s','%s','%s',%d,'%s','%s')",
             $id,
             $row['serviceDate'],
             substr((string) $row['serviceStartTime'], 0, 5),
@@ -393,8 +523,16 @@ final class RidesController extends BaseController
             (int) ($row['paxBBY'] ?? 0),
             $flight, $client, $phone,
             (int) $row['serviceType'],
-            $price
+            $price, $driverPay
         );
+
+        $disaggregateBtn = '';
+        if ((int) ($row['is_aggregate_master'] ?? 0) === 1) {
+            $stopCount       = (int) ($row['stop_count'] ?? 0);
+            $disaggregateBtn = '<button class="btn btn-outline-info rounded-circle ms-1" title="' . t('rides.stops_open_btn') . '" '
+                . 'onclick="openStopsModal(' . $id . ',' . $stopCount . ')">'
+                . '<i class="bi bi-signpost-2"></i></button>';
+        }
 
         $delegateBtn = '';
         $returnBtn   = '';
@@ -421,6 +559,7 @@ final class RidesController extends BaseController
             . '<i class="bi bi-trash3-fill"></i></a>'
             . '<button class="btn btn-info btn-sm rounded-circle shadow-sm ms-1" onclick="viewTripLogs(' . $id . ')">'
             . '<i class="bi bi-clock-history text-white"></i></button>'
+            . $disaggregateBtn
             . $delegateBtn
             . $returnBtn
             . '</div>';

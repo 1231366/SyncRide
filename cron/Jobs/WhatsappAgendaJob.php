@@ -10,15 +10,9 @@ use PDO;
 
 /**
  * Sends each driver tomorrow's service agenda via WhatsApp (Whapi gateway).
- *
- * Hardcoded to company_id = 1 — the only tenant using this automation.
  */
 final class WhatsappAgendaJob implements CronJob
 {
-    private const COMPANY_ID = 1;
-
-    // Driver IDs sent first regardless of ride count.
-    private const VIP_DRIVER_IDS = [28, 37, 49, 39, 42];
 
     public function name(): string
     {
@@ -49,18 +43,18 @@ final class WhatsappAgendaJob implements CronJob
         }
 
         $byDriver = $this->groupByPhone($rides);
-        $byDriver = $this->sortVipsFirst($byDriver);
 
         $sent   = 0;
         $failed = 0;
 
-        foreach ($byDriver as $phone => $driverRides) {
+        foreach ($byDriver as $key => $driverRides) {
+            [, $phone] = explode(':', $key, 2);
             $msg = $this->buildMessage($driverRides, $dataPt);
             $ok  = $this->sendWhatsapp($phone, $msg, $apiToken, $apiUrl);
             $ok ? $sent++ : $failed++;
 
             if ($sent + $failed < count($byDriver)) {
-                usleep(1_500_000); // 1.5 s between messages — respect Whapi rate limits
+                usleep(1_500_000);
             }
         }
 
@@ -72,6 +66,7 @@ final class WhatsappAgendaJob implements CronJob
     {
         $stmt = Database::connection()->prepare("
             SELECT
+                s.company_id,
                 u.id   AS UserID,
                 u.phone,
                 u.name AS NomeCondutor,
@@ -82,20 +77,23 @@ final class WhatsappAgendaJob implements CronJob
                 s.NomeCliente,
                 s.FlightNumber
             FROM Services s
-            JOIN Services_Rides sr ON s.ID = sr.RideID
-            JOIN Users u           ON sr.UserID = u.id
-            WHERE s.serviceDate  = :d
-              AND s.company_id   = :cid
-              AND u.role         = 2
+            JOIN Services_Rides sr ON s.ID          = sr.RideID
+            JOIN Users u           ON sr.UserID      = u.id
+            JOIN TenantSettings ts ON ts.company_id = s.company_id
+                                   AND ts.key = 'wpp_agenda_enabled'
+                                   AND ts.value = '1'
+            WHERE s.serviceDate = :d
+              AND u.role        = 2
               AND u.phone IS NOT NULL
-            ORDER BY s.serviceStartTime ASC
+            ORDER BY s.company_id ASC, s.serviceStartTime ASC
         ");
-        $stmt->execute(['d' => $date, 'cid' => self::COMPANY_ID]);
+        $stmt->execute(['d' => $date]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /**
-     * Group rides by normalised PT phone number (strip leading 351).
+     * Group rides by (company_id, phone) to prevent data leaks across tenants.
+     * A driver working for two companies gets two separate messages.
      *
      * @param  array<array<string,mixed>> $rides
      * @return array<string, array<array<string,mixed>>>
@@ -108,29 +106,10 @@ final class WhatsappAgendaJob implements CronJob
             if (str_starts_with($raw, '351') && strlen($raw) > 9) {
                 $raw = substr($raw, 3);
             }
-            $grouped[$raw][] = $ride;
+            $key = $ride['company_id'] . ':' . $raw;
+            $grouped[$key][] = $ride;
         }
         return $grouped;
-    }
-
-    /**
-     * Move VIP drivers to the front, then sort remaining by ride count desc.
-     *
-     * @param  array<string, array<array<string,mixed>>> $byDriver
-     * @return array<string, array<array<string,mixed>>>
-     */
-    private function sortVipsFirst(array $byDriver): array
-    {
-        uasort($byDriver, function (array $a, array $b): int {
-            $aVip = !empty(array_intersect(array_column($a, 'UserID'), self::VIP_DRIVER_IDS));
-            $bVip = !empty(array_intersect(array_column($b, 'UserID'), self::VIP_DRIVER_IDS));
-
-            if ($aVip !== $bVip) {
-                return $aVip ? -1 : 1;
-            }
-            return count($b) <=> count($a);
-        });
-        return $byDriver;
     }
 
     /** @param array<array<string,mixed>> $rides */

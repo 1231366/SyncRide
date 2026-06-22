@@ -79,6 +79,10 @@ final class UsersController extends BaseController
             'phone'    => $this->input('phone'),
             'role'     => $role,
         ];
+        if ($role === User::ROLE_DRIVER) {
+            $payload['driver_code']       = $this->input('driver_code') ?: null;
+            $payload['default_pay_basis'] = $this->input('default_pay_basis') ?: null;
+        }
 
         $this->validate($payload);
 
@@ -134,10 +138,12 @@ final class UsersController extends BaseController
         }
 
         $payload = [
-            'name'  => $this->input('name'),
-            'email' => $this->input('email'),
-            'phone' => $this->input('phone'),
-            'role'  => (int) ($this->input('role') ?? 0),
+            'name'             => $this->input('name'),
+            'email'            => $this->input('email'),
+            'phone'            => $this->input('phone'),
+            'role'             => (int) ($this->input('role') ?? 0),
+            'driver_code'      => $this->input('driver_code'),
+            'default_pay_basis'=> $this->input('default_pay_basis'),
         ];
         $newPassword = $_POST['password'] ?? '';
         if ($newPassword !== '') {

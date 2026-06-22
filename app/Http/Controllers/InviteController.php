@@ -70,14 +70,23 @@ final class InviteController extends BaseController
             $this->redirect('/SRMT/public/invite.php?token=' . urlencode($token) . '&error=exists');
         }
 
-        $user = $this->users->create([
+        $createPayload = [
             'name'       => $name,
             'email'      => $email,
             'phone'      => $phone !== '' ? $phone : null,
             'password'   => $password,
             'role'       => (int) $invite['role'],
             'company_id' => (int) $invite['company_id'],
-        ]);
+        ];
+        if (!empty($invite['driver_meta'])) {
+            $meta = json_decode((string) $invite['driver_meta'], true);
+            if (is_array($meta)) {
+                if (!empty($meta['driver_code']))       $createPayload['driver_code']       = $meta['driver_code'];
+                if (!empty($meta['default_pay_basis'])) $createPayload['default_pay_basis'] = $meta['default_pay_basis'];
+            }
+        }
+
+        $user = $this->users->create($createPayload);
 
         $this->invites->markUsed((int) $invite['id'], $user->id);
 

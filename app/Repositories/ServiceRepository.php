@@ -124,7 +124,8 @@ final class ServiceRepository
                    FROM Services s
                    JOIN Services_Rides sr ON sr.RideID = s.ID
                    LEFT JOIN Companies c ON s.company_id = c.id
-                   WHERE sr.UserID = :uid';
+                   WHERE sr.UserID = :uid
+                     AND s.aggregated_into IS NULL';
         $params = ['uid' => $driverId];
         if ($date !== null) {
             $sql .= ' AND s.serviceDate = :date';
@@ -175,10 +176,12 @@ final class ServiceRepository
             INSERT INTO Services
                 (serviceDate, serviceStartTime, paxADT, paxCHD, paxBBY,
                  serviceStartPoint, serviceTargetPoint,
-                 FlightNumber, NomeCliente, ClientNumber, serviceType, partner_id, total_price, status_pedido, company_id)
+                 FlightNumber, NomeCliente, ClientNumber, serviceType, partner_id, total_price,
+                 valor_motorista, pay_basis, status_pedido, company_id)
             VALUES
                 (:date, :time, :adults, :children, :bby, :pickup, :dropoff,
-                 :flight, :client, :phone, :type, :partner, :price, :approval, :company_id)
+                 :flight, :client, :phone, :type, :partner, :price,
+                 :driver_pay, :pay_basis, :approval, :company_id)
         ');
         $stmt->execute([
             'date'       => $data['serviceDate'],
@@ -193,7 +196,9 @@ final class ServiceRepository
             'phone'      => $data['ClientNumber']  ?? null,
             'type'       => (int) ($data['serviceType']  ?? 1),
             'partner'    => isset($data['partner_id']) ? (int) $data['partner_id'] : null,
-            'price'      => isset($data['total_price'])  ? (float) $data['total_price'] : null,
+            'price'      => isset($data['total_price'])     ? (float) $data['total_price']     : null,
+            'driver_pay' => isset($data['valor_motorista']) && $data['valor_motorista'] !== null ? (float) $data['valor_motorista'] : null,
+            'pay_basis'  => $data['pay_basis'] ?? null,
             'approval'   => $data['status_pedido'] ?? 'aprovado',
             'company_id' => $cid,
         ]);
@@ -293,6 +298,223 @@ final class ServiceRepository
         return $id === false ? null : (int) $id;
     }
 
+    /**
+     * Agrega 2+ serviços numa viagem multi-paragem: elege o de menor ID como
+     * mestre, cria as paragens ordenadas em ServiceStops, e marca os restantes
+     * como filhos (aggregated_into). Os filhos ficam invisíveis na listagem —
+     * só o mestre aparece, com o crachá de paragen e o modal de reordenação.
+     *
+     * Rejeita se algum serviço já for mestre ou já for filho de outro grupo.
+     *
+     * @param  array<int> $ids
+     * @return int|null   ID do serviço mestre, ou null se inválido
+     */
+    public function aggregate(array $ids): ?int
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        $ids = array_filter($ids, fn(int $id): bool => $id > 0 && $this->ownedBy($id));
+        $ids = array_values($ids);
+        if (count($ids) < 2) {
+            return null;
+        }
+
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+
+        // Rejeitar se algum já for mestre ou já estiver dentro de outro grupo.
+        $stmt = $this->db->prepare("SELECT COUNT(*) FROM Services WHERE ID IN ({$ph}) AND (is_aggregate_master = 1 OR aggregated_into IS NOT NULL)");
+        $stmt->execute($ids);
+        if ((int) $stmt->fetchColumn() > 0) {
+            return null;
+        }
+
+        // Carregar dados completos de todos os serviços.
+        $stmt = $this->db->prepare("SELECT ID, serviceType, serviceStartPoint, serviceTargetPoint, serviceStartTime, NomeCliente, paxADT, paxCHD, paxBBY, reference_no, import_notes FROM Services WHERE ID IN ({$ph}) ORDER BY ID ASC");
+        $stmt->execute($ids);
+        $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if (count($services) < 2) {
+            return null;
+        }
+
+        // Só serviços do tipo Shared (0) podem ser agrupados.
+        foreach ($services as $svc) {
+            if ((int) $svc['serviceType'] !== 0) {
+                return null;
+            }
+        }
+
+        $masterId = (int) $services[0]['ID'];
+        $childIds = array_map(fn(array $s): int => (int) $s['ID'], array_slice($services, 1));
+
+        $this->db->beginTransaction();
+        try {
+            // Criar paragens para todos os serviços (mestre + filhos).
+            $order = 0;
+            foreach ($services as $svc) {
+                $pax = (int) $svc['paxADT'] + (int) $svc['paxCHD'] + (int) $svc['paxBBY'];
+                if ((string) ($svc['serviceStartPoint'] ?? '') !== '') {
+                    $this->insertStop($masterId, (int) $svc['ID'], $order++, 'pickup',
+                        (string) $svc['serviceStartPoint'],
+                        $svc['serviceStartTime'] !== null ? substr((string) $svc['serviceStartTime'], 0, 8) : null,
+                        $svc['NomeCliente'] ?? null, $pax > 0 ? $pax : null,
+                        $svc['reference_no'] ?? null, $svc['import_notes'] ?? null);
+                }
+                if ((string) ($svc['serviceTargetPoint'] ?? '') !== '') {
+                    $this->insertStop($masterId, (int) $svc['ID'], $order++, 'dropoff',
+                        (string) $svc['serviceTargetPoint'],
+                        null, $svc['NomeCliente'] ?? null, $pax > 0 ? $pax : null, null, null);
+                }
+            }
+
+            // Marcar filhos.
+            if ($childIds !== []) {
+                $phC = implode(',', array_fill(0, count($childIds), '?'));
+                $this->db->prepare("UPDATE Services SET aggregated_into = ?, grouping_ref = ? WHERE ID IN ({$phC})")
+                    ->execute(array_merge([$masterId, 'G-' . $masterId], $childIds));
+            }
+
+            // Marcar mestre.
+            $this->db->prepare('UPDATE Services SET is_aggregate_master = 1, grouping_ref = ? WHERE ID = ?')
+                ->execute(['G-' . $masterId, $masterId]);
+
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            return null;
+        }
+
+        return $masterId;
+    }
+
+    /** Insere uma paragem em ServiceStops (auxiliar de aggregate). */
+    private function insertStop(int $masterId, int $sourceId, int $order, string $type,
+        string $location, ?string $time, ?string $client, ?int $pax, ?string $ref, ?string $notes): void
+    {
+        $this->db->prepare('
+            INSERT INTO ServiceStops
+                (master_service_id, source_service_id, stop_order, stop_type,
+                 location, scheduled_time, client_name, pax_total, reference_no, notes)
+            VALUES (:master, :source, :ord, :type, :loc, :time, :client, :pax, :ref, :notes)
+        ')->execute([
+            'master' => $masterId, 'source' => $sourceId, 'ord' => $order,
+            'type'   => $type,     'loc'    => $location, 'time' => $time,
+            'client' => $client,   'pax'    => $pax,      'ref'  => $ref, 'notes' => $notes,
+        ]);
+    }
+
+    /**
+     * Desagrega toda a viagem mestre: liberta os filhos (ficam independentes),
+     * apaga as paragens, e repõe o mestre como serviço normal.
+     * Os dados originais de cada serviço (pickup/dropoff/hora) nunca foram
+     * alterados, por isso a reversão é perfeita.
+     */
+    public function disaggregate(int $masterId): void
+    {
+        if (!$this->ownedBy($masterId)) {
+            return;
+        }
+
+        $stmt = $this->db->prepare('SELECT is_aggregate_master FROM Services WHERE ID = :id');
+        $stmt->execute(['id' => $masterId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row || (int) $row['is_aggregate_master'] === 0) {
+            return;
+        }
+
+        $this->db->beginTransaction();
+        try {
+            $this->db->prepare('UPDATE Services SET aggregated_into = NULL, grouping_ref = NULL WHERE aggregated_into = :mid')
+                ->execute(['mid' => $masterId]);
+            $this->db->prepare('UPDATE Services SET is_aggregate_master = 0, grouping_ref = NULL WHERE ID = :id')
+                ->execute(['id' => $masterId]);
+            $this->db->prepare('DELETE FROM ServiceStops WHERE master_service_id = :mid')
+                ->execute(['mid' => $masterId]);
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+        }
+    }
+
+    /**
+     * Devolve as paragens de uma viagem mestre ordenadas.
+     * @return array<array<string,mixed>>
+     */
+    public function getStops(int $masterId): array
+    {
+        $stmt = $this->db->prepare('SELECT * FROM ServiceStops WHERE master_service_id = :mid ORDER BY stop_order, id');
+        $stmt->execute(['mid' => $masterId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Reordena as paragens de uma viagem mestre.
+     * @param array<int> $orderedIds IDs das paragens na nova ordem (índice = stop_order)
+     */
+    public function reorderStops(int $masterId, array $orderedIds): void
+    {
+        $stmt = $this->db->prepare('UPDATE ServiceStops SET stop_order = :ord WHERE id = :id AND master_service_id = :mid');
+        foreach ($orderedIds as $order => $stopId) {
+            $stmt->execute(['ord' => $order, 'id' => (int) $stopId, 'mid' => $masterId]);
+        }
+    }
+
+    /**
+     * Guarda a ordem + campos de todas as paragens de uma viagem mestre numa
+     * única transacção. Cada elemento de $stops deve ter:
+     *   id, stop_type ('pickup'|'dropoff'), location, scheduled_time, client_name, pax_total
+     *
+     * @param array<array<string,mixed>> $stops
+     */
+    public function saveStops(int $masterId, array $stops): void
+    {
+        $stmt = $this->db->prepare('
+            UPDATE ServiceStops SET
+                stop_order     = :ord,
+                stop_type      = :type,
+                location       = :loc,
+                scheduled_time = :time,
+                client_name    = :client,
+                pax_total      = :pax
+            WHERE id = :id AND master_service_id = :mid
+        ');
+        $this->db->beginTransaction();
+        try {
+            foreach ($stops as $order => $stop) {
+                $type = $stop['stop_type'] === 'dropoff' ? 'dropoff' : 'pickup';
+                $stmt->execute([
+                    'ord'    => $order,
+                    'type'   => $type,
+                    'loc'    => trim((string) ($stop['location'] ?? '')),
+                    'time'   => !empty($stop['scheduled_time']) ? substr((string) $stop['scheduled_time'], 0, 8) : null,
+                    'client' => !empty($stop['client_name']) ? (string) $stop['client_name'] : null,
+                    'pax'    => isset($stop['pax_total']) && is_numeric($stop['pax_total']) ? (int) $stop['pax_total'] : null,
+                    'id'     => (int) $stop['id'],
+                    'mid'    => $masterId,
+                ]);
+            }
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Fixa a base de pagamento e (opcionalmente) o valor ao motorista,
+     * calculado na atribuição pelo PricingEngine. Se $payout for null, mantém
+     * o valor_motorista existente (ex.: o que veio do Excel) e só grava a base.
+     */
+    public function setDriverPricing(int $serviceId, string $payBasis, ?float $payout): void
+    {
+        if (!$this->ownedBy($serviceId)) return;
+        if ($payout !== null) {
+            $this->db->prepare('UPDATE Services SET pay_basis = :pb, valor_motorista = :vm WHERE ID = :id')
+                ->execute(['pb' => $payBasis, 'vm' => $payout, 'id' => $serviceId]);
+        } else {
+            $this->db->prepare('UPDATE Services SET pay_basis = :pb WHERE ID = :id')
+                ->execute(['pb' => $payBasis, 'id' => $serviceId]);
+        }
+    }
+
     /** @return array<array{driver_id:int,driver_name:string,total:int}> */
     public function rankByDriver(string $from, string $to): array
     {
@@ -330,10 +552,15 @@ final class ServiceRepository
         $cols = 's.ID, s.serviceDate, s.serviceStartTime, s.paxADT, s.paxCHD, s.paxBBY,
                  s.serviceStartPoint, s.serviceTargetPoint, s.FlightNumber,
                  s.NomeCliente, s.ClientNumber, s.serviceType, s.total_price,
+                 s.valor_motorista,
+                 s.grouping_ref, s.is_aggregate_master,
                  s.has_key, s.partner_id, s.status_pedido,
                  s.original_company_id, oc.name AS origin_company_name';
 
         [$join, $where, $baseParams, $driverCol, $countJoin] = $this->filterFragments($filter);
+
+        // Filhos de viagens agregadas nunca aparecem na listagem — só o mestre.
+        $where .= ' AND s.aggregated_into IS NULL';
 
         // Delegated trips: original_company_id = mine (company_id has already moved to the partner).
         if ($filter === 'delegated' && $this->companyId !== null) {
@@ -392,7 +619,9 @@ final class ServiceRepository
 
         // LIMIT/OFFSET must be inlined as integers — PDO binds them as quoted
         // strings which MariaDB rejects in LIMIT context.
-        $dataSql = "SELECT {$cols}, {$driverCol}, p.name AS partner_name
+        $dataSql = "SELECT {$cols},
+                    COALESCE((SELECT COUNT(*) FROM ServiceStops WHERE master_service_id = s.ID), 0) AS stop_count,
+                    {$driverCol}, p.name AS partner_name
                     FROM Services s {$join}
                     LEFT JOIN Companies oc ON s.original_company_id = oc.id
                     WHERE {$where}{$tenancyWhere}{$dateWhere}{$searchWhere}
@@ -500,8 +729,11 @@ final class ServiceRepository
         $cols = 's.ID, s.serviceDate, s.serviceStartTime, s.paxADT, s.paxCHD, s.paxBBY,
                  s.serviceStartPoint, s.serviceTargetPoint, s.FlightNumber,
                  s.NomeCliente, s.ClientNumber, s.serviceType, s.total_price,
+                 s.valor_motorista,
+                 s.grouping_ref, s.is_aggregate_master,
                  s.has_key, s.partner_id, s.status_pedido';
-        $csc  = $this->sc('AND', 's');
+        // Filhos de viagens agregadas escondidos também aqui (schedule board, etc.)
+        $csc  = $this->sc('AND', 's') . ' AND s.aggregated_into IS NULL';
         $cb   = $this->cb();
 
         [$sql, $params] = match ($filter) {
@@ -608,21 +840,23 @@ final class ServiceRepository
             SET serviceDate=:date, serviceStartTime=:time, serviceStartPoint=:pickup,
                 serviceTargetPoint=:dropoff, paxADT=:adults, paxCHD=:children,
                 paxBBY=:bby,
-                FlightNumber=:flight, NomeCliente=:client, ClientNumber=:phone, total_price=:price
+                FlightNumber=:flight, NomeCliente=:client, ClientNumber=:phone,
+                total_price=:price, valor_motorista=:driver_pay
             WHERE ID = :id
         ')->execute([
-            'date'     => $data['serviceDate'],
-            'time'     => $data['serviceStartTime'],
-            'pickup'   => $data['serviceStartPoint'],
-            'dropoff'  => $data['serviceTargetPoint'],
-            'adults'   => (int) ($data['paxADT'] ?? 0),
-            'children' => (int) ($data['paxCHD'] ?? 0),
-            'bby'      => (int) ($data['paxBBY'] ?? 0),
-            'flight'   => $data['FlightNumber'] ?? null,
-            'client'   => $data['NomeCliente']  ?? null,
-            'phone'    => $data['ClientNumber'] ?? null,
-            'price'    => (float) ($data['total_price'] ?? 0),
-            'id'       => $id,
+            'date'       => $data['serviceDate'],
+            'time'       => $data['serviceStartTime'],
+            'pickup'     => $data['serviceStartPoint'],
+            'dropoff'    => $data['serviceTargetPoint'],
+            'adults'     => (int) ($data['paxADT'] ?? 0),
+            'children'   => (int) ($data['paxCHD'] ?? 0),
+            'bby'        => (int) ($data['paxBBY'] ?? 0),
+            'flight'     => $data['FlightNumber'] ?? null,
+            'client'     => $data['NomeCliente']  ?? null,
+            'phone'      => $data['ClientNumber'] ?? null,
+            'price'      => (float) ($data['total_price'] ?? 0),
+            'driver_pay' => isset($data['valor_motorista']) && $data['valor_motorista'] !== null ? (float) $data['valor_motorista'] : null,
+            'id'         => $id,
         ]);
     }
 
@@ -1039,11 +1273,14 @@ final class ServiceRepository
                           s.FlightNumber, s.NomeCliente,
                           s.ClientNumber, s.serviceType, s.total_price, s.has_key,
                           s.partner_id, COALESCE(s.status_id, 0) AS status_id,
-                          u.name AS AgencyName, u.phone AS AgencyPhone
+                          u.name AS AgencyName, u.phone AS AgencyPhone,
+                          COALESCE(s.is_aggregate_master, 0) AS is_aggregate_master
                    FROM Services_Rides sr
                    INNER JOIN Services s ON sr.RideID = s.ID
                    LEFT  JOIN Users u    ON s.partner_id = u.id
-                   WHERE sr.UserID = :uid ' . $this->sc('AND', 's');
+                   WHERE sr.UserID = :uid
+                     AND s.aggregated_into IS NULL
+                     ' . $this->sc('AND', 's');
         $params = array_merge(['uid' => $driverId], $this->cb());
         if ($serviceType !== null) {
             $sql .= ' AND s.serviceType = :stype';
@@ -1052,7 +1289,38 @@ final class ServiceRepository
         $sql .= ' ORDER BY s.serviceDate ASC, s.serviceStartTime ASC';
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // For aggregate masters, fetch stops in a single query and merge by master ID
+        $masterIds = array_values(array_map(
+            static fn(array $r): int => (int) $r['ServiceID'],
+            array_filter($rows, static fn(array $r): bool => (int) $r['is_aggregate_master'] === 1)
+        ));
+
+        $stopsByMaster = [];
+        if ($masterIds !== []) {
+            $ph    = implode(',', array_fill(0, count($masterIds), '?'));
+            $sStmt = $this->db->prepare(
+                "SELECT master_service_id, stop_type, location, scheduled_time, client_name, pax_total
+                 FROM ServiceStops WHERE master_service_id IN ({$ph})
+                 ORDER BY master_service_id, stop_order, id"
+            );
+            $sStmt->execute($masterIds);
+            foreach ($sStmt->fetchAll(PDO::FETCH_ASSOC) as $s) {
+                $stopsByMaster[(int) $s['master_service_id']][] = [
+                    'type'     => $s['stop_type'],
+                    'location' => $s['location'],
+                    'time'     => $s['scheduled_time'],
+                    'client'   => $s['client_name'],
+                    'pax'      => $s['pax_total'],
+                ];
+            }
+        }
+
+        foreach ($rows as &$row) {
+            $row['stops'] = $stopsByMaster[(int) $row['ServiceID']] ?? [];
+        }
+        return $rows;
     }
 
     public function driverCountToday(int $driverId): int

@@ -71,7 +71,13 @@ final class InvitesController extends BaseController
             $this->json(['success' => false, 'error' => 'Invalid role.'], 422);
         }
 
-        $invite = $this->invites->create($companyId, $role, $label, Session::userId());
+        $driverCode = $role === User::ROLE_DRIVER ? (trim((string) ($this->input('driver_code') ?? ''))) : null;
+        $payBasis   = $role === User::ROLE_DRIVER ? ($this->input('default_pay_basis') ?? null) : null;
+        if (!in_array($payBasis, ['company_vehicle', 'own_vehicle'], true)) {
+            $payBasis = null;
+        }
+
+        $invite = $this->invites->create($companyId, $role, $label, Session::userId(), driverCode: $driverCode, defaultPayBasis: $payBasis);
         $link   = $this->baseUrl() . '/SRMT/public/invite.php?token=' . $invite['token'];
 
         $this->logs->record("Admin created invite link (role={$role}) for company #{$companyId}");

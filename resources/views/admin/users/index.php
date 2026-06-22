@@ -87,11 +87,18 @@ async function confirmAddDriver() {
     }
 }
 function openEditModal(u) {
-    document.getElementById("editId").value    = u.id;
-    document.getElementById("editName").value  = u.name;
-    document.getElementById("editEmail").value = u.email;
-    document.getElementById("editPhone").value = u.phone ?? "";
-    document.getElementById("editRole").value  = u.role;
+    document.getElementById("editId").value             = u.id;
+    document.getElementById("editName").value           = u.name;
+    document.getElementById("editEmail").value          = u.email;
+    document.getElementById("editPhone").value          = u.phone ?? "";
+    document.getElementById("editRole").value           = u.role;
+    document.getElementById("editDriverCode").value     = u.driver_code ?? "";
+    document.getElementById("editDefaultPayBasis").value = u.default_pay_basis ?? "company_vehicle";
+    const driverFields = document.getElementById("driverOnlyFields");
+    if (driverFields) driverFields.style.display = parseInt(u.role) === 2 ? "" : "none";
+    document.getElementById("editRole").onchange = function() {
+        if (driverFields) driverFields.style.display = this.value === "2" ? "" : "none";
+    };
     document.getElementById("modalOverlay").classList.add("active");
     document.getElementById("editUserModal").classList.add("active");
 }
@@ -118,16 +125,28 @@ function openInviteModal() {
     document.getElementById("inviteResult").style.display = "none";
     loadInvites();
 }
+function toggleCreateDriverFields(role) {
+    const el = document.getElementById('createDriverFields');
+    if (el) el.style.display = String(role) === '2' ? '' : 'none';
+}
+function toggleInviteDriverFields(role) {
+    const el = document.getElementById('inviteDriverFields');
+    if (el) el.style.display = String(role) === '2' ? '' : 'none';
+}
+
 async function generateInvite() {
-    const role  = document.getElementById("inviteRole").value;
-    const label = document.getElementById("inviteLabel").value;
-    const btn   = document.getElementById("inviteGenBtn");
+    const role       = document.getElementById("inviteRole").value;
+    const label      = document.getElementById("inviteLabel").value;
+    const driverCode = String(role) === '2' ? (document.getElementById("inviteDriverCode")?.value || '') : '';
+    const payBasis   = String(role) === '2' ? (document.getElementById("invitePayBasis")?.value || '') : '';
+    const btn        = document.getElementById("inviteGenBtn");
     btn.disabled = true;
     try {
+        const params = new URLSearchParams({ role, label, driver_code: driverCode, default_pay_basis: payBasis });
         const res = await fetch("/SRMT/public/admin/invite-create.php", {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json" },
-            body: "role=" + encodeURIComponent(role) + "&label=" + encodeURIComponent(label),
+            body: params.toString(),
         });
         const d = await res.json();
         if (d.success) {
@@ -241,6 +260,7 @@ $flashMessages = [
                 $userJson = json_encode([
                     'id' => $user->id, 'name' => $user->name, 'email' => $user->email,
                     'phone' => $user->phone, 'role' => $user->role,
+                    'driver_code' => $user->driverCode, 'default_pay_basis' => $user->defaultPayBasis,
                 ], JSON_HEX_APOS | JSON_HEX_QUOT);
             ?>
             <div class="glass p-3 rounded-2xl flex items-center justify-between">
@@ -294,12 +314,29 @@ $flashMessages = [
         </div>
         <div>
             <label class="text-[9px] uppercase tracking-widest text-zinc-500 font-black"><?= t('users.role') ?></label>
-            <select name="role" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white mt-1" required>
+            <select name="role" id="createRole" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white mt-1" required onchange="toggleCreateDriverFields(this.value)">
                 <option value=""><?= t('users.choose') ?></option>
                 <option value="1"><?= t('users.admin') ?></option>
                 <option value="2"><?= t('users.driver') ?></option>
                 <option value="3"><?= t('users.partner') ?></option>
             </select>
+        </div>
+        <!-- campos exclusivos de condutor (criação) -->
+        <div id="createDriverFields" style="display:none" class="space-y-3 p-3 rounded-xl" style="background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.15)">
+            <p class="text-[9px] uppercase tracking-widest font-black" style="color:#06b6d4"><?= t('users.driver_settings') ?></p>
+            <div>
+                <label class="text-[9px] uppercase tracking-widest text-zinc-500 font-black"><?= t('users.driver_code') ?></label>
+                <input type="text" name="driver_code" placeholder="<?= t('users.driver_code_ph') ?>"
+                    class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white mt-1" maxlength="12">
+                <p class="text-[10px] text-zinc-500 mt-1"><?= t('users.driver_code_hint') ?></p>
+            </div>
+            <div>
+                <label class="text-[9px] uppercase tracking-widest text-zinc-500 font-black"><?= t('users.default_pay_basis') ?></label>
+                <select name="default_pay_basis" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white mt-1">
+                    <option value="company_vehicle"><?= t('rides.pay_basis_company') ?></option>
+                    <option value="own_vehicle"><?= t('rides.pay_basis_own') ?></option>
+                </select>
+            </div>
         </div>
         <button type="submit" class="w-full bg-blue-600 rounded-xl py-3 font-bold text-sm"><?= t('users.create') ?></button>
     </form>
@@ -344,11 +381,27 @@ $flashMessages = [
     <div class="space-y-3">
         <div>
             <label class="text-[9px] uppercase tracking-widest text-zinc-500 font-black"><?= t('invites.role') ?></label>
-            <select id="inviteRole" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white mt-1">
+            <select id="inviteRole" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white mt-1" onchange="toggleInviteDriverFields(this.value)">
                 <option value="2"><?= t('users.driver') ?></option>
                 <option value="3"><?= t('users.partner') ?></option>
                 <option value="1"><?= t('users.admin') ?></option>
             </select>
+        </div>
+        <!-- campos de condutor no convite (visíveis quando role=2) -->
+        <div id="inviteDriverFields" class="space-y-2 p-3 rounded-xl" style="background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.15)">
+            <p class="text-[9px] uppercase tracking-widest font-black" style="color:#06b6d4"><?= t('users.driver_settings') ?></p>
+            <div>
+                <label class="text-[9px] uppercase tracking-widest text-zinc-500 font-black"><?= t('users.driver_code') ?></label>
+                <input type="text" id="inviteDriverCode" placeholder="<?= t('users.driver_code_ph') ?>"
+                    class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white mt-1" maxlength="12">
+            </div>
+            <div>
+                <label class="text-[9px] uppercase tracking-widest text-zinc-500 font-black"><?= t('users.default_pay_basis') ?></label>
+                <select id="invitePayBasis" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white mt-1">
+                    <option value="company_vehicle"><?= t('rides.pay_basis_company') ?></option>
+                    <option value="own_vehicle"><?= t('rides.pay_basis_own') ?></option>
+                </select>
+            </div>
         </div>
         <div>
             <label class="text-[9px] uppercase tracking-widest text-zinc-500 font-black"><?= t('invites.label') ?></label>
@@ -402,6 +455,24 @@ $flashMessages = [
                 <option value="2"><?= t('users.driver') ?></option>
                 <option value="3"><?= t('users.partner') ?></option>
             </select>
+        </div>
+        <!-- campos exclusivos de condutor -->
+        <div id="driverOnlyFields" style="display:none" class="space-y-3 p-3 rounded-xl" style="background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.15)">
+            <p class="text-[9px] uppercase tracking-widest font-black" style="color:#06b6d4"><?= t('users.driver_settings') ?></p>
+            <div>
+                <label class="text-[9px] uppercase tracking-widest text-zinc-500 font-black"><?= t('users.driver_code') ?></label>
+                <input type="text" name="driver_code" id="editDriverCode"
+                    placeholder="<?= t('users.driver_code_ph') ?>"
+                    class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white mt-1" maxlength="12">
+                <p class="text-[10px] text-zinc-500 mt-1"><?= t('users.driver_code_hint') ?></p>
+            </div>
+            <div>
+                <label class="text-[9px] uppercase tracking-widest text-zinc-500 font-black"><?= t('users.default_pay_basis') ?></label>
+                <select name="default_pay_basis" id="editDefaultPayBasis" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white mt-1">
+                    <option value="company_vehicle"><?= t('rides.pay_basis_company') ?></option>
+                    <option value="own_vehicle"><?= t('rides.pay_basis_own') ?></option>
+                </select>
+            </div>
         </div>
         <div>
             <label class="text-[9px] uppercase tracking-widest text-zinc-500 font-black"><?= t('users.new_password') ?></label>

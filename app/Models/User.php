@@ -28,6 +28,8 @@ final class User
         public readonly ?int    $assignedVehicleId,
         public readonly ?int    $secondaryRole,
         public readonly ?int    $companyId,
+        public readonly ?string $driverCode      = null,
+        public readonly string  $defaultPayBasis = 'company_vehicle',
     ) {
     }
 
@@ -44,6 +46,8 @@ final class User
             assignedVehicleId: isset($row['assigned_vehicle_id']) ? (int) $row['assigned_vehicle_id'] : null,
             secondaryRole:     isset($row['secondary_role']) ? (int) $row['secondary_role'] : null,
             companyId:         isset($row['company_id']) ? (int) $row['company_id'] : null,
+            driverCode:        isset($row['driver_code']) && $row['driver_code'] !== '' ? (string) $row['driver_code'] : null,
+            defaultPayBasis:   isset($row['default_pay_basis']) && $row['default_pay_basis'] !== '' ? (string) $row['default_pay_basis'] : 'company_vehicle',
         );
     }
 

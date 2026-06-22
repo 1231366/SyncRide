@@ -48,6 +48,17 @@ final class Service
         public readonly ?string $tsCompleted,      // ts_completed
         public readonly ?int    $companyId,         // company_id
         public readonly ?string $companyName = null, // joined from Companies.name (optional)
+        // ── PRtours: campos vindos do Excel + segundo valor ──────────────────
+        public readonly ?float  $valorMotorista = null,  // valor_motorista (driver payout)
+        public readonly ?string $payBasis       = null,  // pay_basis: company_vehicle | own_vehicle
+        public readonly ?string $supplier       = null,  // supplier (Fornecedor)
+        public readonly ?string $groupingRef    = null,  // grouping_ref (shared aggregation)
+        public readonly ?string $distributorCode = null, // distributor_code
+        public readonly ?string $resort         = null,  // resort
+        public readonly ?string $vehicleLabel   = null,  // vehicle_label
+        public readonly ?string $legCode        = null,  // leg_code (IN/OT/OW)
+        public readonly ?string $referenceNo    = null,  // reference_no
+        public readonly bool    $hotelExtra     = false, // hotel_extra
     ) {
     }
 
@@ -76,6 +87,16 @@ final class Service
             tsCompleted:      $row['ts_completed'] ?? null,
             companyId:        isset($row['company_id']) ? (int) $row['company_id'] : null,
             companyName:      $row['company_name'] ?? null,
+            valorMotorista:   isset($row['valor_motorista']) && $row['valor_motorista'] !== null ? (float) $row['valor_motorista'] : null,
+            payBasis:         $row['pay_basis']         ?? null,
+            supplier:         $row['supplier']          ?? null,
+            groupingRef:      $row['grouping_ref']      ?? null,
+            distributorCode:  $row['distributor_code']  ?? null,
+            resort:           $row['resort']            ?? null,
+            vehicleLabel:     $row['vehicle_label']     ?? null,
+            legCode:          $row['leg_code']          ?? null,
+            referenceNo:      $row['reference_no']      ?? null,
+            hotelExtra:       (bool) ($row['hotel_extra'] ?? false),
         );
     }
 
@@ -83,4 +104,15 @@ final class Service
     public function isNoShow(): bool      { return $this->noShowStatus === 1; }
     public function isShared(): bool      { return $this->type === self::TYPE_SHARED; }
     public function totalPax(): int       { return $this->paxAdults + $this->paxChildren; }
+
+    /** Margem do serviço (receita − custo motorista), ou null se faltarem dados. */
+    public function margin(): ?float
+    {
+        if ($this->totalPrice === null || $this->valorMotorista === null) {
+            return null;
+        }
+        return round($this->totalPrice - $this->valorMotorista, 2);
+    }
+
+    public function isGrouped(): bool { return $this->groupingRef !== null && $this->groupingRef !== ''; }
 }

@@ -368,6 +368,35 @@ ob_start();
             background: linear-gradient(to right, transparent, rgba(2,6,23,0.98));
         }
     }
+    /* ── Stops modal mobile ───────────────────────────────── */
+    #stopsModal .modal-body { padding: 1.25rem !important; }
+    @media (max-width: 576px) {
+        #stopsModal .modal-header {
+            flex-wrap: wrap !important;
+            padding: 1rem !important;
+            gap: 10px !important;
+        }
+        #stopsModal .modal-header .stops-header-actions {
+            width: 100%;
+            display: flex;
+            gap: 8px;
+        }
+        #stopsModal .modal-header .stops-header-actions #btnSaveOrder,
+        #stopsModal .modal-header .stops-header-actions #btnDisaggregateAll {
+            flex: 1;
+            justify-content: center;
+            min-height: 40px;
+        }
+    }
+    /* Ensure stop list items have good touch targets */
+    #stopsList .stop-item {
+        min-height: 52px;
+        touch-action: pan-y;
+    }
+    /* Touch-action on all toolbar/action buttons */
+    .icon-btn, .btn-ghost, .btn-primary-modern, .pill {
+        touch-action: manipulation;
+    }
 </style>
 <?php $ridesHead = ob_get_clean(); ?>
 <?php
@@ -378,6 +407,7 @@ ob_start();
 <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
     var SR_RIDES = {
         oldest: "<?= t('rides.oldest_first') ?>",
@@ -538,7 +568,236 @@ ob_start();
     function updateBulkButton() {
         const selected = $('.ride-checkbox:checked').length;
         $('#selectedCount').text(selected);
+        $('#aggCount').text(selected);
         $('#btnBulkDelete').toggle(selected > 0);
+        $('#btnBulkAggregate').toggle(selected >= 2);
+    }
+    function aggregateSelected() {
+        const rows = [];
+        $('.ride-checkbox:checked').each(function() {
+            const tr   = $(this).closest('tr');
+            const data = tabelaViagens.row(tr).data();
+            if (data) rows.push(data);
+        });
+        if (rows.length < 2) { toastr.warning('<?= View::e(t('rides.aggregate_min')) ?>'); return; }
+
+        // Só Shared (raw_type === 0) podem ser agrupados
+        const nonShared = rows.filter(r => (r.raw_type ?? -1) !== 0);
+        if (nonShared.length > 0) {
+            toastr.warning('<?= View::e(t('rides.aggregate_shared_only')) ?>');
+            return;
+        }
+
+        const ids = rows.map(r => r.raw_id ?? r.id.replace('#',''));
+        const fd = new FormData(); fd.append('ids_bulk', JSON.stringify(ids));
+        fetch('/SRMT/public/admin/ride-aggregate.php', { method: 'POST', body: fd })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) { toastr.success('<?= View::e(t('rides.aggregate_done')) ?> (#' + d.master_id + ')'); disableSelectionMode(); tabelaViagens.ajax.reload(null, false); }
+                else { toastr.error(d.error || 'Erro'); }
+            })
+            .catch(() => toastr.error('Falha de rede'));
+    }
+
+    // ── Modal de paragens ──────────────────────────────────────────
+    let _stopsMasterId = 0;
+    let _stopsSortable = null;
+    let _stopsEditMode = false;
+
+    function escHtml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function openStopsModal(masterId, stopCount) {
+        _stopsMasterId = masterId;
+        _stopsEditMode = false;
+        _updateEditToggleUI();
+        document.getElementById('stopsModalSub').textContent = '#' + masterId + ' · ' + stopCount + ' <?= t('rides.stops_badge') ?>';
+        const list = document.getElementById('stopsList');
+        list.innerHTML = '';
+        document.getElementById('stopsLoading').classList.remove('d-none');
+
+        fetch('/SRMT/public/admin/ride-stops.php?ride_id=' + masterId)
+            .then(r => r.json())
+            .then(d => {
+                document.getElementById('stopsLoading').classList.add('d-none');
+                if (!d.success) { toastr.error(d.error || 'Erro'); return; }
+                renderStops(d.stops);
+            }).catch(() => { document.getElementById('stopsLoading').classList.add('d-none'); toastr.error('Falha de rede'); });
+
+        new bootstrap.Modal(document.getElementById('stopsModal')).show();
+    }
+
+    function _initSortable() {
+        if (_stopsSortable) { _stopsSortable.destroy(); _stopsSortable = null; }
+        const list = document.getElementById('stopsList');
+        _stopsSortable = Sortable.create(list, {
+            animation: 150,
+            handle: '.drag-handle',
+            ghostClass: 'opacity-30',
+            touchStartThreshold: 4,
+            onEnd() {
+                // Auto-save order immediately after every drop
+                const ids = Array.from(list.querySelectorAll('.stop-item')).map(el => parseInt(el.dataset.id));
+                const fd  = new FormData();
+                fd.append('master_id', _stopsMasterId);
+                fd.append('ordered_ids', JSON.stringify(ids));
+                fetch('/SRMT/public/admin/ride-stops-reorder.php', { method: 'POST', body: fd })
+                    .then(r => r.json())
+                    .then(d => { if (!d.success) toastr.error(d.error || 'Erro ao guardar ordem'); })
+                    .catch(() => toastr.error('Falha de rede'));
+            },
+        });
+    }
+
+    function renderStops(stops) {
+        const list = document.getElementById('stopsList');
+        list.innerHTML = '';
+        if (!stops || stops.length === 0) {
+            list.innerHTML = '<p class="text-zinc-500 text-sm text-center py-4"><?= t('rides.stops_empty') ?></p>';
+            return;
+        }
+        stops.forEach(s => {
+            const isPickup = s.stop_type === 'pickup';
+            const div = document.createElement('div');
+            div.className = 'stop-item';
+            div.dataset.id   = s.id;
+            div.dataset.type = s.stop_type;
+            div.style.cssText = 'background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:12px;margin-bottom:0';
+
+            // ── View mode ──────────────────────────────────────────────
+            const view = document.createElement('div');
+            view.className = 'stop-view d-flex align-items-start gap-3';
+            view.innerHTML = `
+                <span class="drag-handle d-flex align-items-center justify-content-center flex-shrink-0"
+                    style="cursor:grab;width:24px;min-height:44px;touch-action:none;color:#3f3f46">
+                    <i class="bi bi-grip-vertical" style="font-size:15px;pointer-events:none"></i>
+                </span>
+                <span class="d-flex align-items-center justify-content-center flex-shrink-0 rounded-lg fw-black"
+                    style="width:30px;height:30px;font-size:11px;background:${isPickup ? 'rgba(239,68,68,.15)' : 'rgba(34,197,94,.15)'};color:${isPickup ? '#ef4444' : '#22c55e'}">
+                    ${isPickup ? 'P' : 'D'}
+                </span>
+                <div class="flex-1 min-w-0">
+                    <p class="fw-bold text-white mb-0 text-sm">${escHtml(s.location || '')}</p>
+                    <p class="text-zinc-400 mb-0" style="font-size:11px">
+                        ${s.scheduled_time ? '<span>' + escHtml(s.scheduled_time.substring(0,5)) + '</span> · ' : ''}
+                        ${s.client_name   ? escHtml(s.client_name) : ''}
+                        ${s.pax_total     ? ' · ' + s.pax_total + ' pax' : ''}
+                        ${s.reference_no  ? ' · ' + escHtml(s.reference_no) : ''}
+                    </p>
+                </div>
+                <span class="text-zinc-600 flex-shrink-0" style="font-size:10px;padding-top:2px">#${escHtml(String(s.source_service_id || ''))}</span>
+            `;
+
+            // ── Edit mode ──────────────────────────────────────────────
+            const edit = document.createElement('div');
+            edit.className = 'stop-edit d-none';
+            edit.innerHTML = `
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <select class="stop-field" data-f="stop_type"
+                        style="background:#1a1a2e;border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:4px 8px;font-size:11px;font-weight:700;flex-shrink:0">
+                        <option value="pickup"  ${isPickup ? 'selected' : ''}>P – Recolha</option>
+                        <option value="dropoff" ${!isPickup ? 'selected' : ''}>D – Entrega</option>
+                    </select>
+                    <input class="stop-field flex-1" data-f="location" value="${escHtml(s.location || '')}"
+                        placeholder="Local" style="background:#1a1a2e;border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;min-width:0">
+                </div>
+                <div class="d-flex gap-2">
+                    <input class="stop-field" data-f="scheduled_time" type="time" value="${escHtml(s.scheduled_time ? s.scheduled_time.substring(0,5) : '')}"
+                        style="background:#1a1a2e;border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:5px 8px;font-size:11px;width:90px;flex-shrink:0">
+                    <input class="stop-field flex-1" data-f="client_name" value="${escHtml(s.client_name || '')}"
+                        placeholder="Cliente" style="background:#1a1a2e;border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:5px 10px;font-size:11px;min-width:0">
+                    <input class="stop-field" data-f="pax_total" type="number" min="0" max="99" value="${s.pax_total || ''}"
+                        placeholder="Pax" style="background:#1a1a2e;border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:5px 8px;font-size:11px;width:56px;flex-shrink:0">
+                </div>
+            `;
+
+            div.appendChild(view);
+            div.appendChild(edit);
+            list.appendChild(div);
+        });
+
+        _applyEditMode(); // shows/hides view vs edit content
+        _initSortable();  // always-on drag, auto-saves on drop
+    }
+
+    function _updateEditToggleUI() {
+        const btn  = document.getElementById('btnStopsEditToggle');
+        const save = document.getElementById('btnSaveStops');
+        if (!btn) return;
+        if (_stopsEditMode) {
+            btn.innerHTML  = '<i class="bi bi-eye me-1"></i><?= t('rides.stops_view_mode') ?>';
+            btn.style.background = 'rgba(139,92,246,.15)';
+            btn.style.color      = '#a78bfa';
+            btn.style.borderColor= 'rgba(139,92,246,.3)';
+            save.style.display = '';
+        } else {
+            btn.innerHTML  = '<i class="bi bi-pencil me-1"></i><?= t('rides.stops_edit_mode') ?>';
+            btn.style.background = 'rgba(6,182,212,.15)';
+            btn.style.color      = '#06b6d4';
+            btn.style.borderColor= 'rgba(6,182,212,.3)';
+            save.style.display = 'none';
+        }
+    }
+
+    function _applyEditMode() {
+        document.querySelectorAll('#stopsList .stop-item').forEach(el => {
+            el.querySelector('.stop-view').classList.toggle('d-none', _stopsEditMode);
+            el.querySelector('.stop-edit').classList.toggle('d-none', !_stopsEditMode);
+        });
+        // Sortable stays alive regardless of edit mode — only init once per render
+        if (!_stopsSortable) _initSortable();
+    }
+
+    function toggleStopsEditMode() {
+        _stopsEditMode = !_stopsEditMode;
+        _updateEditToggleUI();
+        _applyEditMode();
+    }
+
+    function saveStopsAll() {
+        const items = document.querySelectorAll('#stopsList .stop-item');
+        const stops = Array.from(items).map(el => {
+            const get = f => el.querySelector(`.stop-field[data-f="${f}"]`)?.value ?? '';
+            return {
+                id:             parseInt(el.dataset.id),
+                stop_type:      get('stop_type') || el.dataset.type,
+                location:       get('location'),
+                scheduled_time: get('scheduled_time') || null,
+                client_name:    get('client_name')    || null,
+                pax_total:      get('pax_total')      || null,
+            };
+        });
+        const fd = new FormData();
+        fd.append('master_id', _stopsMasterId);
+        fd.append('stops', JSON.stringify(stops));
+        fetch('/SRMT/public/admin/ride-stops-save.php', { method: 'POST', body: fd })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) {
+                    toastr.success('<?= t('rides.stops_order_saved') ?>');
+                    // Re-render in view mode with updated data
+                    _stopsEditMode = false;
+                    _updateEditToggleUI();
+                    // Reload stops to reflect changes
+                    fetch('/SRMT/public/admin/ride-stops.php?ride_id=' + _stopsMasterId)
+                        .then(r => r.json()).then(d2 => { if (d2.success) renderStops(d2.stops); });
+                } else { toastr.error(d.error || 'Erro'); }
+            }).catch(() => toastr.error('Falha de rede'));
+    }
+
+    function disaggregateAll() {
+        if (!confirm('<?= View::e(t('rides.stops_split_confirm')) ?>')) return;
+        const fd = new FormData(); fd.append('ride_id', _stopsMasterId);
+        fetch('/SRMT/public/admin/ride-disaggregate.php', { method: 'POST', body: fd })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('stopsModal'))?.hide();
+                    toastr.success('<?= View::e(t('rides.disaggregate_done')) ?>');
+                    tabelaViagens.ajax.reload(null, false);
+                } else { toastr.error(d.error || 'Erro'); }
+            }).catch(() => toastr.error('Falha de rede'));
     }
     function bulkDelete() {
         const ids = [];
@@ -567,7 +826,7 @@ ob_start();
             else { toastr.error('Error'); }
         });
     }
-    function editTravel(id, dataHora, condutor, recolha, entrega, paxADT, paxCHD, paxBBY, flightNumber, clientName, clientNumber, serviceType, totalPrice) {
+    function editTravel(id, dataHora, condutor, recolha, entrega, paxADT, paxCHD, paxBBY, flightNumber, clientName, clientNumber, serviceType, totalPrice, valorMotorista) {
         disableEdit();
         document.getElementById('editTripId').value = id;
         document.getElementById('editDataHora').value = dataHora.replace(' ','T');
@@ -581,6 +840,7 @@ ob_start();
         document.getElementById('editclientName').value = clientName;
         document.getElementById('editclientNumber').value = clientNumber;
         document.getElementById('editTotalPrice').value = totalPrice;
+        document.getElementById('editValorMotorista').value = (valorMotorista === undefined || valorMotorista === null) ? '' : valorMotorista;
         document.getElementById('editTripTypeDisplay').value = serviceType == 1 ? 'Private' : 'Shared';
         document.getElementById('btnChangeTypeEdit').onclick = function() {
             bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
@@ -783,6 +1043,9 @@ View::layout('layouts.admin', [
         <button id="btnBulkDelete" class="btn-ghost" style="display:none;color:#f87171;border-color:rgba(248,113,113,0.3);background:rgba(248,113,113,0.08);" onclick="bulkDelete()">
             <i class="bi bi-trash3-fill"></i> Delete (<span id="selectedCount">0</span>)
         </button>
+        <button id="btnBulkAggregate" class="btn-ghost" style="display:none;color:#06b6d4;border-color:rgba(6,182,212,0.3);background:rgba(6,182,212,0.08);" onclick="aggregateSelected()">
+            <i class="bi bi-link-45deg"></i> <?= t('rides.aggregate_btn') ?> (<span id="aggCount">0</span>)
+        </button>
         <button id="toggleSelectionMode" class="icon-btn" title="<?= t('rides.selection_mode') ?>" onclick="toggleSelectionMode()">
             <i data-lucide="check-square" class="w-4 h-4"></i>
         </button>
@@ -885,6 +1148,12 @@ View::layout('layouts.admin', [
                             <input type="number" step="0.01" class="form-control-custom" name="totalPrice" placeholder="e.g. 45.50">
                         </div>
                     </div>
+                    <div class="row mb-2">
+                        <div class="col-6">
+                            <label class="form-label small" style="color:#38bdf8 !important;"><i class="bi bi-person-badge"></i> <?= t('rides.driver_amount') ?></label>
+                            <input type="number" step="0.01" class="form-control-custom" name="valorMotorista" placeholder="e.g. 11.00">
+                        </div>
+                    </div>
                     <button type="submit" class="btn-modern w-100 mt-1"><?= t('rides.create_ride') ?></button>
                 </form>
             </div>
@@ -924,6 +1193,13 @@ View::layout('layouts.admin', [
                             <option value="<?= $d->id ?>"><?= View::e($d->name) ?></option>
                         <?php endforeach; ?>
                     </select>
+                    <label class="form-label small mt-3 d-block"><i class="bi bi-person-badge"></i> <?= t('rides.pay_basis') ?></label>
+                    <select name="payBasis" class="form-select-custom text-center">
+                        <option value=""><?= t('rides.pay_basis_auto') ?></option>
+                        <option value="company_vehicle"><?= t('rides.pay_basis_company') ?></option>
+                        <option value="own_vehicle"><?= t('rides.pay_basis_own') ?></option>
+                    </select>
+                    <p class="text-zinc-500 small mt-2 mb-0"><?= t('rides.pay_basis_hint') ?></p>
                 </div>
                 <div class="modal-footer border-top-0"><button type="submit" class="btn-modern w-100"><?= t('rides.confirm') ?></button></div>
             </form>
@@ -970,7 +1246,10 @@ View::layout('layouts.admin', [
                         <div class="col-md-6"><label class="small"><?= t('rides.client') ?></label><input type="text" class="form-control-custom" id="editclientName" name="edit_clientName" disabled></div>
                         <div class="col-md-6"><label class="small"><?= t('rides.client_number') ?></label><input type="text" class="form-control-custom" id="editclientNumber" name="edit_clientNumber" disabled></div>
                     </div>
-                    <div class="mb-3"><label class="form-label small" style="color:#34d399 !important;"><?= t('rides.amount') ?></label><input type="number" step="0.01" class="form-control-custom" id="editTotalPrice" name="edit_totalPrice" disabled></div>
+                    <div class="row mb-3">
+                        <div class="col-6"><label class="form-label small" style="color:#34d399 !important;"><?= t('rides.amount') ?></label><input type="number" step="0.01" class="form-control-custom" id="editTotalPrice" name="edit_totalPrice" disabled></div>
+                        <div class="col-6"><label class="form-label small" style="color:#38bdf8 !important;"><?= t('rides.driver_amount') ?></label><input type="number" step="0.01" class="form-control-custom" id="editValorMotorista" name="edit_valorMotorista" disabled></div>
+                    </div>
                     <div class="mt-4 pt-3 d-flex justify-content-between align-items-center edit-type-row">
                         <div><span class="text-zinc-500 small me-2">Type:</span><input type="text" class="d-inline-block border-0 bg-transparent fw-bold text-white" style="width:100px;" id="editTripTypeDisplay" disabled></div>
                         <button type="button" id="btnChangeTypeEdit" class="btn-ghost"><i class="bi bi-shuffle"></i> <?= t('rides.change') ?></button>
@@ -1025,3 +1304,38 @@ View::layout('layouts.admin', [
     </div>
 </div>
 <?php endif; ?>
+
+<!-- Modal: paragens da viagem multi-paragem -->
+<div class="modal fade" id="stopsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="background:#111;border:1px solid rgba(255,255,255,.1);border-radius:20px">
+            <div class="modal-header border-b border-white/10 px-4 py-3 d-flex align-items-start gap-3" style="flex-wrap:wrap">
+                <div class="d-flex align-items-center gap-2 flex-1">
+                    <h5 class="modal-title font-black text-white text-base mb-0">
+                        <i class="bi bi-signpost-2 me-2" style="color:#06b6d4"></i><?= t('rides.stops_modal_title') ?>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white ms-auto d-sm-none" data-bs-dismiss="modal"></button>
+                </div>
+                <p id="stopsModalSub" class="text-[10px] text-zinc-500 mb-0 w-100 d-block"></p>
+                <div class="stops-header-actions d-flex gap-2 align-items-center flex-wrap">
+                    <button id="btnStopsEditToggle" class="btn btn-sm" style="background:rgba(6,182,212,.15);color:#06b6d4;border:1px solid rgba(6,182,212,.3);border-radius:10px;font-weight:800;font-size:11px;min-height:38px;touch-action:manipulation" onclick="toggleStopsEditMode()">
+                        <i class="bi bi-pencil me-1"></i><?= t('rides.stops_edit_mode') ?>
+                    </button>
+                    <button id="btnSaveStops" class="btn btn-sm" style="display:none;background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:10px;font-weight:800;font-size:11px;min-height:38px;touch-action:manipulation" onclick="saveStopsAll()">
+                        <i class="bi bi-floppy me-1"></i><?= t('rides.stops_save_order') ?>
+                    </button>
+                    <button id="btnDisaggregateAll" class="btn btn-sm" style="background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.25);border-radius:10px;font-weight:800;font-size:11px;min-height:38px;touch-action:manipulation" onclick="disaggregateAll()">
+                        <i class="bi bi-scissors me-1"></i><?= t('rides.stops_split_all') ?>
+                    </button>
+                    <button type="button" class="btn-close btn-close-white d-none d-sm-inline-flex" data-bs-dismiss="modal"></button>
+                </div>
+            </div>
+            <div class="modal-body p-3 p-sm-4">
+                <div id="stopsLoading" class="text-center py-6 text-zinc-500 text-sm d-none">
+                    <div class="spinner-border spinner-border-sm me-2"></div><?= t('rides.loading') ?>
+                </div>
+                <div id="stopsList" class="d-flex flex-column gap-2"></div>
+            </div>
+        </div>
+    </div>
+</div>

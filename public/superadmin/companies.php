@@ -11,9 +11,10 @@ $action = $_GET['action'] ?? 'index';
 $ctrl   = new CompaniesController();
 
 match ($action) {
-    'store'      => $ctrl->store(),
-    'update'     => $ctrl->update(),
-    'destroy'    => $ctrl->destroy(),
-    'store_user' => $ctrl->storeUser(),
-    default      => $ctrl->index(),
+    'store'          => $ctrl->store(),
+    'update'         => $ctrl->update(),
+    'destroy'        => $ctrl->destroy(),
+    'store_user'     => $ctrl->storeUser(),
+    'create_invite'  => $ctrl->createInvite(),
+    default          => $ctrl->index(),
 };

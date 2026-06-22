@@ -5,46 +5,44 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\BaseController;
+use App\Models\User;
 use App\Repositories\ExpenseRepository;
+use App\Repositories\FinancialReportRepository;
 use App\Repositories\LogRepository;
-use App\Repositories\ServiceRepository;
-use PDO;
+use App\Repositories\UserRepository;
 
 /**
- * Monthly P&L view: estimated revenue (rides × flat fee), expenses by
- * category, net profit, and an expenses CRUD. Filter by ?month=YYYY-MM.
+ * Gestão financeira: relatório com valores REAIS dos serviços (receita,
+ * custo do motorista, margem) filtrável por intervalo de datas, fornecedor
+ * e motorista — com sub-totais e exportação CSV — além do módulo de despesas.
  */
 final class FinancialController extends BaseController
 {
-    private const REVENUE_PER_RIDE = 15.0; // legacy estimate
     private const UPLOAD_DIR = __DIR__ . '/../../../../public/uploads/expenses/';
     private const UPLOAD_URL = '/SRMT/public/uploads/expenses/';
 
-    private ExpenseRepository $expenses;
-    private LogRepository     $logs;
-    private ServiceRepository $services;
+    private ExpenseRepository         $expenses;
+    private LogRepository             $logs;
+    private FinancialReportRepository $report;
+    private UserRepository            $users;
 
     public function __construct()
     {
         $this->expenses = ExpenseRepository::default();
         $this->logs     = LogRepository::default();
-        $this->services = ServiceRepository::default();
+        $this->report   = FinancialReportRepository::default();
+        $this->users    = UserRepository::default();
     }
 
-    /** GET /admin/financial.php?month=YYYY-MM */
+    /** GET /admin/financial.php?from=YYYY-MM-DD&to=...&supplier=...&driver=... */
     public function index(): void
     {
-        $monthFilter = $this->input('month') ?: date('Y-m');
-        $year  = (int) substr((string) $monthFilter, 0, 4);
-        $month = (int) substr((string) $monthFilter, 5, 2);
-        $firstDay = sprintf('%04d-%02d-01', $year, $month);
-        $lastDay  = date('Y-m-t', strtotime($firstDay));
+        [$from, $to, $supplier, $driverId] = $this->filters();
 
-        $rideCount       = count($this->services->byDateRange($firstDay, $lastDay));
-        $estimatedRevenue = $rideCount * self::REVENUE_PER_RIDE;
-        $totalExpenses   = $this->expenses->totalForMonth(sprintf('%04d-%02d', $year, $month));
-        $netProfit       = $estimatedRevenue - $totalExpenses;
-        $expenses        = $this->expenses->byDateRange($firstDay, $lastDay);
+        $report        = $this->report->report($from, $to, $supplier, $driverId);
+        $expenses      = $this->expenses->byDateRange($from, $to);
+        $totalExpenses = array_sum(array_map(static fn($e): float => $e->amount, $expenses));
+        $netProfit     = $report['totals']['margin'] - $totalExpenses;
 
         $byCategory = [];
         foreach ($expenses as $expense) {
@@ -52,16 +50,78 @@ final class FinancialController extends BaseController
         }
 
         $this->view('admin.financial.index', [
-            'monthFilter'      => $monthFilter,
-            'rideCount'        => $rideCount,
-            'estimatedRevenue' => $estimatedRevenue,
-            'totalExpenses'    => $totalExpenses,
-            'netProfit'        => $netProfit,
-            'expenses'         => $expenses,
-            'categoryLabels'   => array_keys($byCategory),
-            'categoryValues'   => array_values($byCategory),
-            'flash'            => $_GET['success'] ?? null,
+            'from'           => $from,
+            'to'             => $to,
+            'supplier'       => $supplier,
+            'driverId'       => $driverId,
+            'suppliers'      => $this->report->suppliers(),
+            'drivers'        => $this->users->byRole(User::ROLE_DRIVER),
+            'report'         => $report,
+            'totalExpenses'  => $totalExpenses,
+            'netProfit'      => $netProfit,
+            'expenses'       => $expenses,
+            'categoryLabels' => array_keys($byCategory),
+            'categoryValues' => array_values($byCategory),
+            'flash'          => $_GET['success'] ?? null,
         ]);
+    }
+
+    /** GET /admin/financial-export.php — exporta o relatório filtrado em CSV. */
+    public function export(): never
+    {
+        [$from, $to, $supplier, $driverId] = $this->filters();
+        $report = $this->report->report($from, $to, $supplier, $driverId);
+
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        $filename = "financeiro_{$from}_{$to}.csv";
+        header('Content-Type: text/csv; charset=utf-8');
+        header("Content-Disposition: attachment; filename=\"{$filename}\"");
+
+        $out = fopen('php://output', 'wb');
+        fprintf($out, "\xEF\xBB\xBF"); // BOM p/ Excel abrir UTF-8 corretamente
+        fputcsv($out, ['Data', 'Hora', 'Cliente', 'Recolha', 'Entrega', 'Tipo', 'Fornecedor', 'Motorista', 'Receita', 'Custo motorista', 'Margem']);
+        foreach ($report['rows'] as $r) {
+            fputcsv($out, [
+                $r['serviceDate'],
+                substr((string) $r['serviceStartTime'], 0, 5),
+                $r['NomeCliente'],
+                $r['serviceStartPoint'],
+                $r['serviceTargetPoint'],
+                ((int) $r['serviceType']) === 0 ? 'Shared' : 'Private',
+                $r['supplier'],
+                $r['driver_name'],
+                number_format((float) ($r['total_price'] ?? 0), 2, '.', ''),
+                number_format((float) ($r['valor_motorista'] ?? 0), 2, '.', ''),
+                number_format((float) $r['margin'], 2, '.', ''),
+            ]);
+        }
+        $t = $report['totals'];
+        fputcsv($out, []);
+        fputcsv($out, ['', '', '', '', '', '', '', 'TOTAIS', number_format($t['revenue'], 2, '.', ''), number_format($t['driver_cost'], 2, '.', ''), number_format($t['margin'], 2, '.', '')]);
+        fclose($out);
+        exit;
+    }
+
+    /**
+     * Lê os filtros do pedido; intervalo por omissão = mês corrente.
+     * @return array{0:string,1:string,2:?string,3:?int}
+     */
+    private function filters(): array
+    {
+        $from = (string) $this->input('from', '');
+        $to   = (string) $this->input('to', '');
+        if ($from === '' || !strtotime($from)) {
+            $from = date('Y-m-01');
+        }
+        if ($to === '' || !strtotime($to)) {
+            $to = date('Y-m-t');
+        }
+        $supplier = ($s = (string) $this->input('supplier', '')) !== '' ? $s : null;
+        $driverId = (int) $this->input('driver', 0) ?: null;
+
+        return [$from, $to, $supplier, $driverId];
     }
 
     /** POST /admin/save-expense.php — create or delete an expense. */

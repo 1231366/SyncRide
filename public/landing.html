@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f1f5f9">
 <title>SyncRide — Automatiza a tua operação de transfers</title>
 <meta name="description" content="Agendas no WhatsApp, app para condutores, tracking em tempo real e faturação automática. Acaba com o caos das folhas de cálculo.">
-<link rel="icon" type="image/png" href="/SRMT/public/assets/images/icons/Syncride.png"/>
+<link rel="icon" type="image/png" href="./assets/images/icons/Syncride.png"/>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
@@ -44,18 +44,34 @@
         .nav-right .btn { padding: 9px 15px; font-size: 13px; }
     }
 
-    /* Hero */
-    .hero { text-align: center; padding: 84px 0 56px; }
+    /* Hero — split cinematográfico (texto à esquerda, foto à direita) */
+    .hero { padding: 72px 0 80px; overflow: hidden; }
+    .hero .wrap { display: grid; grid-template-columns: 1.05fr .95fr; gap: 56px; align-items: center; }
+    .hero-text, .hero-media { min-width: 0; }   /* deixa as colunas encolher abaixo do min-content (a linha de confiança tem &nbsp;) */
+    .hero-text { text-align: left; }
     .pill { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 700; background: rgba(37,99,235,.08); color: var(--blue); border: 1px solid rgba(37,99,235,.18); padding: 7px 16px; border-radius: 999px; margin-bottom: 26px; }
     .hero h1 { font-size: 56px; font-weight: 800; letter-spacing: -2.2px; line-height: 1.05; margin-bottom: 22px; }
     .hero h1 .grad { background: linear-gradient(120deg,#2563eb,#60a5fa); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-    .hero p.sub { font-size: 19px; color: var(--muted); font-weight: 500; max-width: 640px; margin: 0 auto 32px; }
-    .hero-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .hero p.sub { font-size: 19px; color: var(--muted); font-weight: 500; max-width: 540px; margin: 0 0 32px; }
+    .hero-cta { display: flex; gap: 12px; justify-content: flex-start; flex-wrap: wrap; }
     .hero-trust { margin-top: 18px; font-size: 13px; color: var(--muted); font-weight: 600; }
     .hero-trust i { color: #10b981; }
-    .hero-shot { margin-top: 54px; }
-    .hero-shot img { width: 100%; max-width: 940px; border-radius: 20px; border: 1px solid var(--line); box-shadow: 0 40px 80px rgba(15,23,42,.18); }
-    @media (max-width: 760px){ .hero h1 { font-size: 38px; } }
+    /* Foto do condutor + telemóvel real a flutuar (o que ele vê no ecrã) */
+    .hero-media { position: relative; }
+    .hero-media .photo { width: 100%; height: 540px; object-fit: cover; object-position: 70% center; border-radius: 26px; box-shadow: 0 40px 90px rgba(15,23,42,.22); display: block; }
+    .hero-phone { position: absolute; left: -26px; bottom: -34px; width: 144px; z-index: 2; filter: drop-shadow(0 26px 44px rgba(15,23,42,.34)); }
+    .hero-phone img { width: 100%; display: block; }
+    @media (max-width: 900px){
+        .hero { padding: 56px 0 64px; }
+        .hero .wrap { grid-template-columns: 1fr; gap: 0; }
+        .hero-text { text-align: center; }
+        .hero h1 { font-size: 38px; }
+        .hero p.sub { margin: 0 auto 28px; }
+        .hero-cta { justify-content: center; }
+        .hero-media { margin-top: 44px; }
+        .hero-media .photo { height: 300px; }
+        .hero-phone { left: 6px; bottom: -24px; width: 108px; }
+    }
 
     /* Pain → gain */
     section { padding: 72px 0; }
@@ -74,7 +90,11 @@
     .feat-text li { padding: 5px 0 5px 28px; position: relative; font-size: 15px; font-weight: 600; }
     .feat-text li::before { content: '\F26E'; font-family: 'bootstrap-icons'; position: absolute; left: 0; color: #10b981; }
     .feat-img img { width: 100%; border-radius: 18px; border: 1px solid var(--line); box-shadow: 0 24px 50px rgba(15,23,42,.12); }
-    @media (max-width: 760px){ .feat { grid-template-columns: 1fr; gap: 24px; } .feat.rev .feat-text { order: 0; } }
+    /* Telemóvel real (mockup) numa feature — sem moldura, com palco e sombra */
+    .feat-img.phone { display: flex; justify-content: center; position: relative; }
+    .feat-img.phone::before { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 360px; height: 360px; border-radius: 50%; background: radial-gradient(circle, rgba(37,99,235,.15), transparent 68%); z-index: 0; }
+    .feat-img.phone img { position: relative; z-index: 1; width: auto; max-height: 560px; border: none; border-radius: 0; box-shadow: none; filter: drop-shadow(0 30px 50px rgba(15,23,42,.22)); }
+    @media (max-width: 760px){ .feat { grid-template-columns: 1fr; gap: 24px; } .feat.rev .feat-text { order: 0; } .feat-img.phone img { max-height: 460px; } }
 
     /* Outcomes strip */
     .outcomes { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; }
@@ -135,14 +155,14 @@
 
 <nav>
     <div class="wrap">
-        <div class="brand"><img src="/SRMT/public/assets/images/icons/Syncride.png" alt="">SyncRide</div>
+        <div class="brand"><img src="./assets/images/icons/Syncride.png" alt="SyncRide"></div>
         <div class="nav-mid">
             <a href="#como">Como funciona</a>
             <a href="#integracao">Integração</a>
             <a href="#precos">Preços</a>
         </div>
         <div class="nav-right">
-            <a href="/SRMT/public/" class="btn btn-ghost">Entrar</a>
+            <a href="index.php" class="btn btn-ghost">Entrar</a>
             <a href="#comecar" class="btn btn-primary">Começar grátis</a>
         </div>
     </div>
@@ -150,15 +170,22 @@
 
 <header class="hero">
     <div class="wrap">
-        <span class="pill"><i class="bi bi-lightning-charge-fill"></i> Operação de transfers no piloto automático</span>
-        <h1>Acaba com o caos<br><span class="grad">das folhas de cálculo.</span></h1>
-        <p class="sub">As agendas chegam sozinhas aos condutores, os operadores parceiros pedem sem te ligar, e as reservas do teu site caem direto no sistema. Tu só geres — o resto trata-se sozinho.</p>
-        <div class="hero-cta">
-            <a href="#comecar" class="btn btn-primary btn-lg"><i class="bi bi-rocket-takeoff"></i> Começar 14 dias grátis</a>
-            <a href="#como" class="btn btn-ghost btn-lg"><i class="bi bi-play-circle"></i> Ver como funciona</a>
+        <div class="hero-text">
+            <span class="pill"><i class="bi bi-lightning-charge-fill"></i> Operação de transfers no piloto automático</span>
+            <h1>Acaba com o caos<br><span class="grad">das folhas de cálculo.</span></h1>
+            <p class="sub">As agendas chegam sozinhas aos condutores, os operadores parceiros pedem sem te ligar, e as reservas do teu site caem direto no sistema. Tu só geres — o resto trata-se sozinho.</p>
+            <div class="hero-cta">
+                <a href="#comecar" class="btn btn-primary btn-lg"><i class="bi bi-rocket-takeoff"></i> Começar 14 dias grátis</a>
+                <a href="#como" class="btn btn-ghost btn-lg"><i class="bi bi-play-circle"></i> Ver como funciona</a>
+            </div>
+            <div class="hero-trust"><i class="bi bi-check-circle-fill"></i> 14 dias grátis &nbsp;·&nbsp; <i class="bi bi-check-circle-fill"></i> Sem cartão &nbsp;·&nbsp; <i class="bi bi-check-circle-fill"></i> Cancela quando quiseres</div>
         </div>
-        <div class="hero-trust"><i class="bi bi-check-circle-fill"></i> 14 dias grátis &nbsp;·&nbsp; <i class="bi bi-check-circle-fill"></i> Sem cartão &nbsp;·&nbsp; <i class="bi bi-check-circle-fill"></i> Cancela quando quiseres</div>
-        <div class="hero-shot"><img src="/SRMT/public/manual/img/admin-dashboard.png" alt="Painel SyncRide"></div>
+        <div class="hero-media">
+            <img class="photo" src="./assets/landing/hero.jpg" alt="Condutor profissional a receber a próxima viagem no telemóvel, junto a uma viatura executiva">
+            <div class="hero-phone">
+                <img src="./assets/landing/driver-home.webp" alt="App do condutor SyncRide com a agenda do dia">
+            </div>
+        </div>
     </div>
 </header>
 
@@ -181,7 +208,7 @@
                     <li>Zero trabalho manual de despacho</li>
                 </ul>
             </div>
-            <div class="feat-img"><img src="/SRMT/public/manual/img/admin-schedule-board.png" alt="Quadro de agenda"></div>
+            <div class="feat-img phone"><img src="./assets/landing/admin-rides.webp" alt="Gestão de viagens na app SyncRide"></div>
         </div>
 
         <div class="feat rev">
@@ -195,7 +222,7 @@
                     <li>Comprovativos enviados na hora</li>
                 </ul>
             </div>
-            <div class="feat-img"><img src="/SRMT/public/manual/img/driver-dashboard.png" alt="App do condutor"></div>
+            <div class="feat-img phone"><img src="./assets/landing/driver-ride.webp" alt="Condutor a iniciar a viagem na app SyncRide"></div>
         </div>
 
         <div class="feat">
@@ -209,7 +236,7 @@
                     <li>Acertos mensais sem discussões</li>
                 </ul>
             </div>
-            <div class="feat-img"><img src="/SRMT/public/manual/img/admin-partnerships.png" alt="Parcerias"></div>
+            <div class="feat-img"><img src="./manual/img/admin-partnerships.png" alt="Parcerias"></div>
         </div>
 
         <div class="feat rev">
@@ -223,7 +250,7 @@
                     <li>Tudo arquivado e pesquisável</li>
                 </ul>
             </div>
-            <div class="feat-img"><img src="/SRMT/public/manual/img/admin-noshows.png" alt="No-shows"></div>
+            <div class="feat-img"><img src="./manual/img/admin-noshows.png" alt="No-shows"></div>
         </div>
     </div>
 </section>
@@ -340,7 +367,7 @@
                     </div>
                 </div>
                 <button type="submit"><i class="bi bi-rocket-takeoff"></i> Quero começar</button>
-                <div class="fine">🔒 Os teus dados ficam seguros · Sem compromisso · Resposta em 24h</div>
+                <div class="fine">🔒 Os teus dados ficam seguros · Sem compromisso · Resposta em 24h<br>Ao submeteres, aceitas os <a href="terms.html" style="color:var(--blue)">Termos</a> e a <a href="privacy.html" style="color:var(--blue)">Política de Privacidade</a>.</div>
             </form>
         </div>
     </div>
@@ -348,7 +375,8 @@
 
 <footer>
     <div class="wrap">
-        <strong>SyncRide</strong> · A tua operação de transfers, automatizada · <a href="/SRMT/public/manual/">Manual</a> · <a href="/SRMT/public/">Entrar</a><br>
+        <strong>SyncRide</strong> · A tua operação de transfers, automatizada · <a href="./manual/">Manual</a> · <a href="index.php">Entrar</a><br>
+        <a href="terms.html">Termos &amp; Condições</a> · <a href="privacy.html">Política de Privacidade</a> · <a href="refund.html">Política de Reembolso</a><br>
         © 2026 SyncRide · Built by Tiago Silva
     </div>
 </footer>

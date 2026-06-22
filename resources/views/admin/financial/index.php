@@ -1,7 +1,11 @@
 <?php
-/** @var string $monthFilter */
-/** @var int    $rideCount */
-/** @var float  $estimatedRevenue */
+/** @var string $from */
+/** @var string $to */
+/** @var ?string $supplier */
+/** @var ?int $driverId */
+/** @var array<string> $suppliers */
+/** @var array<App\Models\User> $drivers */
+/** @var array{rows:array<array<string,mixed>>,totals:array<string,mixed>,by_supplier:array<string,array<string,mixed>>,by_driver:array<string,array<string,mixed>>} $report */
 /** @var float  $totalExpenses */
 /** @var float  $netProfit */
 /** @var array<App\Models\Expense> $expenses */
@@ -51,28 +55,127 @@ $flashMessages = ['created' => t('fin.expense_logged'), 'deleted' => t('fin.expe
 <script>document.addEventListener('DOMContentLoaded', () => toastr.success("<?= View::e($flashMessages[$flash]) ?>"));</script>
 <?php endif; ?>
 
-<section class="px-6 mt-6">
-    <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-black"><?= t('fin.title') ?></h2>
-        <form method="GET" class="flex items-center gap-2">
-            <input type="month" name="month" value="<?= View::e($monthFilter) ?>" onchange="this.form.submit()"
-                   class="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white">
+<section class="px-4 md:px-6 mt-6 max-w-7xl mx-auto">
+    <div class="mb-5">
+        <h2 class="text-xl font-black mb-4"><?= t('fin.title') ?></h2>
+        <form method="GET" class="glass rounded-2xl p-4 flex flex-col gap-3">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div class="flex flex-col gap-1">
+                    <span class="text-[9px] uppercase tracking-widest text-zinc-500 font-black"><?= t('fin.from') ?></span>
+                    <input type="date" name="from" value="<?= View::e($from) ?>" class="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white w-full" style="min-height:40px">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <span class="text-[9px] uppercase tracking-widest text-zinc-500 font-black"><?= t('fin.to') ?></span>
+                    <input type="date" name="to" value="<?= View::e($to) ?>" class="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white w-full" style="min-height:40px">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <span class="text-[9px] uppercase tracking-widest text-zinc-500 font-black"><?= t('fin.supplier') ?></span>
+                    <select name="supplier" class="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white w-full" style="min-height:40px">
+                        <option value=""><?= t('fin.all_suppliers') ?></option>
+                        <?php foreach ($suppliers as $s): ?>
+                            <option value="<?= View::e($s) ?>" <?= $supplier === $s ? 'selected' : '' ?>><?= View::e($s) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <span class="text-[9px] uppercase tracking-widest text-zinc-500 font-black"><?= t('fin.driver') ?></span>
+                    <select name="driver" class="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white w-full" style="min-height:40px">
+                        <option value="0"><?= t('fin.all_drivers') ?></option>
+                        <?php foreach ($drivers as $d): ?>
+                            <option value="<?= (int) $d->id ?>" <?= $driverId === (int) $d->id ? 'selected' : '' ?>><?= View::e($d->name) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+            <div class="flex gap-2 justify-end">
+                <button type="submit" class="glass rounded-xl px-4 text-xs font-bold flex items-center gap-2 text-blue-400" style="min-height:44px;touch-action:manipulation"><i data-lucide="filter" class="w-3.5 h-3.5"></i> <?= t('fin.apply') ?></button>
+                <a href="/SRMT/public/admin/financial-export.php?from=<?= urlencode($from) ?>&to=<?= urlencode($to) ?>&supplier=<?= urlencode((string) $supplier) ?>&driver=<?= (int) $driverId ?>" class="glass rounded-xl px-4 text-xs font-bold flex items-center gap-2 text-emerald-400" style="min-height:44px"><i data-lucide="download" class="w-3.5 h-3.5"></i> CSV</a>
+            </div>
         </form>
     </div>
 
-    <div class="grid grid-cols-3 gap-3 mb-6">
+    <?php $tot = $report['totals']; ?>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         <div class="glass p-4 rounded-2xl">
-            <p class="text-[8px] uppercase tracking-widest text-zinc-500 font-black"><?= t('fin.revenue') ?></p>
-            <h3 class="text-xl font-black mt-1 text-emerald-400">€<?= number_format($estimatedRevenue, 0) ?></h3>
-            <p class="text-[9px] text-zinc-500 mt-1"><?= (int) $rideCount ?> rides × €15</p>
+            <p class="text-[8px] uppercase tracking-widest text-zinc-500 font-black"><?= t('fin.services') ?></p>
+            <h3 class="text-xl font-black mt-1"><?= (int) $tot['count'] ?></h3>
         </div>
         <div class="glass p-4 rounded-2xl">
-            <p class="text-[8px] uppercase tracking-widest text-zinc-500 font-black"><?= t('fin.expenses') ?></p>
-            <h3 class="text-xl font-black mt-1 text-red-400">€<?= number_format($totalExpenses, 2) ?></h3>
+            <p class="text-[8px] uppercase tracking-widest text-zinc-500 font-black"><?= t('fin.revenue') ?></p>
+            <h3 class="text-xl font-black mt-1 text-emerald-400">€<?= number_format((float) $tot['revenue'], 2) ?></h3>
+        </div>
+        <div class="glass p-4 rounded-2xl">
+            <p class="text-[8px] uppercase tracking-widest text-zinc-500 font-black"><?= t('fin.driver_cost') ?></p>
+            <h3 class="text-xl font-black mt-1" style="color:#38bdf8">€<?= number_format((float) $tot['driver_cost'], 2) ?></h3>
+        </div>
+        <div class="glass p-4 rounded-2xl">
+            <p class="text-[8px] uppercase tracking-widest text-zinc-500 font-black"><?= t('fin.margin') ?></p>
+            <h3 class="text-xl font-black mt-1 <?= ((float) $tot['margin']) >= 0 ? 'text-emerald-400' : 'text-red-500' ?>">€<?= number_format((float) $tot['margin'], 2) ?></h3>
         </div>
         <div class="glass p-4 rounded-2xl">
             <p class="text-[8px] uppercase tracking-widest text-zinc-500 font-black"><?= t('fin.net') ?></p>
             <h3 class="text-xl font-black mt-1 <?= $netProfit >= 0 ? 'text-blue-400' : 'text-red-500' ?>">€<?= number_format($netProfit, 2) ?></h3>
+            <p class="text-[9px] text-zinc-500 mt-1"><?= t('fin.margin') ?> − <?= t('fin.expenses') ?></p>
+        </div>
+    </div>
+
+    <!-- Sub-totais por fornecedor e por motorista -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+        <?php
+        $subTable = static function (string $title, array $bucket): void {
+            echo '<div class="glass p-4 rounded-2xl"><p class="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">' . View::e($title) . '</p>';
+            if ($bucket === []) {
+                echo '<p class="text-xs text-zinc-600">—</p></div>';
+                return;
+            }
+            echo '<div class="overflow-x-auto"><table class="w-full text-[11px]"><thead class="text-zinc-500"><tr class="text-left"><th class="py-1 pr-3"></th><th class="py-1 text-center pr-3">#</th><th class="py-1 text-right pr-3">' . t('fin.revenue') . '</th><th class="py-1 text-right">' . t('fin.margin') . '</th></tr></thead><tbody>';
+            foreach ($bucket as $name => $v) {
+                echo '<tr class="border-t border-white/5"><td class="py-1.5 font-bold">' . View::e((string) $name) . '</td>'
+                    . '<td class="py-1.5 text-center text-zinc-400">' . (int) $v['count'] . '</td>'
+                    . '<td class="py-1.5 text-right text-emerald-400">€' . number_format((float) $v['revenue'], 2) . '</td>'
+                    . '<td class="py-1.5 text-right ' . (((float) $v['margin']) >= 0 ? 'text-emerald-400' : 'text-red-400') . '">€' . number_format((float) $v['margin'], 2) . '</td></tr>';
+            }
+            echo '</tbody></table></div></div>';
+        };
+        $subTable(t('fin.by_supplier_t'), $report['by_supplier']);
+        $subTable(t('fin.by_driver_t'),   $report['by_driver']);
+        ?>
+    </div>
+
+    <!-- Detalhe dos serviços -->
+    <div class="glass rounded-2xl overflow-hidden mb-8">
+        <div class="overflow-x-auto max-h-[520px]">
+            <table class="w-full text-[11px]">
+                <thead class="bg-white/5 text-zinc-400 sticky top-0">
+                    <tr class="text-left">
+                        <th class="px-3 py-2 font-black"><?= t('import.col_date') ?></th>
+                        <th class="px-3 py-2 font-black"><?= t('import.col_client') ?></th>
+                        <th class="px-3 py-2 font-black"><?= t('import.col_route') ?></th>
+                        <th class="px-3 py-2 font-black"><?= t('import.col_supplier') ?></th>
+                        <th class="px-3 py-2 font-black"><?= t('fin.driver') ?></th>
+                        <th class="px-3 py-2 font-black text-right"><?= t('fin.revenue') ?></th>
+                        <th class="px-3 py-2 font-black text-right" style="color:#38bdf8"><?= t('fin.driver_cost') ?></th>
+                        <th class="px-3 py-2 font-black text-right"><?= t('fin.margin') ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($report['rows'] as $r): ?>
+                        <tr class="border-t border-white/5">
+                            <td class="px-3 py-2 whitespace-nowrap"><?= View::e((string) $r['serviceDate']) ?> <span class="text-zinc-500"><?= View::e(substr((string) $r['serviceStartTime'], 0, 5)) ?></span></td>
+                            <td class="px-3 py-2"><?= View::e((string) ($r['NomeCliente'] ?? '')) ?></td>
+                            <td class="px-3 py-2 text-zinc-400"><?= View::e((string) $r['serviceStartPoint']) ?> <span class="text-zinc-600">→</span> <?= View::e((string) $r['serviceTargetPoint']) ?></td>
+                            <td class="px-3 py-2 text-zinc-400"><?= View::e((string) ($r['supplier'] ?? '—')) ?></td>
+                            <td class="px-3 py-2"><?= View::e((string) ($r['driver_name'] ?? '—')) ?></td>
+                            <td class="px-3 py-2 text-right text-emerald-400"><?= $r['total_price'] !== null ? '€' . number_format((float) $r['total_price'], 2) : '—' ?></td>
+                            <td class="px-3 py-2 text-right" style="color:#38bdf8"><?= $r['valor_motorista'] !== null ? '€' . number_format((float) $r['valor_motorista'], 2) : '—' ?></td>
+                            <td class="px-3 py-2 text-right <?= ((float) $r['margin']) >= 0 ? 'text-emerald-400' : 'text-red-400' ?>">€<?= number_format((float) $r['margin'], 2) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    <?php if ($report['rows'] === []): ?>
+                        <tr><td colspan="8" class="px-3 py-6 text-center text-zinc-500"><?= t('fin.no_services') ?></td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -104,7 +207,7 @@ $flashMessages = ['created' => t('fin.expense_logged'), 'deleted' => t('fin.expe
                 </div>
                 <div class="flex items-center gap-3">
                     <span class="text-sm font-black text-red-400">€<?= number_format($expense->amount, 2) ?></span>
-                    <a href="/SRMT/public/admin/save-expense.php?action=delete&id=<?= (int) $expense->id ?>" onclick="return confirm('Delete this expense?')" class="w-8 h-8 glass rounded-full flex items-center justify-center text-red-500/60"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></a>
+                    <a href="/SRMT/public/admin/save-expense.php?action=delete&id=<?= (int) $expense->id ?>" onclick="return confirm('Delete this expense?')" class="w-11 h-11 glass rounded-full flex items-center justify-center text-red-500/60 hover:text-red-500 transition-colors" style="touch-action:manipulation"><i data-lucide="trash-2" class="w-4 h-4"></i></a>
                 </div>
             </div>
         <?php endforeach; ?>

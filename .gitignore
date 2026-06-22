@@ -69,6 +69,7 @@ api_fetch_messages.php.zip
 # Local / client files (não vão para o repo)
 # =============================================================================
 *.xlsx
+!tests/Fixtures/*.xlsx
 pedidos/
 database/
 wpp-service/

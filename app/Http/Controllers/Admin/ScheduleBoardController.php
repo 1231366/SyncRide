@@ -8,6 +8,7 @@ use App\Http\Controllers\BaseController;
 use App\Models\User;
 use App\Repositories\ServiceRepository;
 use App\Repositories\UserRepository;
+use App\Services\PricingEngine;
 use App\Support\Session;
 
 final class ScheduleBoardController extends BaseController
@@ -126,6 +127,17 @@ final class ScheduleBoardController extends BaseController
                 $this->json(['success' => false, 'error' => 'Driver not found or not in your company.'], 403);
             }
             $this->services->assignDriver($rideId, $driverId);
+
+            // Custo do motorista fecha na atribuição — base = default do motorista.
+            $ride = $this->services->find($rideId);
+            if ($ride !== null) {
+                $basis  = $this->users->defaultPayBasis($driverId);
+                $payout = PricingEngine::default()->driverPayout(
+                    $ride->resort, $ride->vehicleLabel, $ride->type,
+                    $ride->totalPax(), $ride->hotelExtra, $basis
+                );
+                $this->services->setDriverPricing($rideId, $basis, $payout);
+            }
         }
 
         $this->json(['success' => true]);

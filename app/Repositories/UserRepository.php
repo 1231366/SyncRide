@@ -101,10 +101,48 @@ final class UserRepository
         return $row ? User::fromRow($row) : null;
     }
 
+    /**
+     * Base de pagamento habitual do motorista (viatura empresa vs carro próprio).
+     * Usada para pré-selecionar o preçário-motorista na atribuição.
+     */
+    public function defaultPayBasis(int $driverId): string
+    {
+        $stmt = $this->db->prepare('SELECT default_pay_basis FROM Users WHERE id = :id');
+        $stmt->execute(['id' => $driverId]);
+        $basis = (string) $stmt->fetchColumn();
+        return $basis === 'own_vehicle' ? 'own_vehicle' : 'company_vehicle';
+    }
+
     public function findByEmail(string $email): ?User
     {
         $stmt = $this->db->prepare('SELECT * FROM Users WHERE email = :email');
         $stmt->execute(['email' => $email]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? User::fromRow($row) : null;
+    }
+
+    /**
+     * Procura um condutor pela sigla interna (driver_code) no contexto desta empresa.
+     * Devolve o primeiro condutor com esse código, ou null se não encontrar.
+     */
+    public function findByDriverCode(string $code): ?User
+    {
+        if (trim($code) === '') {
+            return null;
+        }
+        if ($this->companyId !== null) {
+            $stmt = $this->db->prepare(
+                'SELECT DISTINCT u.* FROM Users u
+                 LEFT JOIN UserCompanies uc ON uc.user_id = u.id
+                 WHERE u.driver_code = :code AND u.role = 2
+                   AND (u.company_id = :cid OR uc.company_id = :cid2)
+                 LIMIT 1'
+            );
+            $stmt->execute(['code' => $code, 'cid' => $this->companyId, 'cid2' => $this->companyId]);
+        } else {
+            $stmt = $this->db->prepare('SELECT * FROM Users WHERE driver_code = :code AND role = 2 LIMIT 1');
+            $stmt->execute(['code' => $code]);
+        }
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ? User::fromRow($row) : null;
     }
@@ -139,7 +177,17 @@ final class UserRepository
             'company_id' => $cid,
         ]);
 
-        $id   = (int) $this->db->lastInsertId();
+        $id = (int) $this->db->lastInsertId();
+
+        // Persist driver-specific fields when provided at creation time
+        $driverUpdate = array_filter([
+            'driver_code'       => $data['driver_code']       ?? null,
+            'default_pay_basis' => $data['default_pay_basis'] ?? null,
+        ], static fn($v) => $v !== null && $v !== '');
+        if ($driverUpdate !== []) {
+            $this->update($id, $driverUpdate);
+        }
+
         $user = $this->find($id);
         if ($user === null) {
             throw new RuntimeException("UserRepository::create — could not reload user {$id}");
@@ -167,8 +215,19 @@ final class UserRepository
             $params['role'] = (int) $data['role'];
         }
         if (array_key_exists('company_id', $data)) {
-            $sets[]              = 'company_id = :company_id';
+            $sets[]               = 'company_id = :company_id';
             $params['company_id'] = $data['company_id'];
+        }
+        if (array_key_exists('driver_code', $data)) {
+            $dc = $data['driver_code'] !== null && trim((string) $data['driver_code']) !== ''
+                ? trim((string) $data['driver_code'])
+                : null;
+            $sets[]              = 'driver_code = :driver_code';
+            $params['driver_code'] = $dc;
+        }
+        if (array_key_exists('default_pay_basis', $data) && in_array($data['default_pay_basis'], ['company_vehicle', 'own_vehicle'], true)) {
+            $sets[]                    = 'default_pay_basis = :default_pay_basis';
+            $params['default_pay_basis'] = $data['default_pay_basis'];
         }
         if (!empty($data['password'])) {
             $sets[]             = 'password = :password';

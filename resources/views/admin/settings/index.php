@@ -18,6 +18,7 @@ use App\Http\View;
  * @var bool        $schedule_enabled
  * @var string      $schedule_recipient
  * @var string      $schedule_my_copy
+ * @var bool        $wpp_agenda_enabled
  * @var string      $admin_email
  * @var string|null $flash
  * @var string|null $error
@@ -385,6 +386,23 @@ View::layout('layouts.admin', [
                 <input type="email" name="schedule_my_copy" class="email-single"
                        placeholder="<?= View::e($admin_email) ?>"
                        value="<?= View::e($schedule_my_copy) ?>">
+            </div>
+        </div>
+
+        <!-- 5. WhatsApp Agenda -->
+        <div class="settings-card">
+            <div class="card-heading"><i data-lucide="message-circle" class="w-4 h-4" style="color:#22c55e"></i> WhatsApp Agenda</div>
+            <div class="card-sub">Envio automático da agenda de amanhã para cada condutor via WhatsApp.</div>
+
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label"><?= t('settings.enable') ?></div>
+                    <div class="setting-desc">Ativa o envio automático da agenda via WhatsApp todos os dias.</div>
+                </div>
+                <label class="toggle-wrap">
+                    <input type="checkbox" name="wpp_agenda_enabled" value="1" <?= $wpp_agenda_enabled ? 'checked' : '' ?>>
+                    <span class="toggle-track"></span>
+                </label>
             </div>
         </div>
 

@@ -253,11 +253,13 @@ $navClass = static function (string $id) use ($active): string {
         <nav class="grid grid-cols-1 gap-5 text-xl font-bold">
             <a href="/SRMT/public/admin/"                class="menu-link flex items-center gap-4 <?= $active==='dashboard' ? 'menu-active' : '' ?>"><i data-lucide="layout-grid"></i> <?= t('nav.dashboard') ?></a>
             <a href="/SRMT/public/admin/rides.php"       class="menu-link flex items-center gap-4 <?= $active==='rides'     ? 'menu-active' : '' ?>"><i data-lucide="navigation"></i> <?= t('nav.rides') ?></a>
+            <a href="/SRMT/public/admin/import.php"      class="menu-link flex items-center gap-4 <?= $active==='import'    ? 'menu-active' : '' ?>"><i data-lucide="file-spreadsheet"></i> <?= t('nav.import') ?></a>
             <a href="/SRMT/public/admin/live-map.php"    class="menu-link flex items-center gap-4 <?= $active==='live-map'  ? 'menu-active' : '' ?>"><i data-lucide="map"></i> <?= t('nav.live_map') ?></a>
             <hr class="menu-hr border-t">
             <a href="/SRMT/public/admin/users.php"       class="menu-link flex items-center gap-4 <?= $active==='users'     ? 'menu-active' : '' ?>"><i data-lucide="users"></i> <?= t('nav.team') ?></a>
             <a href="/SRMT/public/admin/fleet.php"       class="menu-link flex items-center gap-4 <?= $active==='fleet'     ? 'menu-active' : '' ?>"><i data-lucide="truck"></i> <?= t('nav.fleet') ?></a>
             <a href="/SRMT/public/admin/financial.php"   class="menu-link flex items-center gap-4 <?= $active==='financial' ? 'menu-active' : '' ?>"><i data-lucide="banknote"></i> <?= t('nav.financial') ?></a>
+            <a href="/SRMT/public/admin/pricing.php"    class="menu-link flex items-center gap-4 <?= $active==='pricing'   ? 'menu-active' : '' ?>"><i data-lucide="tag"></i> <?= t('nav.pricing') ?></a>
             <hr class="menu-hr border-t">
             <a href="/SRMT/public/admin/schedule-board.php" class="menu-link flex items-center gap-4 <?= $active==='board'    ? 'menu-active' : '' ?>"><i data-lucide="layout-grid"></i> <?= t('nav.board') ?></a>
             <a href="/SRMT/public/admin/driver-stats.php" class="menu-link flex items-center gap-4 <?= $active==='stats'    ? 'menu-active' : '' ?>"><i data-lucide="bar-chart-3"></i> <?= t('nav.stats') ?></a>

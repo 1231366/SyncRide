@@ -64,3 +64,12 @@ api_fetch_messages.php.zip
 *.bak
 *.backup
 *.orig
+
+# =============================================================================
+# Local / client files (não vão para o repo)
+# =============================================================================
+*.xlsx
+pedidos/
+database/
+wpp-service/
+public/setup_run.php

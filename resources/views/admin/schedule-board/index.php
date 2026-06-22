@@ -72,15 +72,16 @@ ob_start();
 [data-theme="dark"] .sb-toolbar { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.08); }
 .sb-title { font-size: 13px; font-weight: 800; flex: 1; }
 .sb-btn {
-    height: 32px; border-radius: 99px; padding: 0 14px;
+    height: 44px; border-radius: 99px; padding: 0 16px;
     font-size: 11px; font-weight: 700; border: 1px solid rgba(0,0,0,0.10);
     background: rgba(0,0,0,0.05); color: inherit; cursor: pointer;
     transition: all .15s; display: inline-flex; align-items: center; gap: 6px;
+    touch-action: manipulation;
 }
 [data-theme="dark"] .sb-btn { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.10); }
 .sb-btn:hover { background: rgba(0,0,0,0.10); }
 .sb-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
-.sb-btn-icon { width: 32px; padding: 0; justify-content: center; }
+.sb-btn-icon { width: 44px; padding: 0; justify-content: center; }
 /* Driver legend pills */
 .sb-legend { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .sb-driver-pill {
@@ -148,6 +149,56 @@ ob_start();
     font-weight: 700; font-size: 13px; cursor: pointer; color: inherit;
 }
 [data-theme="dark"] .sb-modal-cancel { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.10); }
+/* ── Mobile responsive ───────────────────────────────────────── */
+@media (max-width: 768px) {
+    .sb-wrap {
+        flex-direction: column !important;
+        height: auto !important;
+        min-height: unset !important;
+        padding: 0 12px 16px;
+        gap: 10px;
+    }
+    .sb-staged {
+        width: 100% !important;
+        max-height: none;
+        flex-direction: column;
+    }
+    .sb-staged-list {
+        flex-direction: row !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        flex: none !important;
+        height: 130px;
+        padding-bottom: 6px;
+        gap: 8px;
+        -webkit-overflow-scrolling: touch;
+    }
+    .sb-card {
+        width: 170px !important;
+        flex-shrink: 0 !important;
+    }
+    .sb-calendar-wrap {
+        min-height: 420px;
+    }
+    .sb-calendar {
+        min-height: 380px !important;
+    }
+    .sb-toolbar {
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .sb-legend {
+        order: 10;
+        width: 100%;
+        overflow-x: auto;
+        flex-wrap: nowrap !important;
+        padding-bottom: 2px;
+        -webkit-overflow-scrolling: touch;
+    }
+    .sb-legend::-webkit-scrollbar { display: none; }
+    .sb-view-btn { padding: 0 10px; font-size: 10px; }
+    .sb-driver-pill { white-space: nowrap; }
+}
 /* Detail modal extras */
 .sb-detail-row { display: flex; gap: 8px; margin-bottom: 8px; font-size: 12px; }
 .sb-detail-label { color: #94a3b8; font-weight: 700; width: 68px; flex-shrink: 0; font-size: 11px; }
@@ -183,7 +234,7 @@ function initCalendar() {
     calendar = new FullCalendar.Calendar(el, {
         plugins: [],
         headerToolbar: false,
-        initialView: 'timeGridWeek',
+        initialView: window.innerWidth < 768 ? 'timeGridDay' : 'timeGridWeek',
         editable: true,
         droppable: true,
         eventDurationEditable: false,
@@ -220,13 +271,13 @@ function initCalendar() {
         eventContent: function(arg) {
             const p = arg.event.extendedProps;
             const driverLabel = p.driver_name
-                ? `<div style="opacity:.8;margin-top:2px;font-size:9px">👤 ${p.driver_name}</div>`
-                : `<div style="opacity:.6;margin-top:2px;font-size:9px">No driver</div>`;
+                ? `<div style="opacity:.8;margin-top:2px;font-size:9px">${p.driver_name}</div>`
+                : `<div style="opacity:.6;margin-top:2px;font-size:9px;font-style:italic">No driver</div>`;
             return { html:
                 `<div style="padding:3px 6px;line-height:1.4">
                     <div style="font-weight:800;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${arg.event.title}</div>
                     <div style="opacity:.85;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-                        📍 ${p.pickup || ''}
+                        ${p.pickup || ''}
                     </div>
                     ${driverLabel}
                 </div>`
@@ -245,6 +296,9 @@ function initCalendar() {
     });
     calendar.render();
     updateTitle();
+    if (window.innerWidth < 768) {
+        document.querySelectorAll('.sb-view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === 'timeGridDay'));
+    }
 }
 
 async function fetchEvents(info, successCb, failureCb) {
@@ -295,11 +349,11 @@ async function loadStaged() {
              title="Drag to calendar to schedule">
             <div class="sb-card-date">${fmtDate(t.date)} · ${t.time}</div>
             <div class="sb-card-client">${escHtml(t.client)}</div>
-            <div class="sb-card-route">📍 ${escHtml(t.pickup)}</div>
-            <div class="sb-card-route" style="color:#94a3b8">🏁 ${escHtml(t.dropoff)}</div>
+            <div class="sb-card-route">${escHtml(t.pickup)}</div>
+            <div class="sb-card-route" style="color:#94a3b8">${escHtml(t.dropoff)}</div>
             <div class="sb-card-meta">
                 <span class="sb-tag">${t.pax} pax</span>
-                ${t.flight ? `<span class="sb-tag flight">✈ ${escHtml(t.flight)}</span>` : ''}
+                ${t.flight ? `<span class="sb-tag flight">${escHtml(t.flight)}</span>` : ''}
                 ${t.type == 1 ? '<span class="sb-tag">Private</span>' : '<span class="sb-tag">Shared</span>'}
             </div>
         </div>

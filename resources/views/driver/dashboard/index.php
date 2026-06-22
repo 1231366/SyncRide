@@ -961,15 +961,30 @@ function renderList(data) {
         </div>
     </div>
     <div class="route-line">
-        <div class="route-dots">
-            <div class="rdot rdot-pickup"></div>
-            <div class="rdot-line"></div>
-            <div class="rdot rdot-dropoff"></div>
-        </div>
-        <div class="route-text">
-            <div class="rt-point"><div class="rt-label">From</div>${v.serviceStartPoint}</div>
-            <div class="rt-point"><div class="rt-label">To</div>${v.serviceTargetPoint}</div>
-        </div>
+        ${(v.is_aggregate_master == 1 && Array.isArray(v.stops) && v.stops.length > 0)
+            ? (() => {
+                const dots = v.stops.map((s,i) => {
+                    const isP  = s.type === 'pickup';
+                    const isLast = i === v.stops.length - 1;
+                    return `<div class="rdot ${isP ? 'rdot-pickup' : 'rdot-dropoff'}"></div>${isLast ? '' : '<div class="rdot-line"></div>'}`;
+                }).join('');
+                const pts  = v.stops.map(s => {
+                    const lbl = s.type === 'pickup' ? 'Recolha' : 'Entrega';
+                    const sub = [s.time ? s.time.substring(0,5) : '', s.client || '', s.pax ? s.pax + ' pax' : ''].filter(Boolean).join(' · ');
+                    return `<div class="rt-point"><div class="rt-label">${lbl}</div>${s.location || ''}${sub ? '<div style="font-size:10px;color:#71717a;margin-top:1px">'+sub+'</div>' : ''}</div>`;
+                }).join('');
+                return `<div class="route-dots">${dots}</div><div class="route-text">${pts}</div>`;
+              })()
+            : `<div class="route-dots">
+                <div class="rdot rdot-pickup"></div>
+                <div class="rdot-line"></div>
+                <div class="rdot rdot-dropoff"></div>
+               </div>
+               <div class="route-text">
+                <div class="rt-point"><div class="rt-label">From</div>${v.serviceStartPoint}</div>
+                <div class="rt-point"><div class="rt-label">To</div>${v.serviceTargetPoint}</div>
+               </div>`
+        }
     </div>
     ${v.total_price > 0 ? `<div class="price-badge"><i class="bi bi-cash-coin"></i>${parseFloat(v.total_price).toFixed(2)}€</div>` : ''}
 </div>`;

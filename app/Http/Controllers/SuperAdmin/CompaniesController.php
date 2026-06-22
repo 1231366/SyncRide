@@ -7,20 +7,23 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\BaseController;
 use App\Repositories\CompanyRepository;
 use App\Repositories\UserRepository;
+use App\Repositories\UserInviteRepository;
 use App\Repositories\LogRepository;
+use App\Models\User;
 
 final class CompaniesController extends BaseController
 {
-    private CompanyRepository $companies;
-    private UserRepository    $users;
-    private LogRepository     $logs;
+    private CompanyRepository    $companies;
+    private UserRepository       $users;
+    private UserInviteRepository $invites;
+    private LogRepository        $logs;
 
     public function __construct()
     {
-        // Super-admin repos are unscoped (companyId = null)
-        $db             = $this->db();
+        $db              = $this->db();
         $this->companies = new CompanyRepository($db);
         $this->users     = new UserRepository($db, null);
+        $this->invites   = new UserInviteRepository($db);
         $this->logs      = new LogRepository($db, null);
     }
 
@@ -90,6 +93,25 @@ final class CompaniesController extends BaseController
         $this->companies->delete($id);
         $this->logs->record("Super-admin deleted company #{$id}: {$company->name}");
         $this->redirect('/SRMT/public/superadmin/companies.php?success=deleted');
+    }
+
+    /** Generate an admin invite link for a given company (superadmin only). */
+    public function createInvite(): never
+    {
+        $this->requirePost();
+
+        $companyId = (int) $this->input('company_id', 0);
+        if ($companyId === 0 || $this->companies->find($companyId) === null) {
+            $this->json(['success' => false, 'message' => 'Company not found.'], 404);
+        }
+
+        $invite = $this->invites->create($companyId, User::ROLE_ADMIN, 'Superadmin invite', null, 7);
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host   = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
+        $link   = $scheme . '://' . $host . '/SRMT/public/invite.php?token=' . $invite['token'];
+
+        $this->logs->record("Super-admin generated admin invite for company #{$companyId}");
+        $this->json(['success' => true, 'link' => $link]);
     }
 
     /** Create a company admin (role=1) for a given company. */

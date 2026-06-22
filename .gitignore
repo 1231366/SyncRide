@@ -72,5 +72,6 @@ api_fetch_messages.php.zip
 !tests/Fixtures/*.xlsx
 pedidos/
 database/
+docs/
 wpp-service/
 public/setup_run.php

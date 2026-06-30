@@ -1,7 +1,8 @@
 <?php
 declare(strict_types=1);
 require __DIR__ . '/../../bootstrap.php';
-use App\Http\AuthMiddleware;
 use App\Http\Controllers\Api\TrackingController;
-AuthMiddleware::handle(1, 2); // admin or driver
+// No hard auth gate: a "stop" may arrive in the background after the session
+// lapsed. TrackingController::stop() starts the session and falls back to the
+// payload driver_id, requiring a non-zero driver before deleting the row.
 (new TrackingController())->stop();

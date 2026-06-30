@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__ . '/../../bootstrap.php';
-use App\Http\AuthMiddleware;
 use App\Http\Controllers\Api\LocationController;
-AuthMiddleware::handle(1, 2); // admin or driver
+// See location-update.php — soft session, controller authorises by ride assignment.
+App\Support\Session::start();
 (new LocationController())->upload();

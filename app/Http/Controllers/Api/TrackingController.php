@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\BaseController;
 use App\Repositories\LiveLocationRepository;
+use App\Support\Session;
 
 final class TrackingController extends BaseController
 {
@@ -13,6 +14,10 @@ final class TrackingController extends BaseController
 
     public function __construct()
     {
+        // Start the session BEFORE building the repository: default() reads
+        // Session::companyId() for tenant scoping. Without an active session that
+        // returns null (= super-admin = sees every company) and leaks data.
+        Session::start();
         $this->locations = LiveLocationRepository::default();
     }
 
@@ -34,9 +39,10 @@ final class TrackingController extends BaseController
             $this->json(['success' => true, 'data' => $data]);
         }
 
-        // All-rides view is admin-only — guard it here since the shim is unauthenticated.
-        $role = isset($_SESSION['role']) ? (int) $_SESSION['role'] : -1;
-        if (!isset($_SESSION['user_id']) || !in_array($role, [0, 1], true)) {
+        // All-rides view is admin-only (session started in constructor). Results are
+        // already tenant-scoped to the admin's company inside allActiveRides().
+        $role = Session::role() ?? -1;
+        if (Session::userId() === null || !in_array($role, [0, 1], true)) {
             $this->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
 
@@ -52,10 +58,13 @@ final class TrackingController extends BaseController
     {
         $this->cors();
 
-        $payload  = $this->jsonBody();
+        $payload  = $this->shieldedBody();
         $rideId   = (int) ($payload['ride_id'] ?? 0);
-        // Always use the authenticated session identity — never trust the payload driver_id.
-        $driverId = isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : 0;
+        // Session is preferred; fall back to payload for Capacitor background requests
+        // that don't carry the WebView session cookie. (This shim doesn't start the
+        // session itself, so without Session::start() $_SESSION is always empty.)
+        Session::start();
+        $driverId = Session::userId() ?? (int) ($payload['driver_id'] ?? 0);
 
         if ($driverId === 0) {
             $this->json(['success' => false, 'error' => 'Unauthorized: driver_id missing'], 401);

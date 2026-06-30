@@ -113,19 +113,49 @@ final class LiveLocationRepository
      */
     public function allActiveRides(): array
     {
-        return $this->db->query('
+        // Multi-tenancy: company admins only see rides operated by, or delegated out
+        // by, their own company. Super-admin (companyId === null) sees everything.
+        // INNER JOIN Services (not LEFT) so a tracking row with no matching service
+        // can never leak through the tenancy filter.
+        $tenancy = $this->companyId !== null
+            ? 'AND (s.company_id = :cid OR s.original_company_id = :cid)'
+            : '';
+
+        // Subquery picks only the most recent row per (ride_id, driver_id) because
+        // RideTracking has no PK — each sendPosition() INSERTs a new row instead of
+        // updating in place, so without this the JS stale-filter always sees old rows.
+        $stmt = $this->db->prepare("
             SELECT t.ride_id, t.driver_id, t.latitude, t.longitude, t.speed, t.heading, t.last_update,
-                   COALESCE(u.name, CONCAT("Driver ", t.driver_id)) AS driver_name,
-                   COALESCE(s.NomeCliente, "Unknown") AS NomeCliente,
-                   COALESCE(s.serviceStartPoint, "") AS serviceStartPoint,
-                   COALESCE(s.serviceTargetPoint, "N/A") AS serviceTargetPoint,
-                   s.serviceDate, s.status_id,
-                   v.license_plate AS vehicle_plate
+                   COALESCE(u.name, CONCAT('Driver ', t.driver_id)) AS driver_name,
+                   COALESCE(s.NomeCliente, 'Unknown') AS NomeCliente,
+                   COALESCE(s.serviceStartPoint, '') AS serviceStartPoint,
+                   COALESCE(s.serviceTargetPoint, 'N/A') AS serviceTargetPoint,
+                   s.serviceDate, s.status_id, s.is_aggregate_master,
+                   v.license_plate AS vehicle_plate,
+                   cur_stop.location AS current_stop_location,
+                   cur_stop.stop_type AS current_stop_type
             FROM RideTracking t
+            INNER JOIN (
+                SELECT ride_id, driver_id, MAX(last_update) AS latest
+                FROM RideTracking
+                GROUP BY ride_id, driver_id
+            ) r ON t.ride_id = r.ride_id AND t.driver_id = r.driver_id AND t.last_update = r.latest
+            INNER JOIN Services s ON t.ride_id = s.ID {$tenancy}
             LEFT JOIN Users u ON t.driver_id = u.id
-            LEFT JOIN Services s ON t.ride_id = s.ID
             LEFT JOIN Vehicles v ON u.assigned_vehicle_id = v.id
-        ')->fetchAll(\PDO::FETCH_ASSOC);
+            LEFT JOIN (
+                SELECT ss.master_service_id, ss.location, ss.stop_type
+                FROM ServiceStops ss
+                INNER JOIN (
+                    SELECT master_service_id, MIN(id) AS first_id
+                    FROM ServiceStops
+                    WHERE ts_departed IS NULL
+                    GROUP BY master_service_id
+                ) active ON ss.master_service_id = active.master_service_id AND ss.id = active.first_id
+            ) cur_stop ON s.ID = cur_stop.master_service_id AND s.is_aggregate_master = 1
+        ");
+        $stmt->execute($this->companyId !== null ? ['cid' => $this->companyId] : []);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
     /**

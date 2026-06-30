@@ -24,7 +24,7 @@
     <div class="doc-head">
         <div class="eyebrow">Legal</div>
         <h1>Política de Privacidade</h1>
-        <div class="updated">Última atualização: 2 de junho de 2026</div>
+        <div class="updated">Última atualização: 30 de junho de 2026</div>
     </div>
 
     <div class="doc-links">
@@ -34,84 +34,203 @@
     </div>
 
     <div class="doc">
-        <div class="note"><strong>Nota:</strong> Este documento é um modelo geral alinhado com o RGPD. Antes da utilização comercial em produção, recomenda-se a revisão por um profissional para refletir as tuas operações de tratamento concretas e eventuais subcontratantes.</div>
 
         <h2>1. Responsável pelo tratamento</h2>
-        <p>A presente política descreve como o <strong>SyncRide</strong>, operado por <strong>Tiago Silva</strong> ("nós"), trata os dados pessoais no âmbito da plataforma. Para questões de privacidade, contacta <a href="mailto:tiagofsilva04@gmail.com">tiagofsilva04@gmail.com</a>.</p>
-        <p>Quando tratamos dados que os nossos Clientes (empresas subscritoras) introduzem na plataforma sobre os seus próprios clientes finais e condutores, atuamos como <strong>subcontratante</strong>, sendo o Cliente o <strong>responsável pelo tratamento</strong>.</p>
+        <p>A presente política descreve como o <strong>SyncRide</strong>, operado por <strong>Tiago Silva</strong> ("nós", "SyncRide"), trata os dados pessoais dos utilizadores da plataforma web e da aplicação móvel SyncRide ("App").</p>
+        <p><strong>Contacto do responsável:</strong> <a href="mailto:tiagofsilva04@gmail.com">tiagofsilva04@gmail.com</a></p>
+        <p>Quando tratamos dados que os nossos Clientes (empresas subscritoras, "Operadores") introduzem na plataforma sobre os seus próprios clientes finais, passageiros e condutores, atuamos como <strong>subcontratante</strong> de dados nos termos do artigo 28.º do RGPD, sendo o Operador o responsável pelo tratamento desses dados.</p>
 
-        <h2>2. Que dados recolhemos</h2>
-        <h3>2.1 Dados de conta e faturação</h3>
+        <h2>2. Âmbito de aplicação</h2>
+        <p>Esta política aplica-se a:</p>
         <ul>
-            <li>Nome, email, telefone e nome da empresa;</li>
-            <li>Credenciais de acesso (palavra-passe guardada de forma cifrada);</li>
-            <li>Dados de faturação necessários ao processamento de pagamentos.</li>
-        </ul>
-        <h3>2.2 Dados operacionais introduzidos pelo Cliente</h3>
-        <ul>
-            <li>Dados de viagens: origens, destinos, horas, passageiros e valores;</li>
-            <li>Dados de condutores e de frota;</li>
-            <li>Dados de parceiros e agências;</li>
-            <li>Eventuais comprovativos, fotografias e localização associados a registos de serviço (por exemplo, em situações de "no-show").</li>
-        </ul>
-        <h3>2.3 Dados técnicos</h3>
-        <ul>
-            <li>Endereço IP, tipo de dispositivo e navegador;</li>
-            <li>Registos de acesso e atividade para fins de segurança e diagnóstico.</li>
+            <li><strong>Operadores</strong> — empresas ou profissionais que subscrevem o SyncRide para gerir a sua operação de transfers;</li>
+            <li><strong>Condutores</strong> — utilizadores que acedem à plataforma e/ou App para executar viagens;</li>
+            <li><strong>Parceiros e Agências</strong> — entidades que submetem pedidos de serviço através do portal de parceiros;</li>
+            <li><strong>Passageiros / Clientes finais</strong> — pessoas cujos dados são introduzidos no sistema pelos Operadores.</li>
         </ul>
 
-        <h2>3. Finalidades e fundamentos jurídicos</h2>
+        <h2>3. Dados recolhidos e finalidades</h2>
+
+        <h3>3.1 Dados de conta e autenticação</h3>
+        <ul>
+            <li>Nome completo, endereço de email, número de telefone;</li>
+            <li>Palavra-passe (armazenada com hash bcrypt — nunca em texto simples);</li>
+            <li>Papel na plataforma (Administrador, Condutor, Parceiro).</li>
+        </ul>
+        <p><strong>Base legal:</strong> Execução de contrato (art. 6.º, n.º 1, al. b) do RGPD).</p>
+
+        <h3>3.2 Dados de localização em tempo real (Aplicação Móvel)</h3>
+        <p>A App recolhe a <strong>localização GPS do condutor em tempo real</strong>, incluindo em segundo plano, quando uma viagem está ativa. Esta localização é utilizada para:</p>
+        <ul>
+            <li>Mostrar ao administrador a posição do condutor no mapa em direto;</li>
+            <li>Partilhar a localização em tempo real com o cliente/passageiro através do link de tracking;</li>
+            <li>Calcular a distância percorrida e o tempo estimado de chegada (ETA);</li>
+            <li>Registar coordenadas de latitude, longitude, velocidade, direção e altitude durante a viagem.</li>
+        </ul>
+        <p><strong>A localização em background só é recolhida quando o condutor inicia explicitamente uma viagem</strong> através da App. A recolha cessa quando a viagem é concluída ou o condutor encerra a sessão.</p>
+        <p><strong>Base legal:</strong> Execução de contrato; consentimento explícito através das permissões do sistema operativo (art. 6.º, n.º 1, al. a) e b) do RGPD).</p>
+
+        <h3>3.3 Dados de fotografia e câmara</h3>
+        <p>A App pode aceder à câmara do dispositivo para:</p>
+        <ul>
+            <li>Fotografar o local de recolha em situações de <em>no-show</em> (ausência do cliente), como prova documental;</li>
+            <li>Atualizar a foto de perfil do condutor.</li>
+        </ul>
+        <p>As fotografias são armazenadas nos nossos servidores e associadas ao registo do serviço ou ao perfil do utilizador. Não são partilhadas com terceiros, exceto mediante exigência legal.</p>
+        <p><strong>Base legal:</strong> Interesse legítimo (documentação de incidentes); execução de contrato.</p>
+
+        <h3>3.4 Identificadores de dispositivo e notificações push</h3>
+        <p>Para o envio de notificações push (ex: nova viagem atribuída, viagem concluída), recolhemos o <strong>token FCM (Firebase Cloud Messaging)</strong> do dispositivo. Este identificador é associado à conta do utilizador e utilizado exclusivamente para enviar notificações relevantes ao mesmo. Não é utilizado para fins publicitários.</p>
+        <p><strong>Base legal:</strong> Execução de contrato; interesse legítimo.</p>
+
+        <h3>3.5 Dados operacionais de viagem</h3>
+        <ul>
+            <li>Datas, horas, origens, destinos e referências de voo;</li>
+            <li>Nome, telefone e número de cliente do passageiro;</li>
+            <li>Número de passageiros (adultos, crianças, bebés);</li>
+            <li>Preços, condições de pagamento ao condutor e notas operacionais;</li>
+            <li>Registos de estado da viagem (timestamps de início, chegada, embarque, conclusão).</li>
+        </ul>
+        <p>Estes dados são introduzidos pelos Operadores. O SyncRide atua como subcontratante para este conjunto de dados.</p>
+        <p><strong>Base legal (para o Operador):</strong> Execução de contrato com o passageiro; obrigação legal.</p>
+
+        <h3>3.6 Comunicações automatizadas via WhatsApp</h3>
+        <p>Quando o Operador ativa esta funcionalidade, a plataforma pode enviar automaticamente mensagens via WhatsApp para:</p>
+        <ul>
+            <li>Passageiros — link de rastreamento em tempo real quando o condutor inicia a recolha;</li>
+            <li>Parceiros e agências — confirmação de partida do aeroporto.</li>
+        </ul>
+        <p>Estas mensagens são enviadas a partir de um número associado ao Operador. O SyncRide não armazena o histórico de conversas WhatsApp. A Meta (WhatsApp) é um subcontratante de facto para estas comunicações.</p>
+        <p><strong>Base legal:</strong> Interesse legítimo do Operador; execução do serviço contratado com o passageiro.</p>
+
+        <h3>3.7 Dados de faturação e subscrição</h3>
+        <ul>
+            <li>Dados de faturação do Operador;</li>
+            <li>Histórico de pagamentos e estado da subscrição.</li>
+        </ul>
+        <p><strong>Base legal:</strong> Execução de contrato; obrigação legal.</p>
+
+        <h3>3.8 Dados técnicos e de diagnóstico</h3>
+        <ul>
+            <li>Endereço IP, tipo de dispositivo e sistema operativo;</li>
+            <li>Registos de acesso e atividade (logs) para fins de segurança e diagnóstico;</li>
+            <li>Cookies de sessão estritamente necessários à autenticação.</li>
+        </ul>
+        <p><strong>Base legal:</strong> Interesse legítimo (segurança e funcionamento do serviço).</p>
+
+        <h2>4. Finalidades e fundamentos jurídicos — resumo</h2>
         <table>
             <tr><th>Finalidade</th><th>Fundamento (RGPD)</th></tr>
             <tr><td>Prestação e funcionamento do serviço</td><td>Execução de contrato</td></tr>
-            <tr><td>Faturação e cobrança</td><td>Execução de contrato / obrigação legal</td></tr>
-            <tr><td>Segurança, prevenção de fraude e diagnóstico</td><td>Interesse legítimo</td></tr>
-            <tr><td>Comunicações de serviço e suporte</td><td>Execução de contrato</td></tr>
-            <tr><td>Comunicações de marketing (quando aplicável)</td><td>Consentimento</td></tr>
+            <tr><td>Localização GPS em tempo real (condutor)</td><td>Consentimento + execução de contrato</td></tr>
+            <tr><td>Notificações push</td><td>Execução de contrato + interesse legítimo</td></tr>
+            <tr><td>Comunicações WhatsApp automatizadas</td><td>Interesse legítimo + consentimento do Operador</td></tr>
+            <tr><td>Documentação fotográfica de incidentes</td><td>Interesse legítimo</td></tr>
+            <tr><td>Faturação e cobrança</td><td>Execução de contrato + obrigação legal</td></tr>
+            <tr><td>Segurança e prevenção de fraude</td><td>Interesse legítimo</td></tr>
+            <tr><td>Cumprimento de obrigações legais</td><td>Obrigação legal</td></tr>
         </table>
 
-        <h2>4. Cookies</h2>
-        <p>Utilizamos cookies estritamente necessários para autenticação e funcionamento da sessão. Caso venhamos a utilizar cookies analíticos ou de marketing, solicitaremos o teu consentimento prévio. Podes gerir as preferências de cookies através das definições do teu navegador.</p>
-
         <h2>5. Com quem partilhamos dados</h2>
-        <p>Não vendemos dados pessoais. Podemos partilhar dados com:</p>
+        <p>Não vendemos dados pessoais a terceiros. Partilhamos dados apenas com:</p>
         <ul>
-            <li><strong>Fornecedores de infraestrutura e alojamento</strong> que suportam o serviço;</li>
-            <li><strong>Fornecedores de envio de email</strong> para comunicações operacionais (por exemplo, agendas, relatórios e vouchers);</li>
-            <li><strong>Prestadores de pagamento</strong> para processamento de subscrições;</li>
-            <li><strong>Autoridades</strong>, quando exigido por lei.</li>
+            <li><strong>Google LLC (Firebase / FCM)</strong> — infraestrutura de notificações push e alojamento. Google atua como subcontratante e está certificada para transferências UE-EUA ao abrigo do Data Privacy Framework;</li>
+            <li><strong>Meta Platforms / WhatsApp</strong> — quando o Operador usa a funcionalidade de mensagens automáticas. Os dados partilhados limitam-se ao número de telefone do destinatário e ao conteúdo da mensagem;</li>
+            <li><strong>Prestadores de alojamento e infraestrutura</strong> — servidores onde a plataforma está alojada, sujeitos a obrigações contratuais de confidencialidade;</li>
+            <li><strong>Prestadores de pagamento</strong> — para processamento de subscrições dos Operadores;</li>
+            <li><strong>Autoridades públicas</strong> — quando exigido por lei ou ordem judicial.</li>
         </ul>
-        <p>Todos os subcontratantes estão sujeitos a obrigações de confidencialidade e segurança adequadas.</p>
 
-        <h2>6. Transferências internacionais</h2>
-        <p>Sempre que dados sejam tratados fora do Espaço Económico Europeu, asseguramos a existência de garantias adequadas, como decisões de adequação ou cláusulas contratuais-tipo aprovadas pela Comissão Europeia.</p>
+        <h2>6. Transferências internacionais de dados</h2>
+        <p>Alguns dos nossos subcontratantes (nomeadamente Google Firebase) processam dados fora do Espaço Económico Europeu. Estas transferências são realizadas com base em:</p>
+        <ul>
+            <li>Decisão de adequação da Comissão Europeia (EU-U.S. Data Privacy Framework);</li>
+            <li>Cláusulas contratuais-tipo (SCCs) aprovadas pela Comissão Europeia.</li>
+        </ul>
 
         <h2>7. Conservação dos dados</h2>
-        <p>Conservamos os dados apenas durante o tempo necessário às finalidades para que foram recolhidos, ou pelos prazos exigidos por obrigações legais (por exemplo, conservação de documentos de faturação). Após a cessação da conta, o Conteúdo do Cliente poderá ser eliminado decorrido um período de retenção razoável, salvo obrigação legal de conservação.</p>
+        <table>
+            <tr><th>Categoria de dados</th><th>Prazo de conservação</th></tr>
+            <tr><td>Dados de conta (enquanto ativa)</td><td>Durante a vigência da conta + 30 dias após encerramento</td></tr>
+            <tr><td>Dados de viagens e registos operacionais</td><td>5 anos (obrigações legais e fiscais)</td></tr>
+            <tr><td>Fotografias de no-show</td><td>2 anos após o incidente</td></tr>
+            <tr><td>Dados de localização GPS</td><td>Não conservados permanentemente — apenas o último ping ativo</td></tr>
+            <tr><td>Tokens FCM (dispositivos)</td><td>Enquanto a conta estiver ativa; eliminados no encerramento</td></tr>
+            <tr><td>Registos técnicos (logs)</td><td>90 dias</td></tr>
+            <tr><td>Dados de faturação</td><td>10 anos (obrigação fiscal)</td></tr>
+        </table>
 
         <h2>8. Segurança</h2>
-        <p>Aplicamos medidas técnicas e organizativas adequadas, incluindo cifragem de palavras-passe, ligações seguras, controlo de acessos por perfil, isolamento de dados por empresa e proteções contra acessos não autorizados. Nenhum sistema é, contudo, 100% infalível.</p>
-
-        <h2>9. Os teus direitos</h2>
-        <p>Ao abrigo do RGPD, tens o direito de:</p>
+        <p>Aplicamos as seguintes medidas de segurança:</p>
         <ul>
-            <li>Aceder aos teus dados pessoais;</li>
-            <li>Solicitar a retificação de dados inexatos;</li>
-            <li>Solicitar o apagamento ("direito a ser esquecido");</li>
-            <li>Limitar ou opor-te a determinados tratamentos;</li>
-            <li>Solicitar a portabilidade dos teus dados;</li>
-            <li>Retirar o consentimento, quando o tratamento se baseie nele.</li>
+            <li>Todas as comunicações são cifradas via TLS/HTTPS;</li>
+            <li>Palavras-passe armazenadas com hash bcrypt — nunca em texto simples;</li>
+            <li>Isolamento de dados por empresa (multi-tenant com validação de âmbito);</li>
+            <li>Controlo de acessos por perfil (Administrador, Condutor, Parceiro, Super-Administrador);</li>
+            <li>Proteção contra injeção SQL e outros ataques OWASP Top 10;</li>
+            <li>Firewall de aplicação (WAF) no servidor de produção.</li>
         </ul>
-        <p>Para exercer estes direitos, contacta <a href="mailto:tiagofsilva04@gmail.com">tiagofsilva04@gmail.com</a>. Tens também o direito de apresentar reclamação junto da <strong>Comissão Nacional de Proteção de Dados (CNPD)</strong>.</p>
+        <p>Apesar destas medidas, nenhum sistema é 100% infalível. Em caso de violação de dados com impacto nos teus direitos, serás notificado nos termos legalmente exigidos.</p>
 
-        <h2>10. Dados de terceiros introduzidos pelo Cliente</h2>
-        <p>Se és um Cliente e introduzes dados de terceiros (clientes finais, passageiros, condutores), és responsável por garantir que tens base legal para o fazer e por informar essas pessoas sobre o tratamento. Trataremos esses dados apenas de acordo com as tuas instruções e os Termos do serviço.</p>
+        <h2>9. Cookies</h2>
+        <p>Utilizamos exclusivamente cookies de sessão estritamente necessários para autenticação e funcionamento da plataforma. Não utilizamos cookies analíticos, de rastreamento ou publicidade de terceiros. A App móvel não utiliza cookies.</p>
 
-        <h2>11. Alterações a esta política</h2>
-        <p>Poderemos atualizar esta política. As alterações materiais serão comunicadas e a data de "Última atualização" será revista em conformidade.</p>
+        <h2>10. Menores de idade</h2>
+        <p>O SyncRide não é dirigido a menores de 18 anos. Não recolhemos intencionalmente dados pessoais de menores. Se tomarmos conhecimento de que recolhemos dados de um menor, procederemos à sua eliminação imediata.</p>
 
-        <h2>12. Contacto</h2>
-        <p>Para qualquer questão relacionada com privacidade e proteção de dados, escreve para <a href="mailto:tiagofsilva04@gmail.com">tiagofsilva04@gmail.com</a>.</p>
+        <h2>11. Os teus direitos (RGPD)</h2>
+        <p>Ao abrigo do Regulamento Geral sobre a Proteção de Dados (RGPD — Regulamento (UE) 2016/679), tens os seguintes direitos:</p>
+        <ul>
+            <li><strong>Acesso</strong> — obteres confirmação sobre se os teus dados são tratados e acederes a uma cópia dos mesmos;</li>
+            <li><strong>Retificação</strong> — corrigires dados inexatos ou incompletos;</li>
+            <li><strong>Apagamento</strong> — solicitares a eliminação dos teus dados ("direito a ser esquecido"), salvo obrigação legal de conservação;</li>
+            <li><strong>Limitação</strong> — restringires o tratamento em determinadas circunstâncias;</li>
+            <li><strong>Portabilidade</strong> — receberes os teus dados num formato estruturado e legível por máquina;</li>
+            <li><strong>Oposição</strong> — opores-te ao tratamento baseado em interesse legítimo;</li>
+            <li><strong>Retirada do consentimento</strong> — quando o tratamento se baseia em consentimento, podes retirá-lo a qualquer momento sem afetar a licitude do tratamento anterior;</li>
+            <li><strong>Não sujeição a decisões automatizadas</strong> — não sendo sujeito a decisões tomadas unicamente com base em tratamento automatizado que produzam efeitos jurídicos significativos.</li>
+        </ul>
+        <p>Para exercer qualquer destes direitos, contacta <a href="mailto:tiagofsilva04@gmail.com">tiagofsilva04@gmail.com</a>. Responderemos no prazo máximo de 30 dias. Tens também o direito de apresentar reclamação junto da <strong>Comissão Nacional de Proteção de Dados (CNPD)</strong> — <a href="https://www.cnpd.pt" target="_blank" rel="noopener">www.cnpd.pt</a>.</p>
+
+        <h2>12. Permissões da aplicação móvel</h2>
+        <p>A App SyncRide solicita as seguintes permissões no dispositivo Android:</p>
+        <table>
+            <tr><th>Permissão</th><th>Finalidade</th></tr>
+            <tr><td>Localização precisa (em uso)</td><td>Rastreamento GPS durante viagem ativa</td></tr>
+            <tr><td>Localização em background</td><td>Continuação do rastreamento quando a App está em segundo plano durante uma viagem</td></tr>
+            <tr><td>Câmara</td><td>Fotografia de incidentes no-show e foto de perfil</td></tr>
+            <tr><td>Notificações</td><td>Receber alertas de novas viagens e atualizações de serviço</td></tr>
+            <tr><td>Internet</td><td>Comunicação com o servidor da plataforma</td></tr>
+            <tr><td>Arrancar no início do sistema</td><td>Reiniciar o serviço de localização após reinicialização do dispositivo (apenas quando há viagem ativa)</td></tr>
+        </table>
+        <p>Podes revogar qualquer permissão a qualquer momento através das Definições do dispositivo. A revogação de permissões de localização impedirá o funcionamento correto do rastreamento de viagens.</p>
+
+        <h2>13. Dados de terceiros introduzidos pelo Operador</h2>
+        <p>Se és um Operador e introduzes dados de terceiros (passageiros, clientes finais, condutores) na plataforma, és o responsável pelo tratamento desses dados e deves garantir que:</p>
+        <ul>
+            <li>Tens base legal adequada para o tratamento (contrato, consentimento ou interesse legítimo);</li>
+            <li>Informas os titulares dos dados sobre o tratamento, incluindo a partilha com o SyncRide como subcontratante;</li>
+            <li>Cumpres todas as obrigações decorrentes do RGPD aplicáveis à tua atividade.</li>
+        </ul>
+
+        <h2>14. Alterações a esta política</h2>
+        <p>Podemos atualizar esta política periodicamente. As alterações materiais serão comunicadas por email ou através de um aviso na plataforma, com um mínimo de 15 dias de antecedência. A data de "Última atualização" no topo deste documento será sempre atualizada. A utilização continuada do serviço após a entrada em vigor das alterações constitui aceitação das mesmas.</p>
+
+        <h2>15. Contacto</h2>
+        <p>Para qualquer questão relacionada com privacidade, proteção de dados ou para exercer os teus direitos:</p>
+        <ul>
+            <li><strong>Email:</strong> <a href="mailto:tiagofsilva04@gmail.com">tiagofsilva04@gmail.com</a></li>
+            <li><strong>Prazo de resposta:</strong> até 30 dias úteis</li>
+        </ul>
+
+        <hr style="margin: 40px 0; opacity: .15;">
+        <h2>Privacy Policy (English Summary)</h2>
+        <p>SyncRide is a fleet and transfer management platform. We collect and process personal data including account information, real-time GPS location of drivers during active trips, device tokens for push notifications, and trip operational data entered by Operators.</p>
+        <p><strong>Location data</strong> is collected in the background only during active trips and is used exclusively for live tracking displayed to the operator and optionally to the passenger. It is not stored permanently.</p>
+        <p><strong>Camera access</strong> is used for no-show incident documentation and profile photos.</p>
+        <p><strong>Push notifications</strong> are powered by Google Firebase Cloud Messaging (FCM). Device tokens are stored only for this purpose.</p>
+        <p>We do not sell personal data. We are GDPR-compliant. Users may exercise their rights (access, erasure, portability, etc.) by contacting <a href="mailto:tiagofsilva04@gmail.com">tiagofsilva04@gmail.com</a>. Complaints may be filed with the Portuguese data protection authority (CNPD) at <a href="https://www.cnpd.pt" target="_blank" rel="noopener">www.cnpd.pt</a>.</p>
+        <p>The app is not directed at users under 18. The app requires Android and requests location, camera, and notification permissions solely for the operational purposes described above.</p>
     </div>
 </div>
 

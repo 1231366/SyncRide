@@ -10,12 +10,19 @@ $pdo = Database::connection();
 $rideId = $_GET['id'] ?? null;
 if (!$rideId) die("Error: Ride not specified.");
 
+// Resolve master ID: if this service is a child of an aggregate, use the master for
+// live tracking and driver info (position is stored under master_id in RideTracking).
+$metaStmt = $pdo->prepare("SELECT aggregated_into FROM Services WHERE ID = ?");
+$metaStmt->execute([$rideId]);
+$metaRow  = $metaStmt->fetch(PDO::FETCH_ASSOC);
+$masterRideId = ($metaRow && $metaRow['aggregated_into']) ? (int) $metaRow['aggregated_into'] : (int) $rideId;
+
 // --- API INTERNA (AJAX) ---
 if (isset($_GET['check_status'])) {
     header('Content-Type: application/json');
     try {
         $stmt = $pdo->prepare("
-            SELECT 
+            SELECT
                 rt.latitude, rt.longitude, rt.speed, rt.heading,
                 s.status_id
             FROM Services s
@@ -23,12 +30,12 @@ if (isset($_GET['check_status'])) {
             WHERE s.ID = ?
             ORDER BY rt.last_update DESC LIMIT 1
         ");
-        $stmt->execute([$rideId]);
+        $stmt->execute([$masterRideId]);
         $data = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$data) {
             $stmt = $pdo->prepare("SELECT status_id FROM Services WHERE ID = ?");
-            $stmt->execute([$rideId]);
+            $stmt->execute([$masterRideId]);
             $statusOnly = $stmt->fetch(PDO::FETCH_ASSOC);
             $data = ['status_id' => $statusOnly['status_id'] ?? 0, 'latitude' => null, 'longitude' => null];
         }
@@ -44,22 +51,28 @@ if (isset($_GET['rate_driver'])) {
     header('Content-Type: application/json');
     $rating = $_POST['rating'] ?? null;
     if ($rating && $rideId) {
-        // Verifica se já existe rating para não permitir duplicados
         $stmt = $pdo->prepare("UPDATE Services SET driver_rating = ? WHERE ID = ? AND driver_rating IS NULL");
-        $stmt->execute([$rating, $rideId]);
+        $stmt->execute([$rating, (int) $rideId]);
         echo json_encode(['success' => true]);
     }
     exit;
 }
 
 // 1. BUSCAR DADOS
+// Display data (pickup/dropoff text, client name) always from the requested service ID.
+// Driver info + status come from the master (aggregate master or same ID for single rides).
+$displayStmt = $pdo->prepare("SELECT serviceStartPoint, serviceTargetPoint, NomeCliente, ClientNumber, driver_rating FROM Services WHERE ID = ?");
+$displayStmt->execute([(int) $rideId]);
+$displayRow = $displayStmt->fetch(PDO::FETCH_ASSOC);
+if (!$displayRow) die("Error: Trip not found.");
+
 $stmt = $pdo->prepare("
-    SELECT 
-        s.serviceStartPoint, s.serviceTargetPoint, s.NomeCliente, s.ClientNumber, s.status_id, s.driver_rating,
-        u.id AS driver_id, u.name AS driver_name, u.phone AS driver_phone, u.profile_photo_path, 
+    SELECT
+        s.status_id, s.driver_rating,
+        u.id AS driver_id, u.name AS driver_name, u.phone AS driver_phone, u.profile_photo_path,
         v.brand, v.model, v.license_plate, v.photo_path,
-        (SELECT AVG(driver_rating) FROM Services sr 
-         INNER JOIN Services_Rides srr ON sr.ID = srr.RideID 
+        (SELECT AVG(driver_rating) FROM Services sr
+         INNER JOIN Services_Rides srr ON sr.ID = srr.RideID
          WHERE srr.UserID = u.id AND sr.driver_rating IS NOT NULL) as avg_rating
     FROM Services s
     LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
@@ -67,8 +80,17 @@ $stmt = $pdo->prepare("
     LEFT JOIN Vehicles v ON u.assigned_vehicle_id = v.id
     WHERE s.ID = ?
 ");
-$stmt->execute([$rideId]);
+$stmt->execute([$masterRideId]);
 $trip = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// Merge: status/driver from master, display fields from child
+$trip = array_merge($trip ?: [], [
+    'serviceStartPoint'  => $displayRow['serviceStartPoint'],
+    'serviceTargetPoint' => $displayRow['serviceTargetPoint'],
+    'NomeCliente'        => $displayRow['NomeCliente'],
+    'ClientNumber'       => $displayRow['ClientNumber'],
+    'driver_rating'      => $displayRow['driver_rating'] ?? ($trip['driver_rating'] ?? null),
+]);
 
 if (!$trip) die("Error: Trip not found.");
 
@@ -78,7 +100,7 @@ $driverRating = $trip['avg_rating'] ? number_format($trip['avg_rating'], 1) : "5
 
 // 2. LIVE LOCATION INICIAL
 $stmt = $pdo->prepare("SELECT latitude, longitude FROM RideTracking WHERE ride_id = ? ORDER BY last_update DESC LIMIT 1");
-$stmt->execute([$rideId]);
+$stmt->execute([$masterRideId]);
 $liveLocation = $stmt->fetch(PDO::FETCH_ASSOC);
 
 $lat = $liveLocation['latitude'] ?? 41.15; 
@@ -126,8 +148,20 @@ $vehiclePlate = $trip['license_plate'] ?? 'N/A';
     .leaflet-routing-container { display: none !important; }
     .leaflet-control-attribution { display: none !important; }
 
+    .brand-badge {
+        position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+        background: var(--glass-bg); backdrop-filter: blur(12px);
+        padding: 7px 18px; border-radius: 50px;
+        border: 1px solid var(--glass-border);
+        z-index: 900; display: flex; align-items: center; gap: 7px;
+        font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+        color: rgba(255,255,255,0.65); text-transform: uppercase;
+    }
+    .brand-dot { width: 7px; height: 7px; background: #3b82f6; border-radius: 50%; box-shadow: 0 0 8px #3b82f6; animation: pulse-dot 2s infinite; }
+    @keyframes pulse-dot { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.5; transform:scale(1.3); } }
+
     .eta-pill {
-        position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+        position: absolute; top: 68px; left: 50%; transform: translateX(-50%);
         background: var(--glass-bg); backdrop-filter: blur(12px);
         padding: 10px 30px; border-radius: 50px;
         border: 1px solid var(--glass-border);
@@ -148,6 +182,11 @@ $vehiclePlate = $trip['license_plate'] ?? 'N/A';
         z-index: 999;
     }
 
+    .beta-notice {
+        font-size: 0.68rem; color: rgba(255,255,255,0.35); line-height: 1.5;
+        background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+        border-radius: 10px; padding: 8px 12px; margin-bottom: 18px; text-align: center;
+    }
     .status-header { margin-bottom: 25px; display: flex; align-items: center; gap: 15px; }
     .status-icon-box { 
         width: 50px; height: 50px; border-radius: 50%; 
@@ -243,12 +282,15 @@ $vehiclePlate = $trip['license_plate'] ?? 'N/A';
 
     <div id="map"></div>
 
+    <div class="brand-badge"><div class="brand-dot"></div>SyncRide Live</div>
+
     <div class="eta-pill" id="etaContainer" style="display:none;">
         <div class="eta-time" id="etaValue">--</div>
-        <div class="eta-label">MINUTES</div>
+        <div class="eta-label" id="etaLabel">MIN TO PICKUP</div>
     </div>
 
     <div class="driver-sheet">
+        <div class="beta-notice">⚠️ App in testing — tracking may not be 100% accurate.<br>Use the buttons below to call or message your driver directly.</div>
         <div class="status-header">
             <div class="status-icon-box" id="statusIconBg">
                 <i class="bi bi-car-front-fill" id="statusIcon"></i>
@@ -282,10 +324,9 @@ $vehiclePlate = $trip['license_plate'] ?? 'N/A';
     <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
 
     <script>
-    const RIDE_ID = <?php echo $rideId; ?>;
-    const PICKUP_TXT = "<?php echo htmlspecialchars($pickUpPoint); ?>";
-    const DROPOFF_TXT = "<?php echo htmlspecialchars($dropOffPoint); ?>";
-    const CAR_IMG = <?php echo json_encode($vehiclePhotoURL); ?>;
+    const RIDE_ID    = <?php echo (int) $rideId; ?>;
+    const PICKUP_TXT = <?php echo json_encode($pickUpPoint, JSON_UNESCAPED_UNICODE); ?>;
+    const DROPOFF_TXT = <?php echo json_encode($dropOffPoint, JSON_UNESCAPED_UNICODE); ?>;
     let selectedRating = 0;
 
     const map = L.map('map', { zoomControl: false, attributionControl: false })
@@ -295,11 +336,27 @@ $vehiclePlate = $trip['license_plate'] ?? 'N/A';
         maxZoom: 20
     }).addTo(map);
 
-    const carIcon = L.divIcon({
-        html: `<img src="${CAR_IMG}" style="width:50px;height:50px;object-fit:contain" class="custom-car-icon">`,
+    const carSvg = (heading = 0) => `<svg width="54" height="54" viewBox="0 0 54 54" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="27" cy="27" r="26" fill="rgba(59,130,246,0.20)" stroke="#3b82f6" stroke-width="1.5" stroke-opacity="0.5"/>
+        <g transform="translate(27,27) rotate(${heading})">
+            <rect x="-8" y="-14" width="16" height="28" rx="5" fill="#3b82f6"/>
+            <rect x="-5.5" y="-11.5" width="11" height="9" rx="2" fill="rgba(255,255,255,0.55)"/>
+            <rect x="-5.5" y="4" width="11" height="6" rx="2" fill="rgba(255,255,255,0.22)"/>
+            <rect x="-8" y="-13" width="3.5" height="3" rx="1.5" fill="#fde68a"/>
+            <rect x="4.5" y="-13" width="3.5" height="3" rx="1.5" fill="#fde68a"/>
+            <rect x="-8" y="10" width="3.5" height="3" rx="1.5" fill="#ef4444" fill-opacity="0.85"/>
+            <rect x="4.5" y="10" width="3.5" height="3" rx="1.5" fill="#ef4444" fill-opacity="0.85"/>
+            <rect x="-11.5" y="-9" width="3.5" height="7" rx="2" fill="#1e293b"/>
+            <rect x="8" y="-9" width="3.5" height="7" rx="2" fill="#1e293b"/>
+            <rect x="-11.5" y="2" width="3.5" height="7" rx="2" fill="#1e293b"/>
+            <rect x="8" y="2" width="3.5" height="7" rx="2" fill="#1e293b"/>
+        </g>
+    </svg>`;
+    const makeCarIcon = (heading = 0) => L.divIcon({
+        html: carSvg(heading),
         className: '',
-        iconSize: [50, 50],
-        iconAnchor: [25, 25]
+        iconSize: [54, 54],
+        iconAnchor: [27, 27]
     });
 
     const pinIcon = L.divIcon({
@@ -316,7 +373,7 @@ $vehiclePlate = $trip['license_plate'] ?? 'N/A';
         iconAnchor: [15, 30]
     });
 
-    let driverMarker = L.marker([<?php echo $lat; ?>, <?php echo $lng; ?>], { icon: carIcon }).addTo(map);
+    let driverMarker = L.marker([<?php echo $lat; ?>, <?php echo $lng; ?>], { icon: makeCarIcon(0) }).addTo(map);
     let targetMarker = null;
     let routingControl = null;
     let pickupCoords = null;
@@ -427,7 +484,7 @@ $vehiclePlate = $trip['license_plate'] ?? 'N/A';
     /* ===========================
         ROUTING
     ============================ */
-    function startRouting(dest) {
+    function startRouting(dest, color = '#3b82f6') {
         if (!dest) return;
 
         if (routingControl) map.removeControl(routingControl);
@@ -438,7 +495,7 @@ $vehiclePlate = $trip['license_plate'] ?? 'N/A';
             addWaypoints: false,
             show: false,
             lineOptions: {
-                styles: [{ color: '#3b82f6', opacity: 0.9, weight: 6 }]
+                styles: [{ color, opacity: 0.92, weight: 7 }]
             },
             createMarker: () => null,
             fitSelectedRoutes: !userInteracting
@@ -447,6 +504,7 @@ $vehiclePlate = $trip['license_plate'] ?? 'N/A';
         routingControl.on('routesfound', e => {
             const mins = Math.round(e.routes[0].summary.totalTime / 60);
             document.getElementById('etaValue').innerText = mins;
+            document.getElementById('etaLabel').innerText = lastStatus === 2 ? 'MIN TO DESTINATION' : 'MIN TO PICKUP';
 
             if ([0, 2].includes(lastStatus)) {
                 document.getElementById('etaContainer').style.display = 'flex';
@@ -473,6 +531,7 @@ $vehiclePlate = $trip['license_plate'] ?? 'N/A';
             title.style.color = "#f8fafc";
             addr.innerText = PICKUP_TXT;
             eta.style.display = 'flex';
+            document.getElementById('etaLabel').innerText = 'MIN TO PICKUP';
             icon.className = "bi bi-car-front-fill";
             bg.style.background = "rgba(59,130,246,0.15)";
             bg.style.color = "#3b82f6";
@@ -495,12 +554,13 @@ $vehiclePlate = $trip['license_plate'] ?? 'N/A';
             title.style.color = "#f8fafc";
             addr.innerText = DROPOFF_TXT;
             eta.style.display = 'flex';
+            document.getElementById('etaLabel').innerText = 'MIN TO DESTINATION';
             icon.className = "bi bi-cursor-fill";
             bg.style.background = "rgba(245,158,11,0.15)";
             bg.style.color = "#f59e0b";
             if (dropoffCoords) {
                 if (targetMarker) targetMarker.setLatLng(dropoffCoords).setIcon(flagIcon);
-                startRouting(dropoffCoords);
+                startRouting(dropoffCoords, '#10b981');
             }
         }
 
@@ -549,6 +609,9 @@ $vehiclePlate = $trip['license_plate'] ?? 'N/A';
                 if (res.data.latitude && res.data.longitude) {
                     const newPos = L.latLng(res.data.latitude, res.data.longitude);
                     driverMarker.setLatLng(newPos);
+                    if (res.data.heading != null) {
+                        driverMarker.setIcon(makeCarIcon(res.data.heading));
+                    }
 
                     if (routingControl && [0, 2].includes(status)) {
                         const dest = status === 2 ? dropoffCoords : pickupCoords;

@@ -155,7 +155,7 @@
 
 <nav>
     <div class="wrap">
-        <div class="brand"><img src="./assets/images/icons/Syncride.png" alt="SyncRide"></div>
+        <a href="landing.html" class="brand" style="text-decoration:none;color:inherit"><img src="./assets/images/icons/Syncride.png" alt="SyncRide"> SyncRide</a>
         <div class="nav-mid">
             <a href="#como">Como funciona</a>
             <a href="#integracao">Integração</a>
@@ -163,7 +163,7 @@
         </div>
         <div class="nav-right">
             <a href="index.php" class="btn btn-ghost">Entrar</a>
-            <a href="#comecar" class="btn btn-primary">Começar grátis</a>
+            <a href="auth/register.php" class="btn btn-primary">Começar grátis</a>
         </div>
     </div>
 </nav>
@@ -175,10 +175,10 @@
             <h1>Acaba com o caos<br><span class="grad">das folhas de cálculo.</span></h1>
             <p class="sub">As agendas chegam sozinhas aos condutores, os operadores parceiros pedem sem te ligar, e as reservas do teu site caem direto no sistema. Tu só geres — o resto trata-se sozinho.</p>
             <div class="hero-cta">
-                <a href="#comecar" class="btn btn-primary btn-lg"><i class="bi bi-rocket-takeoff"></i> Começar 14 dias grátis</a>
+                <a href="auth/register.php" class="btn btn-primary btn-lg"><i class="bi bi-rocket-takeoff"></i> Começar 7 dias grátis</a>
                 <a href="#como" class="btn btn-ghost btn-lg"><i class="bi bi-play-circle"></i> Ver como funciona</a>
             </div>
-            <div class="hero-trust"><i class="bi bi-check-circle-fill"></i> 14 dias grátis &nbsp;·&nbsp; <i class="bi bi-check-circle-fill"></i> Sem cartão &nbsp;·&nbsp; <i class="bi bi-check-circle-fill"></i> Cancela quando quiseres</div>
+            <div class="hero-trust"><i class="bi bi-check-circle-fill"></i> 7 dias grátis &nbsp;·&nbsp; <i class="bi bi-check-circle-fill"></i> Sem cobranças durante o trial &nbsp;·&nbsp; <i class="bi bi-check-circle-fill"></i> Cancela quando quiseres</div>
         </div>
         <div class="hero-media">
             <img class="photo" src="./assets/landing/hero.jpg" alt="Condutor profissional a receber a próxima viagem no telemóvel, junto a uma viatura executiva">
@@ -306,7 +306,7 @@
         <div class="sec-head">
             <div class="eyebrow">Preços</div>
             <h2>Simples e sem surpresas</h2>
-            <p>Começa grátis durante 14 dias. Sem cartão, cancela quando quiseres.</p>
+            <p>Começa grátis durante 7 dias. Introduzes o cartão mas só és cobrado ao fim do trial — cancela quando quiseres.</p>
         </div>
         <div class="prices">
             <div class="price">
@@ -319,7 +319,7 @@
                     <li>Tracking em tempo real</li>
                     <li>Condutores ilimitados</li>
                 </ul>
-                <a href="#comecar" class="btn btn-ghost" style="justify-content:center">Começar grátis</a>
+                <a href="auth/register.php" class="btn btn-ghost" style="justify-content:center">Começar 7 dias grátis</a>
             </div>
             <div class="price feat-plan">
                 <span class="badge">Mais popular</span>
@@ -333,7 +333,7 @@
                     <li>Parcerias entre empresas</li>
                     <li>Suporte prioritário</li>
                 </ul>
-                <a href="#comecar" class="btn btn-primary" style="justify-content:center">Começar grátis</a>
+                <a href="auth/register.php" class="btn btn-primary" style="justify-content:center">Começar 7 dias grátis</a>
             </div>
             <div class="price">
                 <h4>Enterprise</h4>
@@ -345,7 +345,7 @@
                     <li>Módulo financeiro avançado</li>
                     <li>Onboarding dedicado</li>
                 </ul>
-                <a href="#comecar" class="btn btn-ghost" style="justify-content:center">Falar com a equipa</a>
+                <a href="mailto:tiagofsilva04@gmail.com?subject=Enterprise%20SyncRide" class="btn btn-ghost" style="justify-content:center">Falar com a equipa</a>
             </div>
         </div>
     </div>
@@ -353,22 +353,22 @@
 
 <section id="comecar" style="padding-top:0;">
     <div class="wrap">
-        <div class="signup">
-            <h2>Experimenta 14 dias grátis</h2>
-            <p class="sub">Deixa os teus dados e entramos em contacto para arrancar a tua operação.</p>
-            <form onsubmit="return sendLead(event)">
-                <div class="form-grid">
-                    <div class="field"><label>Nome</label><input type="text" id="f-nome" required></div>
-                    <div class="field"><label>Empresa</label><input type="text" id="f-empresa" required></div>
-                    <div class="field"><label>Email de trabalho</label><input type="email" id="f-email" required></div>
-                    <div class="field"><label>Telefone / WhatsApp</label><input type="text" id="f-tel" required></div>
-                    <div class="field full"><label>Plano de interesse</label>
-                        <select id="f-plano"><option>Starter — €35/mês</option><option selected>Pro — €59/mês</option><option>Enterprise — sob consulta</option></select>
-                    </div>
-                </div>
-                <button type="submit"><i class="bi bi-rocket-takeoff"></i> Quero começar</button>
-                <div class="fine">🔒 Os teus dados ficam seguros · Sem compromisso · Resposta em 24h<br>Ao submeteres, aceitas os <a href="terms.html" style="color:var(--blue)">Termos</a> e a <a href="privacy.html" style="color:var(--blue)">Política de Privacidade</a>.</div>
-            </form>
+        <div class="signup" style="text-align:center">
+            <h2>Experimenta 7 dias grátis</h2>
+            <p class="sub">Cria a tua conta em 30 segundos. Introduzes o cartão, mas não és cobrado nada durante o trial.</p>
+            <a href="auth/register.php" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;margin-top:8px">
+                <i class="bi bi-rocket-takeoff"></i> Criar conta e começar trial
+            </a>
+            <div class="fine" style="margin-top:18px">
+                🔒 Pagamentos seguros via <strong>Stripe</strong> · Cancela antes dos 7 dias e não pagas nada<br>
+                Ao criares conta, aceitas os <a href="terms.html">Termos</a> e a <a href="privacy.html">Política de Privacidade</a>.
+            </div>
+            <div style="margin-top:24px;padding-top:20px;border-top:1px solid rgba(15,23,42,.08)">
+                <p style="font-size:13px;color:var(--muted);font-weight:600;margin-bottom:10px">Operação grande ou necessidades específicas?</p>
+                <a href="mailto:tiagofsilva04@gmail.com?subject=Enterprise%20SyncRide" class="btn btn-ghost" style="font-size:13px">
+                    <i class="bi bi-envelope"></i> Falar com a equipa sobre Enterprise
+                </a>
+            </div>
         </div>
     </div>
 </section>
@@ -381,22 +381,5 @@
     </div>
 </footer>
 
-<script>
-function sendLead(e){
-    e.preventDefault();
-    const nome = document.getElementById('f-nome').value;
-    const empresa = document.getElementById('f-empresa').value;
-    const email = document.getElementById('f-email').value;
-    const tel = document.getElementById('f-tel').value;
-    const plano = document.getElementById('f-plano').value;
-    const assunto = encodeURIComponent('Pedido de teste SyncRide — ' + empresa);
-    const corpo = encodeURIComponent(
-        'Nome: ' + nome + '\nEmpresa: ' + empresa + '\nEmail: ' + email +
-        '\nTelefone: ' + tel + '\nPlano: ' + plano
-    );
-    window.location.href = 'mailto:tiagofsilva04@gmail.com?subject=' + assunto + '&body=' + corpo;
-    return false;
-}
-</script>
 </body>
 </html>

@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\BaseController;
 use App\Repositories\LogRepository;
 use App\Repositories\ServiceRepository;
+use App\Services\FCMSender;
 use App\Services\NoShowMailer;
 use App\Services\NoShowReportGenerator;
 
@@ -102,19 +103,41 @@ final class NoShowsController extends BaseController
 
         $this->logs->record("Driver no-show reported for ride #{$tripId}");
 
+        if ($ride->companyId !== null) {
+            $d = \DateTime::createFromFormat('Y-m-d', $ride->date);
+            $t = \DateTime::createFromFormat('H:i:s', $ride->startTime)
+              ?: \DateTime::createFromFormat('H:i', $ride->startTime);
+            $dateStr = $d ? $d->format('d/m') : $ride->date;
+            $timeStr = $t ? $t->format('H:i') : $ride->startTime;
+            $client  = $ride->clientName ?? 'Cliente';
+            $origin  = $this->shortAddress($ride->pickupAddress);
+            $dest    = $this->shortAddress($ride->dropoffAddress);
+
+            FCMSender::sendToAdmins(
+                $ride->companyId,
+                '⚠️ No-show reportado',
+                "{$client} · {$dateStr} às {$timeStr}\n{$origin} → {$dest}",
+                ['ride_id' => (string) $tripId]
+            );
+        }
+
         $tripData   = $this->services->findWithPartner($tripId);
         $reportPath = null;
         $reportDb   = null;
 
+        // Moment the no-show is declared — used both in the report (waiting time)
+        // and persisted, so it always matches what the PDF shows.
+        $noShowAt = date('Y-m-d H:i:s');
+
         // Generate PDF report
         try {
-            $reportDb   = (new NoShowReportGenerator())->generate($tripId, $tripData ?? [], $serverPath, $lat, $lng);
+            $reportDb   = (new NoShowReportGenerator())->generate($tripId, $tripData ?? [], $serverPath, $lat, $lng, $noShowAt);
             $reportPath = dirname(__DIR__, 4) . '/public/' . $reportDb;
         } catch (\Throwable $e) {
             error_log('NoShowReportGenerator failed for ride #' . $tripId . ': ' . $e->getMessage());
         }
 
-        $this->services->markNoShow($tripId, $dbPath, $lat, $lng, $reportDb);
+        $this->services->markNoShow($tripId, $dbPath, $lat, $lng, $reportDb, $noShowAt);
 
         // Use the settings of the company that OWNS the ride (not the driver's session
         // company — a shared driver may report a no-show for another company's ride).
@@ -168,5 +191,12 @@ final class NoShowsController extends BaseController
             'rota'      => $route,
             'acoes'     => $actions,
         ];
+    }
+
+    private function shortAddress(string $addr): string
+    {
+        $short = preg_split('/[,(]/', $addr)[0] ?? $addr;
+        $short = trim($short);
+        return mb_strlen($short) > 28 ? mb_substr($short, 0, 26) . '…' : $short;
     }
 }

@@ -7,6 +7,10 @@ namespace App\Services;
 /**
  * Generates a no-show incident PDF report using FPDF.
  * Returns the relative DB path to the saved file.
+ *
+ * The report is localised to the tenant's language (resources/lang/<lang>.php).
+ * FPDF's core fonts are cp1252, so every string is converted from UTF-8 via
+ * enc() before being drawn — otherwise accented characters would be mojibake.
  */
 final class NoShowReportGenerator
 {
@@ -28,22 +32,57 @@ final class NoShowReportGenerator
         string  $photoServerPath,
         ?string $lat,
         ?string $lng,
+        ?string $noShowAt = null,
+        ?string $lang = null,
     ): string {
         require_once self::FPDF;
 
         date_default_timezone_set('Europe/Lisbon');
+
+        // ── Localisation ──────────────────────────────────────────
+        $lang     = $lang ?: ($_SESSION['admin_lang'] ?? 'en');
+        $langFile = dirname(__DIR__, 2) . '/resources/lang/' . preg_replace('/[^a-z]/i', '', (string) $lang) . '.php';
+        $S        = is_file($langFile) ? (require $langFile) : [];
+        $raw      = static fn(string $k): string => (string) ($S[$k] ?? $k);          // UTF-8
+        $t        = fn(string $k): string => $this->enc($raw($k));                    // cp1252, ready to draw
+
         $now         = date('d/m/Y H:i');
-        $companyName = (string) ($tripData['company_name']        ?? 'SyncRide');
-        $driverName  = (string) ($tripData['driver_name']         ?? 'N/A');
-        $clientName  = strtoupper((string) ($tripData['NomeCliente']       ?? 'N/A'));
-        $origin      = (string) ($tripData['serviceStartPoint']   ?? '');
-        $destination = (string) ($tripData['serviceTargetPoint']  ?? '');
+        $companyName = (string) ($tripData['company_name']       ?? 'SyncRide');
+        $driverName  = (string) ($tripData['driver_name']        ?? 'N/A');
+        $clientName  = mb_strtoupper((string) ($tripData['NomeCliente'] ?? 'N/A'), 'UTF-8');
+        $origin      = (string) ($tripData['serviceStartPoint']  ?? '');
+        $destination = (string) ($tripData['serviceTargetPoint'] ?? '');
         $date        = !empty($tripData['serviceDate'])
             ? (new \DateTime($tripData['serviceDate']))->format('d/m/Y')
             : date('d/m/Y');
         $time        = !empty($tripData['serviceStartTime'])
             ? substr((string) $tripData['serviceStartTime'], 0, 5)
             : '';
+
+        // ── Waiting-time evidence ─────────────────────────────────
+        // Driver arrival comes from the live status flow (ts_arrived_pickup);
+        // the no-show moment is passed in by the controller (and persisted).
+        $toHm = static function ($raw): ?string {
+            if (empty($raw) || str_starts_with((string) $raw, '0000')) {
+                return null;
+            }
+            try { return (new \DateTime((string) $raw))->format('H:i'); }
+            catch (\Throwable) { return null; }
+        };
+        $arrivedRaw  = $tripData['ts_arrived_pickup'] ?? null;
+        $arrivedTime = $toHm($arrivedRaw);
+        $noShowTime  = $toHm($noShowAt) ?? date('H:i');
+
+        $waitingMin = null;
+        if ($arrivedTime !== null && !empty($noShowAt)) {
+            try {
+                $diff = (new \DateTime((string) $noShowAt))->getTimestamp()
+                      - (new \DateTime((string) $arrivedRaw))->getTimestamp();
+                if ($diff >= 0) {
+                    $waitingMin = (int) round($diff / 60);
+                }
+            } catch (\Throwable) { /* leave null */ }
+        }
 
         $pdf = new \FPDF('P', 'mm', 'A4');
         $pdf->SetAutoPageBreak(false);
@@ -62,32 +101,32 @@ final class NoShowReportGenerator
         $pdf->SetFillColor(29, 78, 216);
         $pdf->Rect(0, 35, 210, 5, 'F');
 
-        // Logo — "SyncRide OS"
-        $pdf->SetXY(15, 10);
-        $pdf->SetFont('Helvetica', 'B', 20);
-        $pdf->SetTextColor(255, 255, 255);
-        $pdf->Cell(0, 10, 'SyncRide', 0, 0, 'L');
-
-        $pdf->SetXY(15, 22);
-        $pdf->SetFont('Helvetica', '', 8);
-        $pdf->SetTextColor(147, 197, 253); // blue-300
-        $pdf->Cell(0, 5, 'Fleet Management Platform', 0, 0, 'L');
+        // Logo — white SyncRide wordmark on the blue header
+        $logo = dirname(__DIR__, 2) . '/public/assets/images/icons/Syncridewhite.png';
+        if (is_file($logo)) {
+            $pdf->Image($logo, 15, 11, 34); // height auto from 2.36 ratio (~14mm)
+        } else {
+            $pdf->SetXY(15, 10);
+            $pdf->SetFont('Helvetica', 'B', 20);
+            $pdf->SetTextColor(255, 255, 255);
+            $pdf->Cell(0, 10, 'SyncRide', 0, 0, 'L');
+        }
 
         // Right — report label
         $pdf->SetXY(105, 9);
         $pdf->SetFont('Helvetica', 'B', 15);
         $pdf->SetTextColor(255, 255, 255);
-        $pdf->Cell(90, 8, 'No-Show Report', 0, 0, 'R');
+        $pdf->Cell(90, 8, $t('noshows.report.title'), 0, 0, 'R');
 
         $pdf->SetXY(105, 18);
         $pdf->SetFont('Helvetica', 'B', 10);
         $pdf->SetTextColor(147, 197, 253);
-        $pdf->Cell(90, 6, 'Ride #' . $tripId, 0, 0, 'R');
+        $pdf->Cell(90, 6, $t('noshows.report.ride') . ' #' . $tripId, 0, 0, 'R');
 
         $pdf->SetXY(105, 26);
         $pdf->SetFont('Helvetica', '', 8);
         $pdf->SetTextColor(186, 230, 253); // blue-200
-        $pdf->Cell(90, 5, 'Generated: ' . $now, 0, 0, 'R');
+        $pdf->Cell(90, 5, $t('noshows.report.generated') . ': ' . $now, 0, 0, 'R');
 
         // ── COMPANY BAND ──────────────────────────────────────────
         $pdf->SetFillColor(...self::BLUE_LIGHT);
@@ -96,7 +135,7 @@ final class NoShowReportGenerator
         $pdf->SetXY(15, 44);
         $pdf->SetFont('Helvetica', 'B', 11);
         $pdf->SetTextColor(...self::BLUE);
-        $pdf->Cell(130, 7, $companyName, 0, 0, 'L');
+        $pdf->Cell(130, 7, $this->enc($companyName), 0, 0, 'L');
 
         // NO-SHOW pill
         $pdf->SetFillColor(...self::RED);
@@ -104,7 +143,7 @@ final class NoShowReportGenerator
         $pdf->SetXY(158, 44);
         $pdf->SetFont('Helvetica', 'B', 7);
         $pdf->SetTextColor(255, 255, 255);
-        $pdf->Cell(38, 8, ' NO-SHOW ', 0, 0, 'C');
+        $pdf->Cell(38, 8, ' ' . $t('noshows.report.badge') . ' ', 0, 0, 'C');
 
         // ── SECTION: SERVICE DETAILS ──────────────────────────────
         $y = 62;
@@ -117,20 +156,20 @@ final class NoShowReportGenerator
         $pdf->SetXY(15, $y + 4);
         $pdf->SetFont('Helvetica', 'B', 7);
         $pdf->SetTextColor(...self::TEXT3);
-        $pdf->Cell(180, 4, '  SERVICE DETAILS', 0, 1, 'L');
+        $pdf->Cell(180, 4, '  ' . $t('noshows.report.service_details'), 0, 1, 'L');
 
         $pdf->SetDrawColor(...self::BORDER);
         $pdf->Line(15, $y + 10, 195, $y + 10);
 
         $y += 13;
 
-        // Two-column details
+        // Two-column details (labels passed UTF-8; detailCell upper-cases + encodes)
         $lx = 20; $rx = 115; $colW = 85;
         foreach ([
-            [['Driver', $driverName],        ['Date / Time', $date . '  ' . $time]],
-            [['Client', $clientName],         ['Service ID',  '#' . $tripId]],
-            [['Origin', $origin],             null],
-            [['Destination', $destination],   null],
+            [[$raw('noshows.report.driver'), $driverName],      [$raw('noshows.report.datetime'), $date . '  ' . $time]],
+            [[$raw('noshows.report.client'), $clientName],      [$raw('noshows.report.service_id'), '#' . $tripId]],
+            [[$raw('noshows.report.origin'), $origin],          null],
+            [[$raw('noshows.report.destination'), $destination], null],
         ] as $row) {
             [$label, $value] = $row[0];
             $this->detailCell($pdf, $lx, $y, $label, $value, $colW);
@@ -142,12 +181,53 @@ final class NoShowReportGenerator
         }
 
         if ($lat && $lng) {
-            $this->detailCell($pdf, $lx, $y, 'GPS', $lat . ', ' . $lng, 160);
+            $mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode($lat . ',' . $lng);
+            $this->detailCell($pdf, $lx, $y, $raw('noshows.report.gps'), $lat . ', ' . $lng, 160, $mapsUrl);
             $y += 8;
         }
 
+        // ── SECTION: WAITING-TIME EVIDENCE ────────────────────────
+        $ty = 118;
+        $tH = 32;
+        $pdf->SetDrawColor(...self::BORDER);
+        $pdf->SetFillColor(255, 255, 255);
+        $pdf->Rect(15, $ty, 180, $tH, 'FD');
+
+        $pdf->SetXY(15, $ty + 4);
+        $pdf->SetFont('Helvetica', 'B', 7);
+        $pdf->SetTextColor(...self::TEXT3);
+        $pdf->Cell(180, 4, '  ' . $t('noshows.report.waiting_evidence'), 0, 1, 'L');
+        $pdf->Line(15, $ty + 10, 195, $ty + 10);
+
+        $minLabel = $raw('noshows.report.minutes');
+        $stats = [
+            [$t('noshows.report.scheduled_pickup'), $time !== '' ? $time : '--:--', self::TEXT1],
+            [$t('noshows.report.driver_arrived'),   $arrivedTime ?? '--:--',        self::TEXT2],
+            [$t('noshows.report.noshow_declared'),  $noShowTime,                    self::TEXT1],
+            [$t('noshows.report.waiting_time'),     $waitingMin !== null ? $waitingMin . ' ' . $minLabel : '--', self::RED],
+        ];
+        $cw = 180 / 4;
+        $cx = 15;
+        foreach ($stats as $i => [$label, $value, $colour]) {
+            $pdf->SetXY($cx, $ty + 14);
+            $pdf->SetFont('Helvetica', 'B', 6);
+            $pdf->SetTextColor(...self::TEXT3);
+            $pdf->Cell($cw, 4, $label, 0, 0, 'C');
+
+            $pdf->SetXY($cx, $ty + 19);
+            $pdf->SetFont('Helvetica', 'B', 13);
+            $pdf->SetTextColor(...$colour);
+            $pdf->Cell($cw, 8, $this->enc($value), 0, 0, 'C');
+
+            if ($i < 3) {
+                $pdf->SetDrawColor(...self::BORDER);
+                $pdf->Line($cx + $cw, $ty + 12, $cx + $cw, $ty + $tH - 3);
+            }
+            $cx += $cw;
+        }
+
         // ── SECTION: PHOTO EVIDENCE ───────────────────────────────
-        $y = 120;
+        $y = 154;
 
         $pdf->SetFillColor(255, 255, 255);
         $pdf->SetDrawColor(...self::BORDER);
@@ -164,7 +244,7 @@ final class NoShowReportGenerator
         $pdf->SetXY(15, $y + 4);
         $pdf->SetFont('Helvetica', 'B', 7);
         $pdf->SetTextColor(...self::TEXT3);
-        $pdf->Cell(180, 4, '  PHOTO EVIDENCE', 0, 1, 'L');
+        $pdf->Cell(180, 4, '  ' . $t('noshows.report.photo_evidence'), 0, 1, 'L');
 
         $pdf->Line(15, $y + 10, 195, $y + 10);
 
@@ -181,7 +261,7 @@ final class NoShowReportGenerator
             $pdf->SetXY(15, $y + 20);
             $pdf->SetFont('Helvetica', 'I', 9);
             $pdf->SetTextColor(...self::TEXT3);
-            $pdf->Cell(180, 8, 'Photo not available.', 0, 0, 'C');
+            $pdf->Cell(180, 8, $t('noshows.report.photo_unavailable'), 0, 0, 'C');
         }
 
         $y += $sectionH + 10;
@@ -194,16 +274,13 @@ final class NoShowReportGenerator
         $pdf->SetXY(15, $fy + 4);
         $pdf->SetFont('Helvetica', 'B', 7);
         $pdf->SetTextColor(...self::TEXT2);
-        $pdf->Cell(130, 4, 'Report ID: #' . $tripId, 0, 0, 'L');
-        $pdf->Cell(50, 4, 'Powered by SyncRide OS', 0, 0, 'R');
+        $pdf->Cell(130, 4, $t('noshows.report.report_id') . ': #' . $tripId, 0, 0, 'L');
+        $pdf->Cell(50, 4, $t('noshows.report.powered_by'), 0, 0, 'R');
 
         $pdf->SetXY(15, $fy + 10);
         $pdf->SetFont('Helvetica', '', 6.5);
         $pdf->SetTextColor(...self::TEXT3);
-        $pdf->MultiCell(180, 3.5,
-            'This report was automatically generated by SyncRide OS based on operational and GPS data collected in real time. ' .
-            'All information is recorded and processed by the system and cannot be manually altered by users.',
-            0, 'L');
+        $pdf->MultiCell(180, 3.5, $t('noshows.report.disclaimer'), 0, 'L');
 
         // ── SAVE ──────────────────────────────────────────────────
         $uploadDir = dirname(__DIR__, 2) . '/public/uploads/no_shows/';
@@ -213,16 +290,30 @@ final class NoShowReportGenerator
         return 'uploads/no_shows/' . $fileName;
     }
 
-    private function detailCell(\FPDF $pdf, float $x, float $y, string $label, string $value, float $w): void
+    /** Convert a UTF-8 string to cp1252 so FPDF core fonts render accents correctly. */
+    private function enc(string $s): string
+    {
+        $out = iconv('UTF-8', 'windows-1252//TRANSLIT', $s);
+        return $out !== false ? $out : $s;
+    }
+
+    private function detailCell(\FPDF $pdf, float $x, float $y, string $label, string $value, float $w, ?string $link = null): void
     {
         $pdf->SetXY($x, $y);
         $pdf->SetFont('Helvetica', 'B', 6.5);
         $pdf->SetTextColor(...self::TEXT3);
-        $pdf->Cell(22, 5, strtoupper($label), 0, 0, 'L');
+        $pdf->Cell(22, 5, $this->enc(mb_strtoupper($label, 'UTF-8')), 0, 0, 'L');
 
-        $pdf->SetFont('Helvetica', '', 9);
-        $pdf->SetTextColor(...self::TEXT1);
-        $pdf->Cell($w - 22, 5, $value, 0, 0, 'L');
+        // A link (e.g. GPS → Google Maps) is drawn blue + underlined to signal it's clickable.
+        if ($link !== null) {
+            $pdf->SetFont('Helvetica', 'U', 9);
+            $pdf->SetTextColor(...self::BLUE);
+            $pdf->Cell($w - 22, 5, $this->enc($value), 0, 0, 'L', false, $link);
+        } else {
+            $pdf->SetFont('Helvetica', '', 9);
+            $pdf->SetTextColor(...self::TEXT1);
+            $pdf->Cell($w - 22, 5, $this->enc($value), 0, 0, 'L');
+        }
     }
 
     private function computePhotoH(string $path, float $targetW): float

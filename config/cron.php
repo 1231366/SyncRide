@@ -13,5 +13,6 @@ return [
         'whatsapp-agenda' => Cron\Jobs\WhatsappAgendaJob::class,
         'final-trip'      => Cron\Jobs\FinalTripReportJob::class,
         'sync-ai'         => Cron\Jobs\SyncAiEngineJob::class,
+        'ride-reminder'   => Cron\Jobs\RideReminderJob::class,
     ],
 ];

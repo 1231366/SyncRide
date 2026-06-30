@@ -143,4 +143,18 @@ final class CompaniesController extends BaseController
             $this->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
     }
+
+    /** POST /superadmin/companies.php?action=toggle_grace — grant/revoke manual access. */
+    public function toggleGrace(): never
+    {
+        $this->requirePost();
+        $companyId = (int) $this->input('company_id', 0);
+        $grace     = (bool) $this->input('grace', false);
+        if ($companyId === 0) {
+            $this->json(['success' => false, 'message' => 'Missing company_id'], 400);
+        }
+        $this->companies->toggleGrace($companyId, $grace);
+        $this->logs->record("Super-admin " . ($grace ? 'granted' : 'revoked') . " grace access for company #{$companyId}");
+        $this->json(['success' => true, 'grace' => $grace]);
+    }
 }

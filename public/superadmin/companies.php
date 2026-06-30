@@ -16,5 +16,6 @@ match ($action) {
     'destroy'        => $ctrl->destroy(),
     'store_user'     => $ctrl->storeUser(),
     'create_invite'  => $ctrl->createInvite(),
+    'toggle_grace'   => $ctrl->toggleGrace(),
     default          => $ctrl->index(),
 };

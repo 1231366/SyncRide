@@ -62,6 +62,14 @@ $error   = $_GET['error']   ?? '';
                     </div>
                 </div>
                 <div class="flex items-center gap-2 flex-wrap flex-shrink-0">
+                    <!-- Grace access toggle -->
+                    <button id="grace-btn-<?= $company->id ?>"
+                            onclick="toggleGrace(<?= $company->id ?>, this)"
+                            data-grace="<?= $company->graceAccess ? '1' : '0' ?>"
+                            class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all <?= $company->graceAccess ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40' : 'bg-white/5 text-slate-500 hover:bg-white/10' ?>">
+                        <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                        <span>Grace<?= $company->graceAccess ? ' ✓' : '' ?></span>
+                    </button>
                     <button onclick="generateInvite(<?= $company->id ?>, '<?= View::e($company->name) ?>')"
                             class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 text-xs font-semibold transition-colors">
                         <i data-lucide="link" class="w-3.5 h-3.5"></i> Invite
@@ -330,6 +338,34 @@ function copyInviteLink() {
         document.getElementById('inviteCopied').classList.remove('hidden');
         setTimeout(() => document.getElementById('inviteCopied').classList.add('hidden'), 2000);
     });
+}
+
+async function toggleGrace(companyId, btn) {
+    const current = btn.dataset.grace === '1';
+    const newVal  = !current;
+    btn.disabled  = true;
+
+    try {
+        const fd = new FormData();
+        fd.append('company_id', companyId);
+        fd.append('grace', newVal ? '1' : '0');
+        const res  = await fetch('/SRMT/public/superadmin/companies.php?action=toggle_grace', { method: 'POST', body: fd });
+        const json = await res.json();
+
+        if (json.success) {
+            btn.dataset.grace = newVal ? '1' : '0';
+            const span = btn.querySelector('span');
+            if (newVal) {
+                btn.className = 'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40';
+                span.textContent = 'Grace ✓';
+            } else {
+                btn.className = 'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all bg-white/5 text-slate-500 hover:bg-white/10';
+                span.textContent = 'Grace';
+            }
+        }
+    } catch { /* ignore */ }
+
+    btn.disabled = false;
 }
 
 document.getElementById('formAddAdmin').addEventListener('submit', async function(e) {

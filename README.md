@@ -1,80 +1,84 @@
 # SyncRide
 
-> **A operação de transfers, automatizada.** As agendas chegam sozinhas ao WhatsApp dos condutores, os clientes seguem a viagem em tempo real e as faturas saem sem ninguém tocar numa folha de cálculo.
-
 [![CI](https://github.com/1231366/SyncRide/actions/workflows/ci.yml/badge.svg)](https://github.com/1231366/SyncRide/actions/workflows/ci.yml)
 [![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4.svg?logo=php&logoColor=white)](https://www.php.net/)
 [![PSR-4](https://img.shields.io/badge/Autoload-PSR--4-blue.svg)](https://www.php-fig.org/psr/psr-4/)
 [![PHPUnit](https://img.shields.io/badge/Tested%20with-PHPUnit%2010-78c041.svg?logo=php)](https://phpunit.de/)
 [![License](https://img.shields.io/badge/License-Proprietary-lightgrey.svg)]()
 
-SyncRide é uma plataforma **em produção** que gere empresas de transfers de ponta a ponta — viagens, condutores, frota, parceiros e automações. Três experiências, um sistema: o **Gestor** no computador, a **app do Condutor** no telemóvel e o **Portal do Parceiro** para agências e hostels.
+![SyncRide Banner](public/manual/img/banner.png)
+
+> **Fleet and transfer management, end-to-end.** Schedules reach drivers automatically, clients track their ride in real time, and invoices generate without anyone touching a spreadsheet.
+
+SyncRide is a **production SaaS** managing transfer companies from end to end — trips, drivers, fleet, partners, and automations. Three experiences, one system: the **Admin back-office** on desktop, the **Driver App** on mobile (Android), and the **Partner Portal** for agencies and hostels.
 
 ---
 
-## 👔 Gestor — controla a operação toda
+## 📱 Android App — now on Google Play
 
-Painel com viagens de hoje/semana, desempenho e próximas viagens. A lista de viagens filtra por estado e data, atribui condutores e delega serviços a empresas parceiras.
+<p align="center">
+  <img src="public/manual/img/screen-driver-schedule.png" width="30%" alt="Driver schedule" />
+  &nbsp;
+  <img src="public/manual/img/screen-driver-detail.png" width="30%" alt="Ride detail" />
+  &nbsp;
+  <img src="public/manual/img/screen-tracking.png" width="30%" alt="Live tracking" />
+</p>
 
-![Gestor — painel e gestão de viagens](docs/media/admin.gif)
-
-## 📅 Quadro de Agenda — arrastar e largar
-
-Planeamento visual: arrasta viagens por atribuir para o dia e a hora, escolhe o condutor, e alterna entre vista semanal, diária e mensal. Cada condutor tem a sua cor.
-
-![Quadro de agenda com drag-and-drop](docs/media/schedule.gif)
-
-## 🚗 Condutor — a agenda no bolso
-
-App pensada para o telemóvel: o condutor vê as viagens do dia, inicia a viagem, e regista no-shows com foto e GPS. Quem trabalha para várias empresas vê a empresa de cada viagem.
-
-<p align="center"><img src="docs/media/driver.gif" alt="App do condutor" width="280"></p>
-
-## 🏨 Parceiro — pede e acompanha serviços
-
-Agências e hostels pedem transfers e acompanham o estado de cada viagem e os no-shows — sem terem de telefonar.
-
-![Portal do parceiro](public/manual/img/partner-dashboard.png)
+The driver app streams GPS in the background (native Java via Capacitor) so tracking keeps working even when Waze is open. Clients receive a live tracking link the moment their driver departs — showing ETA, route, and driver info in real time.
 
 ---
 
-## ✨ O que resolve
+## 🖥️ Admin Back-office
 
-- **Despacho automático** — as agendas seguem para o WhatsApp dos condutores todos os dias, sozinhas
-- **Colaboração entre empresas** — delega viagens a parceiros quando tens a mais, com registo de quem é cada uma para acertar contas
-- **Condutores partilhados** — o mesmo condutor trabalha para várias empresas, com a agenda separada por empresa
-- **Prova de no-show** — foto + GPS guardados e enviados por email automaticamente
-- **Faturação e relatórios** — gerados e enviados no fim de cada serviço
-- **Onboarding por link** — cria uma vaga, envia o link, a pessoa preenche os próprios dados
+<p align="center">
+  <img src="public/manual/img/screen-admin-dashboard.png" width="44%" alt="Admin dashboard" />
+  &nbsp;
+  <img src="public/manual/img/screen-admin-trips.png" width="44%" alt="Trips management" />
+</p>
 
-📖 **[Manual completo com todos os ecrãs explicados →](public/manual/)**
+Full operations dashboard: trip management, driver assignment, live fleet map, Excel import, financial reports, and schedule board — all in one place.
 
 ---
 
-## 🛠️ Para quem quer espreitar o código
+## ✨ What it solves
+
+- **Automatic dispatch** — schedules go to drivers via WhatsApp every morning, zero manual work
+- **Real-time GPS tracking** — background location (native Java), heading-aware map marker, sub-5s updates
+- **Firebase push notifications** — ride reminders 30 min before departure, even when the app is closed
+- **Multi-company** — same driver works for multiple companies, schedule separated per company
+- **Partner portal** — agencies and hostels request transfers and track status without calling
+- **No-show proof** — photo + GPS stored and emailed automatically
+- **Excel import** — bulk import from PRtours/operator Excel files with pricing engine
+- **Stripe billing** — 7-day free trial, self-service registration, subscription management
+
+---
+
+## 🛠️ Architecture
 
 <details>
-<summary>Stack & arquitetura</summary>
+<summary>Stack & decisions</summary>
 
-- **PHP 8.2**, sem framework — arquitetura MVC própria (Controllers finos → Repositories → Services → DTOs)
-- **PSR-4** autoload, **PDO** com prepared statements em todo o lado
-- **Multi-tenant** — cada empresa só vê os seus dados; isolamento via `company_id` em cada query
-- **Segurança** — tokens CSRF, ownership guards nas mutações, `bcrypt`, `session_regenerate_id`, escape de output
-- **Testes** PHPUnit + **CI** (GitHub Actions: lint + testes em PHP 8.2 e 8.3)
-- **`public/`** é a única pasta exposta; tudo o resto fica fora do document root
+- **PHP 8.2**, no framework — custom MVC (thin Controllers → Repositories → Services)
+- **PSR-4** autoload, **PDO** with prepared statements everywhere
+- **Multi-tenant** — every query scoped by `company_id`; isolation is a compile-time concern
+- **Hybrid Android** — Capacitor WebView + native Java for GPS and FCM (one codebase, no separate native app)
+- **WAF-resilient API** — POST bodies base64-shielded (`wafBody`) to bypass mod_security on shared hosting
+- **Long-polling tracking** — 4s interval, sub-5s latency, zero extra infrastructure vs WebSockets
+- **Security** — CSRF tokens, ownership guards on all mutations, `bcrypt`, `session_regenerate_id`, output escaping
+- **CI** — GitHub Actions: PHP syntax lint + PHPUnit on PHP 8.2 and 8.3
 
 ```
-app/          Controllers, Repositories, Services, Models, Support
-cron/         Jobs agendados (relatório diário, agenda WhatsApp)
-public/       Entry points + assets (a única pasta web-acessível)
-resources/    Vistas (PHP templates) + traduções PT/EN
-tests/        PHPUnit (Unit)
+app/          Controllers, Repositories, Services, Models
+cron/         Scheduled jobs (reminders, WhatsApp dispatch)
+public/       Entry points + assets (only web-accessible folder)
+resources/    Views (PHP templates) + PT/EN translations
+tests/        PHPUnit unit tests
 ```
 
-**Correr localmente:**
+**Run locally:**
 ```bash
 composer install
-cp .env.example .env   # configurar DB + mail
+cp .env.example .env   # configure DB + mail + Stripe
 php -S localhost:8000 -t public
 composer test
 ```
@@ -83,4 +87,4 @@ composer test
 
 ---
 
-**Autor:** Tiago Silva · [tiagofsilva04@gmail.com](mailto:tiagofsilva04@gmail.com)
+**Author:** Tiago Silva · [tiagofsilva04@gmail.com](mailto:tiagofsilva04@gmail.com) · [github.com/1231366/SyncRide](https://github.com/1231366/SyncRide)

@@ -30,6 +30,8 @@ final class ExcelServiceImporter
 {
     private const SHEET = 'booking-item-list';
 
+    private ?ServicePricing $pricing = null;
+
     public function __construct(
         private readonly PDO  $db,
         private readonly ?int $companyId = null,
@@ -39,6 +41,12 @@ final class ExcelServiceImporter
     public static function default(): self
     {
         return new self(Database::connection(), Session::companyId());
+    }
+
+    /** Motor de preçário, criado à medida (escopo da empresa do importador). */
+    private function pricing(): ServicePricing
+    {
+        return $this->pricing ??= ServicePricing::forCompany($this->db, $this->companyId);
     }
 
     /**
@@ -120,13 +128,13 @@ final class ExcelServiceImporter
                  serviceStartPoint, serviceTargetPoint, FlightNumber,
                  NomeCliente, ClientNumber, serviceType,
                  supplier, grouping_ref, distributor_code, resort, vehicle_label,
-                 leg_code, reference_no, total_price, valor_motorista,
+                 leg_code, reference_no, total_price, price_explicit, valor_motorista, pay_basis,
                  import_notes, import_batch_id, company_id)
             VALUES
                 (:sd, :st, :pa, :pc, :bby, :sp, :tp, :fn,
                  :nc, :cn, :stype,
                  :supplier, :grp, :dist, :resort, :veh,
-                 :leg, :ref, :price, :driver_pay,
+                 :leg, :ref, :price, :price_explicit, :driver_pay, :basis,
                  :notes, :batch, :cid)
         ');
 
@@ -147,44 +155,67 @@ final class ExcelServiceImporter
                     continue;
                 }
                 try {
-                    $insert->execute([
-                        'sd'         => $row['serviceDate'],
-                        'st'         => $row['serviceStartTime'],
-                        'pa'         => $row['paxADT'],
-                        'pc'         => $row['paxCHD'],
-                        'bby'        => $row['paxBBY'],
-                        'sp'         => $row['serviceStartPoint'],
-                        'tp'         => $row['serviceTargetPoint'],
-                        'fn'         => $row['FlightNumber'],
-                        'nc'         => $row['NomeCliente'],
-                        'cn'         => $row['ClientNumber'],
-                        'stype'      => $row['serviceType'],
-                        'supplier'   => $row['supplier'],
-                        'grp'        => $row['grouping_ref'],
-                        'dist'       => $row['distributor_code'],
-                        'resort'     => $row['resort'],
-                        'veh'        => $row['vehicle_label'],
-                        'leg'        => $row['leg_code'],
-                        'ref'        => $row['reference_no'],
-                        'price'      => $row['total_price'],
-                        'driver_pay' => $row['valor_motorista'],
-                        'notes'      => $row['import_notes'],
-                        'batch'      => $batchId,
-                        'cid'        => $this->companyId,
-                    ]);
-                    $rideId = (int) $this->db->lastInsertId();
-
-                    // Atribuir motorista se a sigla resolver a um condutor desta empresa.
+                    // Resolver o condutor (se a sigla casar) ANTES de inserir, para
+                    // fechar já o custo do motorista no momento da importação.
+                    $driverId   = null;
                     $driverCode = trim((string) ($row['_driver_code'] ?? ''));
-                    if ($driverCode !== '' && $rideId > 0) {
+                    if ($driverCode !== '') {
                         if (!array_key_exists($driverCode, $driverCache)) {
                             $found = $users->findByDriverCode($driverCode);
                             $driverCache[$driverCode] = $found ? $found->id : null;
                         }
                         $driverId = $driverCache[$driverCode];
-                        if ($driverId !== null) {
-                            $assignStmt->execute(['rid' => $rideId, 'uid' => $driverId]);
-                        }
+                    }
+
+                    // Preçário: receita (MTS sem valor no Excel) e custo do motorista
+                    // (quando atribuído). Valores explícitos do Excel são respeitados.
+                    $type         = (int) $row['serviceType'];
+                    $pax          = (int) $row['paxADT'] + (int) $row['paxCHD'] + (int) $row['paxBBY'];
+                    $excelPrice   = $row['total_price']; // null = campo vazio no Excel
+                    $revenue = $this->pricing()->revenue(
+                        $excelPrice, $row['supplier'], $row['resort'],
+                        $row['distributor_code'], $row['vehicle_label'], $type
+                    );
+                    [$payout, $basis] = $this->pricing()->payout(
+                        $row['valor_motorista'], $driverId, null,
+                        $row['resort'], $row['vehicle_label'], $type, $pax,
+                        (bool) ($row['hotel_extra'] ?? false)
+                    );
+
+                    // price_explicit: 1 só se o Excel tinha valor explícito no campo "Valor Serviço"
+                    $priceExplicit = ($excelPrice !== null && (float) $excelPrice > 0) ? 1 : 0;
+
+                    $insert->execute([
+                        'sd'            => $row['serviceDate'],
+                        'st'            => $row['serviceStartTime'],
+                        'pa'            => $row['paxADT'],
+                        'pc'            => $row['paxCHD'],
+                        'bby'           => $row['paxBBY'],
+                        'sp'            => $row['serviceStartPoint'],
+                        'tp'            => $row['serviceTargetPoint'],
+                        'fn'            => $row['FlightNumber'],
+                        'nc'            => $row['NomeCliente'],
+                        'cn'            => $row['ClientNumber'],
+                        'stype'         => $row['serviceType'],
+                        'supplier'      => $row['supplier'],
+                        'grp'           => $row['grouping_ref'],
+                        'dist'          => $row['distributor_code'],
+                        'resort'        => $row['resort'],
+                        'veh'           => $row['vehicle_label'],
+                        'leg'           => $row['leg_code'],
+                        'ref'           => $row['reference_no'],
+                        'price'         => $revenue,
+                        'price_explicit' => $priceExplicit,
+                        'driver_pay'    => $payout,
+                        'basis'         => $basis,
+                        'notes'         => $row['import_notes'],
+                        'batch'         => $batchId,
+                        'cid'           => $this->companyId,
+                    ]);
+                    $rideId = (int) $this->db->lastInsertId();
+
+                    if ($driverId !== null && $rideId > 0) {
+                        $assignStmt->execute(['rid' => $rideId, 'uid' => $driverId]);
                     }
 
                     $inserted++;
@@ -332,21 +363,43 @@ final class ExcelServiceImporter
         $airportIn  = $arrAirport ? 'Aeroporto ' . $arrAirport : 'Aeroporto';
 
         return match (strtoupper((string) $leg)) {
-            'IN'    => [$airportIn, $hotel],   // chegada: aeroporto → hotel
-            'OT'    => [$hotel, $airportOut],  // saída: hotel → aeroporto
-            default => [$hotel, $hotel],       // OW/tour: ponto único (operador ajusta)
+            'IN'    => [$airportIn, $hotel],
+            'OT'    => [$hotel, $airportOut],
+            default => $this->resolveOwEndpoints($hotel, $depAirport, $arrAirport),
         };
+    }
+
+    /**
+     * OW: Stay Hotel pode conter "Ponto A - Ponto B".
+     * Fallback 1: colunas Dep/Arr preenchidas (localização não-aeroporto).
+     * Fallback 2: mesmo ponto nos dois lados (operador corrige manualmente).
+     */
+    private function resolveOwEndpoints(?string $hotel, ?string $dep, ?string $arr): array
+    {
+        $hotel = $hotel ?: '—';
+
+        if (str_contains($hotel, ' - ')) {
+            [$a, $b] = explode(' - ', $hotel, 2);
+            return [trim($a), trim($b)];
+        }
+
+        if ($dep && $arr) {
+            return [$dep, $arr];
+        }
+
+        return [$hotel, $hotel];
     }
 
     private function existsInDb(array $row): bool
     {
         $ref = $row['reference_no'] ?? null;
         if ($ref !== null && $ref !== '') {
+            // When a reference number is present, it is the sole identifier.
+            // Do NOT fall through to the tuple fallback — services with identical
+            // client/time/flight but different references are distinct (e.g. Transavia crew legs).
             $stmt = $this->db->prepare('SELECT COUNT(*) FROM Services WHERE reference_no = ?');
             $stmt->execute([$ref]);
-            if ((int) $stmt->fetchColumn() > 0) {
-                return true;
-            }
+            return (int) $stmt->fetchColumn() > 0;
         }
         // Fallback (sem reference): mesma tupla data+hora+cliente+voo (como o XML).
         $stmt = $this->db->prepare('
@@ -407,10 +460,20 @@ final class ExcelServiceImporter
 
     private function extractPhone(?string $notes): ?string
     {
-        if ($notes === null) {
+        if ($notes === null || trim($notes) === '') {
             return null;
         }
-        if (preg_match('/(?:Mobile|Phone(?:\s*number)?|Tel)[:\s]*([+\d][\d\s]{6,})/i', $notes, $m)) {
+        // 1) Labelled phone: "Phone: …", "Mobile …", "Tel: …", "Telefone …", "Contacto …".
+        if (preg_match('/(?:Mobile|Phone(?:\s*number)?|Tel|Telef\w*|Contacto)[:\s]*([+\d][\d\s]{6,})/i', $notes, $m)) {
+            return trim($m[1]);
+        }
+        // 2) Fallback — a standalone number with 9+ digits (PT mobile / international),
+        //    so a Notes field that holds just the bare number is still captured.
+        //    The 9-digit floor skips shorter reference codes; tokens with letters
+        //    (flight numbers like FR202) never match because this is digits-only.
+        if (preg_match('/(?<![\w.])(\+?\d[\d\s]{7,}\d)(?![\w])/', $notes, $m)
+            && strlen(preg_replace('/\D/', '', $m[1])) >= 9
+        ) {
             return trim($m[1]);
         }
         return null;

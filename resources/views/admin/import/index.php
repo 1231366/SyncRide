@@ -100,30 +100,6 @@ View::layout('layouts.admin', [
 </section>
 
 <script>
-/* Toast nativo sem jQuery */
-window.toastr = (() => {
-    function show(msg, type) {
-        const colors = { success: '#22c55e', error: '#ef4444', warning: '#f59e0b', info: '#38bdf8' };
-        const el = document.createElement('div');
-        el.textContent = msg;
-        el.style.cssText = `
-            position:fixed; bottom:24px; right:20px; z-index:9999;
-            background:#1e293b; color:#fff; border-left:4px solid ${colors[type]||colors.info};
-            padding:12px 18px; border-radius:12px; font-size:13px; font-weight:600;
-            box-shadow:0 8px 24px rgba(0,0,0,.3); max-width:320px;
-            animation: slideIn .25s ease; pointer-events:none;
-        `;
-        if (!document.getElementById('_toastKeyframes')) {
-            const st = document.createElement('style');
-            st.id = '_toastKeyframes';
-            st.textContent = '@keyframes slideIn{from{transform:translateX(120%);opacity:0}to{transform:none;opacity:1}}';
-            document.head.appendChild(st);
-        }
-        document.body.appendChild(el);
-        setTimeout(() => { el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(() => el.remove(), 300); }, 3000);
-    }
-    return { success: m => show(m,'success'), error: m => show(m,'error'), warning: m => show(m,'warning'), info: m => show(m,'info') };
-})();
 const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
 const $ = (id) => document.getElementById(id);
 let pickedFile = null;

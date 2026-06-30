@@ -49,21 +49,153 @@ final class FinancialController extends BaseController
             $byCategory[$expense->category] = ($byCategory[$expense->category] ?? 0.0) + $expense->amount;
         }
 
+        // ── Analytics ────────────────────────────────────────────────────
+        $byDay  = $this->report->byDay($from, $to, $supplier, $driverId);
+        $byHour = $this->report->byHour($from, $to, $supplier, $driverId);
+        $byType = $this->report->byType($from, $to, $supplier, $driverId);
+
+        // Period-over-period comparison
+        $fromDt     = new \DateTimeImmutable($from);
+        $toDt       = new \DateTimeImmutable($to);
+        $periodDays = max(1, (int) $fromDt->diff($toDt)->days + 1);
+        $prevTo     = $fromDt->modify('-1 day')->format('Y-m-d');
+        $prevFrom   = (new \DateTimeImmutable($prevTo))->modify('-' . ($periodDays - 1) . ' days')->format('Y-m-d');
+        $prevTotals = $this->report->summary($prevFrom, $prevTo, $supplier, $driverId);
+
+        // Derived KPIs
+        $tot = $report['totals'];
+        $marginPct     = (float) $tot['revenue'] > 0
+            ? round((float) $tot['margin'] / (float) $tot['revenue'] * 100, 1) : 0.0;
+        $prevMarginPct = $prevTotals['revenue'] > 0
+            ? round($prevTotals['margin'] / $prevTotals['revenue'] * 100, 1) : 0.0;
+        $netMarginPct  = (float) $tot['revenue'] > 0
+            ? round($netProfit / (float) $tot['revenue'] * 100, 1) : 0.0;
+        $avgTicket     = (int) $tot['count'] > 0
+            ? round((float) $tot['revenue'] / (int) $tot['count'], 2) : 0.0;
+        $avgPerDay     = round((float) $tot['revenue'] / $periodDays, 2);
+
+        $pct = static fn (float $cur, float $prev): ?float =>
+            $prev != 0.0 ? round(($cur - $prev) / abs($prev) * 100, 1) : null;
+
+        $pctRevenue    = $pct((float) $tot['revenue'], $prevTotals['revenue']);
+        $pctMargin     = $pct((float) $tot['margin'],  $prevTotals['margin']);
+        $pctCount      = $pct((float) $tot['count'],   (float) $prevTotals['count']);
+        $diffMarginPct = $prevTotals['revenue'] > 0
+            ? round($marginPct - $prevMarginPct, 1) : null;
+
+        // Phase 3 — projection for current open period
+        $today           = date('Y-m-d');
+        $isCurrentPeriod = $from <= $today && $today <= $to;
+        $projRevenue     = null;
+        $projMargin      = null;
+        if ($isCurrentPeriod && (float) $tot['revenue'] > 0) {
+            $daysElapsed = max(1, (int) $fromDt->diff(new \DateTimeImmutable($today))->days + 1);
+            $projRevenue = round((float) $tot['revenue'] / $daysElapsed * $periodDays, 2);
+            $projMargin  = round((float) $tot['margin']  / $daysElapsed * $periodDays, 2);
+        }
+
         $this->view('admin.financial.index', [
+            'from'            => $from,
+            'to'              => $to,
+            'supplier'        => $supplier,
+            'driverId'        => $driverId,
+            'suppliers'       => $this->report->suppliers(),
+            'drivers'         => $this->users->byRole(User::ROLE_DRIVER),
+            'report'          => $report,
+            'totalExpenses'   => $totalExpenses,
+            'netProfit'       => $netProfit,
+            'expenses'        => $expenses,
+            'categoryLabels'  => array_keys($byCategory),
+            'categoryValues'  => array_values($byCategory),
+            'flash'           => $_GET['success'] ?? null,
+            // analytics
+            'byDay'           => $byDay,
+            'byHour'          => $byHour,
+            'byType'          => $byType,
+            'prevTotals'      => $prevTotals,
+            'prevFrom'        => $prevFrom,
+            'prevTo'          => $prevTo,
+            'periodDays'      => $periodDays,
+            'marginPct'       => $marginPct,
+            'prevMarginPct'   => $prevMarginPct,
+            'netMarginPct'    => $netMarginPct,
+            'avgTicket'       => $avgTicket,
+            'avgPerDay'       => $avgPerDay,
+            'pctRevenue'      => $pctRevenue,
+            'pctMargin'       => $pctMargin,
+            'pctCount'        => $pctCount,
+            'diffMarginPct'   => $diffMarginPct,
+            'isCurrentPeriod' => $isCurrentPeriod,
+            'projRevenue'     => $projRevenue,
+            'projMargin'      => $projMargin,
+        ]);
+    }
+
+    /** GET /admin/financial-report.php — standalone print/PDF view */
+    public function report(): void
+    {
+        [$from, $to, $supplier, $driverId] = $this->filters();
+
+        $report        = $this->report->report($from, $to, $supplier, $driverId);
+        $expenses      = $this->expenses->byDateRange($from, $to);
+        $totalExpenses = array_sum(array_map(static fn($e): float => $e->amount, $expenses));
+        $netProfit     = $report['totals']['margin'] - $totalExpenses;
+
+        $byCategory = [];
+        foreach ($expenses as $e) {
+            $byCategory[$e->category] = ($byCategory[$e->category] ?? 0.0) + $e->amount;
+        }
+
+        $byDay  = $this->report->byDay($from, $to, $supplier, $driverId);
+        $byHour = $this->report->byHour($from, $to, $supplier, $driverId);
+        $byType = $this->report->byType($from, $to, $supplier, $driverId);
+
+        $fromDt     = new \DateTimeImmutable($from);
+        $toDt       = new \DateTimeImmutable($to);
+        $periodDays = max(1, (int) $fromDt->diff($toDt)->days + 1);
+        $prevTo     = $fromDt->modify('-1 day')->format('Y-m-d');
+        $prevFrom   = (new \DateTimeImmutable($prevTo))->modify('-' . ($periodDays - 1) . ' days')->format('Y-m-d');
+        $prevTotals = $this->report->summary($prevFrom, $prevTo, $supplier, $driverId);
+
+        $tot           = $report['totals'];
+        $marginPct     = (float) $tot['revenue'] > 0
+            ? round((float) $tot['margin'] / (float) $tot['revenue'] * 100, 1) : 0.0;
+        $netMarginPct  = (float) $tot['revenue'] > 0
+            ? round($netProfit / (float) $tot['revenue'] * 100, 1) : 0.0;
+        $avgTicket     = (int) $tot['count'] > 0
+            ? round((float) $tot['revenue'] / (int) $tot['count'], 2) : 0.0;
+        $avgPerDay     = round((float) $tot['revenue'] / $periodDays, 2);
+
+        $driverName = t('fin.all_drivers');
+        if ($driverId !== null) {
+            foreach ($this->users->byRole(User::ROLE_DRIVER) as $u) {
+                if ((int) $u->id === $driverId) { $driverName = $u->name; break; }
+            }
+        }
+
+        extract([
             'from'           => $from,
             'to'             => $to,
             'supplier'       => $supplier,
-            'driverId'       => $driverId,
-            'suppliers'      => $this->report->suppliers(),
-            'drivers'        => $this->users->byRole(User::ROLE_DRIVER),
+            'driverName'     => $driverName,
             'report'         => $report,
             'totalExpenses'  => $totalExpenses,
             'netProfit'      => $netProfit,
             'expenses'       => $expenses,
             'categoryLabels' => array_keys($byCategory),
             'categoryValues' => array_values($byCategory),
-            'flash'          => $_GET['success'] ?? null,
+            'byDay'          => $byDay,
+            'byHour'         => $byHour,
+            'byType'         => $byType,
+            'prevTotals'     => $prevTotals,
+            'periodDays'     => $periodDays,
+            'marginPct'      => $marginPct,
+            'netMarginPct'   => $netMarginPct,
+            'avgTicket'      => $avgTicket,
+            'avgPerDay'      => $avgPerDay,
         ]);
+        require __DIR__ . '/../../../../resources/views/admin/financial/report.php';
+        exit;
     }
 
     /** GET /admin/financial-export.php — exporta o relatório filtrado em CSV. */
@@ -122,6 +254,26 @@ final class FinancialController extends BaseController
         $driverId = (int) $this->input('driver', 0) ?: null;
 
         return [$from, $to, $supplier, $driverId];
+    }
+
+    /**
+     * POST /admin/financial-recalc.php — recalcula receita/custo dos serviços do
+     * intervalo pelo preçário atual (backfill). Só preenche buracos.
+     */
+    public function recalculate(): never
+    {
+        $this->requirePost();
+        [$from, $to] = $this->filters();
+
+        $result = \App\Services\PricingRecalculator::default()->range($from, $to);
+        $this->logs->record(
+            "Admin recalculated pricing {$from}..{$to}: {$result['updated']}/{$result['scanned']} services updated"
+        );
+
+        $this->redirect(
+            '/SRMT/public/admin/financial.php?from=' . urlencode($from) . '&to=' . urlencode($to)
+            . '&success=recalculated&n=' . $result['updated']
+        );
     }
 
     /** POST /admin/save-expense.php — create or delete an expense. */

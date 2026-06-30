@@ -126,4 +126,129 @@ final class FinancialReportRepository
         $bucket[$key]['driver_cost'] = round($bucket[$key]['driver_cost'] + $cost,    2);
         $bucket[$key]['margin']      = round($bucket[$key]['margin']      + $margin,  2);
     }
+
+    // ── Analytics extensions ──────────────────────────────────────────────
+
+    /**
+     * Lightweight totals only — no rows — used for period-over-period comparison.
+     * @return array{count:int,revenue:float,driver_cost:float,margin:float}
+     */
+    public function summary(string $from, string $to, ?string $supplier = null, ?int $driverId = null): array
+    {
+        [$where, $params, $join] = $this->buildWhere($from, $to, $supplier, $driverId);
+        $stmt = $this->db->prepare(
+            'SELECT COUNT(*) AS cnt,
+                    COALESCE(SUM(s.total_price), 0) AS revenue,
+                    COALESCE(SUM(COALESCE(s.valor_motorista, 0)), 0) AS driver_cost,
+                    COALESCE(SUM(s.total_price - COALESCE(s.valor_motorista, 0)), 0) AS margin
+             FROM Services s ' . $join . ' WHERE ' . implode(' AND ', $where)
+        );
+        $stmt->execute($params);
+        $r = $stmt->fetch(PDO::FETCH_ASSOC);
+        return [
+            'count'       => (int)   ($r['cnt']        ?? 0),
+            'revenue'     => (float) ($r['revenue']     ?? 0),
+            'driver_cost' => (float) ($r['driver_cost'] ?? 0),
+            'margin'      => (float) ($r['margin']      ?? 0),
+        ];
+    }
+
+    /**
+     * Revenue / cost / margin grouped by calendar day.
+     * @return array<string, array{count:int,revenue:float,driver_cost:float,margin:float}>
+     */
+    public function byDay(string $from, string $to, ?string $supplier = null, ?int $driverId = null): array
+    {
+        [$where, $params, $join] = $this->buildWhere($from, $to, $supplier, $driverId);
+        $stmt = $this->db->prepare(
+            'SELECT s.serviceDate AS d,
+                    COUNT(*) AS cnt,
+                    COALESCE(SUM(s.total_price), 0) AS revenue,
+                    COALESCE(SUM(COALESCE(s.valor_motorista, 0)), 0) AS driver_cost,
+                    COALESCE(SUM(s.total_price - COALESCE(s.valor_motorista, 0)), 0) AS margin
+             FROM Services s ' . $join . ' WHERE ' . implode(' AND ', $where) . '
+             GROUP BY s.serviceDate ORDER BY s.serviceDate'
+        );
+        $stmt->execute($params);
+        $result = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $result[$row['d']] = [
+                'count'       => (int)   $row['cnt'],
+                'revenue'     => (float) $row['revenue'],
+                'driver_cost' => (float) $row['driver_cost'],
+                'margin'      => (float) $row['margin'],
+            ];
+        }
+        return $result;
+    }
+
+    /**
+     * Ride count bucketed by hour of day.
+     * @return array<int,int>  24-element array (index = hour).
+     */
+    public function byHour(string $from, string $to, ?string $supplier = null, ?int $driverId = null): array
+    {
+        [$where, $params, $join] = $this->buildWhere($from, $to, $supplier, $driverId);
+        $stmt = $this->db->prepare(
+            'SELECT HOUR(s.serviceStartTime) AS h, COUNT(*) AS cnt
+             FROM Services s ' . $join . ' WHERE ' . implode(' AND ', $where) . '
+             GROUP BY HOUR(s.serviceStartTime) ORDER BY h'
+        );
+        $stmt->execute($params);
+        $result = array_fill(0, 24, 0);
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $result[(int) $row['h']] = (int) $row['cnt'];
+        }
+        return $result;
+    }
+
+    /**
+     * Revenue split by service type (0 = shared, 1 = private).
+     * @return array{private:array{count:int,revenue:float},shared:array{count:int,revenue:float}}
+     */
+    public function byType(string $from, string $to, ?string $supplier = null, ?int $driverId = null): array
+    {
+        [$where, $params, $join] = $this->buildWhere($from, $to, $supplier, $driverId);
+        $stmt = $this->db->prepare(
+            'SELECT s.serviceType, COUNT(*) AS cnt,
+                    COALESCE(SUM(s.total_price), 0) AS revenue
+             FROM Services s ' . $join . ' WHERE ' . implode(' AND ', $where) . '
+             GROUP BY s.serviceType'
+        );
+        $stmt->execute($params);
+        $result = ['private' => ['count' => 0, 'revenue' => 0.0], 'shared' => ['count' => 0, 'revenue' => 0.0]];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $key            = ((int) $row['serviceType']) === 1 ? 'private' : 'shared';
+            $result[$key]   = ['count' => (int) $row['cnt'], 'revenue' => (float) $row['revenue']];
+        }
+        return $result;
+    }
+
+    /**
+     * Builds WHERE conditions and an optional JOIN for analytics queries.
+     * Avoids joining Services_Rides when not needed, preventing phantom duplicate rows.
+     *
+     * @return array{0:list<string>,1:array<string,mixed>,2:string}
+     */
+    private function buildWhere(string $from, string $to, ?string $supplier, ?int $driverId): array
+    {
+        $where  = ['s.serviceDate BETWEEN :from AND :to'];
+        $params = ['from' => $from, 'to' => $to];
+        $join   = '';
+
+        if ($this->companyId !== null) {
+            $where[]        = 's.company_id = :cid';
+            $params['cid']  = $this->companyId;
+        }
+        if ($supplier !== null && $supplier !== '') {
+            $where[]             = 's.supplier = :supplier';
+            $params['supplier']  = $supplier;
+        }
+        if ($driverId !== null && $driverId > 0) {
+            $join             = 'INNER JOIN Services_Rides sr ON sr.RideID = s.ID';
+            $where[]          = 'sr.UserID = :driver';
+            $params['driver'] = $driverId;
+        }
+        return [$where, $params, $join];
+    }
 }

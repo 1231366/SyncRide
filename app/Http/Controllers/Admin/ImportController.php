@@ -130,6 +130,10 @@ final class ImportController extends BaseController
             $this->json(['success' => false, 'message' => 'Lote inválido.'], 422);
         }
 
+        if ($this->batches->hasPastOrTodayServices($batchId)) {
+            $this->json(['success' => false, 'message' => 'Não é possível desfazer importações do dia atual ou de dias passados.'], 403);
+        }
+
         $deleted = $this->batches->undo($batchId);
         $this->logs->record("Excel import #{$batchId} desfeito ({$deleted} serviços removidos)");
 

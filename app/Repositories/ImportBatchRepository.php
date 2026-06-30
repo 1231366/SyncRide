@@ -77,6 +77,19 @@ final class ImportBatchRepository
     }
 
     /**
+     * Returns true if the batch contains any services dated today or earlier.
+     * Used to block undo of past/in-progress imports.
+     */
+    public function hasPastOrTodayServices(int $batchId): bool
+    {
+        $stmt = $this->db->prepare(
+            'SELECT COUNT(*) FROM Services WHERE import_batch_id = :b AND serviceDate <= CURDATE()'
+        );
+        $stmt->execute(['b' => $batchId]);
+        return (int) $stmt->fetchColumn() > 0;
+    }
+
+    /**
      * Desfaz um lote: apaga os serviços inseridos por ele (e respetivas
      * atribuições), respeitando a empresa do utilizador. Devolve o nº apagado.
      */

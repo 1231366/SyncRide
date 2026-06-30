@@ -89,6 +89,37 @@ final class ExcelServiceImporterTest extends TestCase
         $this->assertEqualsWithDelta(22.0, $gete['valor_motorista'], 0.001);
     }
 
+    public function testOwLegSplitsStayHotelOnDash(): void
+    {
+        $importer = new ExcelServiceImporter(new \PDO('sqlite::memory:'), 7);
+        $ref = new \ReflectionMethod($importer, 'resolveOwEndpoints');
+        $ref->setAccessible(true);
+
+        // Formato padrão PRtours: "Ponto A - Ponto B"
+        $this->assertSame(
+            ['Term Cruzeiros', 'Browns Central Hotel'],
+            $ref->invoke($importer, 'Term Cruzeiros - Browns Central Hotel', null, null)
+        );
+
+        // Nomes com traço interno: limite de split = 2 (só o primeiro traço)
+        $this->assertSame(
+            ['Hotel Bairro Alto', 'Cervejaria Ribadouro - Centro'],
+            $ref->invoke($importer, 'Hotel Bairro Alto - Cervejaria Ribadouro - Centro', null, null)
+        );
+
+        // Fallback: Dep/Arr preenchidos (localização não-aeroporto)
+        $this->assertSame(
+            ['LIS', 'OPO'],
+            $ref->invoke($importer, '—', 'LIS', 'OPO')
+        );
+
+        // Fallback final: mesmo ponto nos dois lados
+        $this->assertSame(
+            ['Smy Lisboa', 'Smy Lisboa'],
+            $ref->invoke($importer, 'Smy Lisboa', null, null)
+        );
+    }
+
     public function testSharedGroupSharesGroupingRef(): void
     {
         $rows   = $this->parsed();

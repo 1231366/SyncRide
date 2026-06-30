@@ -26,13 +26,14 @@ final class DashboardController extends BaseController
             $this->json($this->services->driverDashboardRides($driverId, $serviceType));
         }
 
-        $rides      = $this->services->driverDashboardRides($driverId);
-        $todayCount = $this->services->driverCountToday($driverId);
-        $weekCount  = $this->services->driverCountWeek($driverId);
-        $userName   = (string) ($_SESSION['name'] ?? 'Driver');
+        $rides           = $this->services->driverDashboardRides($driverId);
+        $todayCount      = $this->services->driverCountToday($driverId);
+        $weekCount       = $this->services->driverCountWeek($driverId);
+        $userName        = (string) ($_SESSION['name'] ?? 'Driver');
+        $wppTrackEnabled = $this->settings()->wppTrackEnabled();
 
         $this->view('driver.dashboard.index', compact(
-            'rides', 'todayCount', 'weekCount', 'driverId', 'userName'
+            'rides', 'todayCount', 'weekCount', 'driverId', 'userName', 'wppTrackEnabled'
         ));
     }
 }

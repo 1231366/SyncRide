@@ -82,38 +82,38 @@ View::layout('layouts.driver', [
     .year-select  { border: 1px solid var(--border-color); background-color: var(--bg-body); color: var(--text-main); border-radius: 8px; padding: 4px 10px; font-size: .9rem; outline: none; font-weight: 600; }
 </style>
 
-<h4 class="fw-bold mb-3">Performance</h4>
+<h4 class="fw-bold mb-3"><?= t('drv.performance') ?></h4>
 
 <div class="row g-3 mb-4">
     <div class="col-6">
         <div class="stat-card">
             <div class="stat-icon bg-indigo-soft"><i class="bi bi-archive"></i></div>
-            <div class="stat-info"><h3><?= $totalCount ?></h3><p>All Time</p></div>
+            <div class="stat-info"><h3><?= $totalCount ?></h3><p><?= t('drv.all_time') ?></p></div>
         </div>
     </div>
     <div class="col-6">
         <div class="stat-card">
             <div class="stat-icon bg-emerald-soft"><i class="bi bi-calendar-check"></i></div>
-            <div class="stat-info"><h3><?= $lastMonthCount ?></h3><p>Last 30 Days</p></div>
+            <div class="stat-info"><h3><?= $lastMonthCount ?></h3><p><?= t('drv.last_30') ?></p></div>
         </div>
     </div>
     <div class="col-6">
         <div class="stat-card">
             <div class="stat-icon bg-amber-soft"><i class="bi bi-calendar3"></i></div>
-            <div class="stat-info"><h3><?= $yearTotal ?></h3><p>Year <?= $selectedYear ?></p></div>
+            <div class="stat-info"><h3><?= $yearTotal ?></h3><p><?= $selectedYear ?></p></div>
         </div>
     </div>
     <div class="col-6">
         <div class="stat-card">
             <div class="stat-icon bg-pink-soft"><i class="bi bi-graph-up-arrow"></i></div>
-            <div class="stat-info"><h3><?= View::e($bestMonth) ?></h3><p>Best Month</p></div>
+            <div class="stat-info"><h3><?= View::e($bestMonth) ?></h3><p><?= t('drv.best_month') ?></p></div>
         </div>
     </div>
 </div>
 
 <div class="chart-card">
     <div class="chart-header">
-        <h5 class="chart-title">Monthly Evolution</h5>
+        <h5 class="chart-title"><?= t('drv.monthly_evo') ?></h5>
         <select id="year-selector" class="year-select"></select>
     </div>
     <div style="height:300px;position:relative;">

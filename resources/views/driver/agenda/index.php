@@ -21,7 +21,9 @@ $monthLabel    = $sel->format('F Y');
 $daysInMonth   = (int) $sel->format('t');
 $firstDow      = (int) $monthStart->format('N'); // 1=Mon … 7=Sun
 
-$dayNames = ['Mo','Tu','We','Th','Fr','Sa','Su'];
+$dayNames = ($_SESSION['admin_lang'] ?? 'en') === 'pt'
+    ? ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom']
+    : ['Mo','Tu','We','Th','Fr','Sa','Su'];
 ?>
 <style>
     /* ── Calendar ──────────────────────────────────────────────────────── */
@@ -194,14 +196,16 @@ $dayNames = ['Mo','Tu','We','Th','Fr','Sa','Su'];
 
 <!-- Rides for selected day -->
 <?php
-$monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+$monthNames = ($_SESSION['admin_lang'] ?? 'en') === 'pt'
+    ? ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+    : ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 $labelDate  = $sel->format('d') . ' ' . $monthNames[(int)$sel->format('n') - 1];
 $rideCount  = count($rides);
 ?>
 <div class="day-label">
     <span class="day-label-date"><?= View::e($labelDate) ?></span>
     <?php if ($rideCount > 0): ?>
-        <span class="day-label-count"><?= $rideCount ?> ride<?= $rideCount !== 1 ? 's' : '' ?></span>
+        <span class="day-label-count"><?= $rideCount ?> <?= $rideCount !== 1 ? t('drv.rides') : t('drv.ride') ?></span>
     <?php endif; ?>
 </div>
 
@@ -217,7 +221,7 @@ $rideCount  = count($rides);
                 </span>
                 <?php endif; ?>
                 <span class="ride-badge <?= $ride->isShared() ? 'badge-shared' : 'badge-private' ?>">
-                    <?= $ride->isShared() ? 'Shared' : 'Private' ?>
+                    <?= $ride->isShared() ? t('drv.shared') : t('drv.private') ?>
                 </span>
             </div>
         </div>
@@ -226,14 +230,14 @@ $rideCount  = count($rides);
             <div class="route-row">
                 <div class="route-icon ri-from"><i class="bi bi-geo-alt-fill"></i></div>
                 <div>
-                    <div class="route-loc-label">Pickup</div>
+                    <div class="route-loc-label"><?= t('drv.pickup') ?></div>
                     <div class="route-loc-text"><?= View::e($ride->pickupAddress) ?></div>
                 </div>
             </div>
             <div class="route-row">
                 <div class="route-icon ri-to"><i class="bi bi-flag-fill"></i></div>
                 <div>
-                    <div class="route-loc-label">Dropoff</div>
+                    <div class="route-loc-label"><?= t('drv.dropoff') ?></div>
                     <div class="route-loc-text"><?= View::e($ride->dropoffAddress) ?></div>
                 </div>
             </div>
@@ -254,6 +258,6 @@ $rideCount  = count($rides);
 <?php else: ?>
     <div class="empty-state">
         <i class="bi bi-sun"></i>
-        <p>Free day — no services scheduled.</p>
+        <p><?= t('drv.free_day') ?></p>
     </div>
 <?php endif; ?>

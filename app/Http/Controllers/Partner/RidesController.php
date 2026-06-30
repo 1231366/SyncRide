@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Partner;
 
 use App\Http\Controllers\BaseController;
 use App\Repositories\ServiceRepository;
+use App\Services\FCMSender;
+use App\Support\Session;
 
 final class RidesController extends BaseController
 {
@@ -38,6 +40,8 @@ final class RidesController extends BaseController
             'raw_client'    => (string) ($r['NomeCliente']  ?? ''),
             'raw_phone'     => (string) ($r['ClientNumber'] ?? ''),
             'raw_status'    => (string) ($r['status_pedido'] ?? ''),
+            'raw_status_id' => (int) ($r['status_id'] ?? 0),
+            'raw_notes'     => (string) ($r['admin_note'] ?? ''),
             'data_hora'     => date('d/m/Y H:i', strtotime($r['serviceDate'] . ' ' . $r['serviceStartTime'])),
             'cliente'       => htmlspecialchars((string) ($r['NomeCliente'] ?? ''), ENT_QUOTES, 'UTF-8'),
             'has_key'       => (int) ($r['has_key'] ?? 0),
@@ -49,7 +53,8 @@ final class RidesController extends BaseController
                 : '<span style="color:#94a3b8">—</span>',
             'pax'           => '<i class="bi bi-people-fill text-muted me-1"></i> ' . ((int)($r['paxADT'] ?? 0) + (int)($r['paxCHD'] ?? 0)),
             'status'        => ucfirst((string) ($r['status_pedido'] ?? '')),
-            'acoes'         => (string) ($r['status_pedido'] ?? '') === 'pendente'
+            // editable until driver starts trip (status_id < 3)
+            'acoes'         => (int) ($r['status_id'] ?? 0) < 3 && in_array((string)($r['status_pedido'] ?? ''), ['pendente', 'aprovado'], true)
                 ? '<button class="btn-act btn-edit-ride" data-id="' . (int) $r['ID'] . '" title="Edit"><i class="bi bi-pencil-fill" style="font-size:.7rem"></i></button>'
                 : '',
         ], $rows);
@@ -94,7 +99,32 @@ final class RidesController extends BaseController
             $this->json(['success' => false, 'error' => 'Fill in the required fields.'], 422);
         }
 
-        $this->services->createForPartner($partnerId, $_POST);
+        $rideId    = $this->services->createForPartner($partnerId, $_POST);
+        $companyId = Session::companyId();
+        if ($companyId !== null) {
+            $origin  = $this->shortAddress(trim((string) ($_POST['pickup']      ?? $_POST['serviceStartPoint'] ?? '')));
+            $dest    = $this->shortAddress(trim((string) ($_POST['dropoff']     ?? $_POST['serviceTargetPoint'] ?? '')));
+            $partner = trim((string) ($_SESSION['name'] ?? 'Parceiro'));
+
+            $d = \DateTime::createFromFormat('Y-m-d', $date);
+            $t = \DateTime::createFromFormat('H:i:s', $time) ?: \DateTime::createFromFormat('H:i', $time);
+            $dateStr = $d ? $d->format('d/m/Y') : $date;
+            $timeStr = $t ? $t->format('H:i')   : $time;
+
+            FCMSender::sendToAdmins(
+                $companyId,
+                '📋 Novo pedido — ' . $partner,
+                "{$client} · {$dateStr} às {$timeStr}\n{$origin} → {$dest}",
+                ['ride_id' => (string) $rideId]
+            );
+        }
         $this->json(['success' => true]);
+    }
+
+    private function shortAddress(string $addr): string
+    {
+        $short = preg_split('/[,(]/', $addr)[0] ?? $addr;
+        $short = trim($short);
+        return mb_strlen($short) > 28 ? mb_substr($short, 0, 26) . '…' : $short;
     }
 }

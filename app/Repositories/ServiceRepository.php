@@ -172,35 +172,38 @@ final class ServiceRepository
             }
         }
         $cid  = $this->companyId; // always use session company — never trust caller-supplied company_id
+        $explicitPrice = isset($data['total_price']) && $data['total_price'] !== null && (float) $data['total_price'] > 0;
         $stmt = $this->db->prepare('
             INSERT INTO Services
                 (serviceDate, serviceStartTime, paxADT, paxCHD, paxBBY,
                  serviceStartPoint, serviceTargetPoint,
                  FlightNumber, NomeCliente, ClientNumber, serviceType, partner_id, total_price,
-                 valor_motorista, pay_basis, status_pedido, company_id)
+                 price_explicit, valor_motorista, pay_basis, status_pedido, admin_note, company_id)
             VALUES
                 (:date, :time, :adults, :children, :bby, :pickup, :dropoff,
                  :flight, :client, :phone, :type, :partner, :price,
-                 :driver_pay, :pay_basis, :approval, :company_id)
+                 :price_explicit, :driver_pay, :pay_basis, :approval, :admin_note, :company_id)
         ');
         $stmt->execute([
-            'date'       => $data['serviceDate'],
-            'time'       => $data['serviceStartTime'],
-            'adults'     => (int) $data['paxADT'],
-            'children'   => (int) $data['paxCHD'],
-            'bby'        => (int) ($data['paxBBY'] ?? 0),
-            'pickup'     => $data['serviceStartPoint'],
-            'dropoff'    => $data['serviceTargetPoint'],
-            'flight'     => $data['FlightNumber']  ?? null,
-            'client'     => $data['NomeCliente']   ?? null,
-            'phone'      => $data['ClientNumber']  ?? null,
-            'type'       => (int) ($data['serviceType']  ?? 1),
-            'partner'    => isset($data['partner_id']) ? (int) $data['partner_id'] : null,
-            'price'      => isset($data['total_price'])     ? (float) $data['total_price']     : null,
-            'driver_pay' => isset($data['valor_motorista']) && $data['valor_motorista'] !== null ? (float) $data['valor_motorista'] : null,
-            'pay_basis'  => $data['pay_basis'] ?? null,
-            'approval'   => $data['status_pedido'] ?? 'aprovado',
-            'company_id' => $cid,
+            'date'          => $data['serviceDate'],
+            'time'          => $data['serviceStartTime'],
+            'adults'        => (int) $data['paxADT'],
+            'children'      => (int) $data['paxCHD'],
+            'bby'           => (int) ($data['paxBBY'] ?? 0),
+            'pickup'        => $data['serviceStartPoint'],
+            'dropoff'       => $data['serviceTargetPoint'],
+            'flight'        => $data['FlightNumber']  ?? null,
+            'client'        => $data['NomeCliente']   ?? null,
+            'phone'         => $data['ClientNumber']  ?? null,
+            'type'          => (int) ($data['serviceType']  ?? 1),
+            'partner'       => isset($data['partner_id']) ? (int) $data['partner_id'] : null,
+            'price'         => isset($data['total_price'])     ? (float) $data['total_price']     : null,
+            'price_explicit' => $explicitPrice ? 1 : 0,
+            'driver_pay'    => isset($data['valor_motorista']) && $data['valor_motorista'] !== null ? (float) $data['valor_motorista'] : null,
+            'pay_basis'     => $data['pay_basis'] ?? null,
+            'approval'      => $data['status_pedido'] ?? 'aprovado',
+            'admin_note'    => (isset($data['admin_note']) && trim((string) $data['admin_note']) !== '') ? trim((string) $data['admin_note']) : null,
+            'company_id'    => $cid,
         ]);
         return $this->find((int) $this->db->lastInsertId())
             ?? throw new RuntimeException('ServiceRepository::create — reload failed');
@@ -223,16 +226,41 @@ final class ServiceRepository
         $this->db->prepare($sql)->execute(['st' => $statusId, 'id' => $id]);
     }
 
-    public function markNoShow(int $id, ?string $photoPath, ?string $lat, ?string $lng, ?string $reportPath = null): void
+    /** Nota deixada pelo condutor (ex: antes de concluir). Controller valida o dono. */
+    public function setDriverNote(int $id, ?string $note): void
+    {
+        $clean = ($note !== null && trim($note) !== '') ? trim($note) : null;
+        $this->db->prepare('UPDATE Services SET driver_note = :n WHERE ID = :id')
+            ->execute(['n' => $clean, 'id' => $id]);
+    }
+
+    /** Nota do escritório para o condutor — scoped à empresa via ownedBy(). */
+    public function setAdminNote(int $id, ?string $note): void
+    {
+        if (!$this->ownedBy($id)) return;
+        $clean = ($note !== null && trim($note) !== '') ? trim($note) : null;
+        $this->db->prepare('UPDATE Services SET admin_note = :n WHERE ID = :id')
+            ->execute(['n' => $clean, 'id' => $id]);
+    }
+
+    public function markNoShow(int $id, ?string $photoPath, ?string $lat, ?string $lng, ?string $reportPath = null, ?string $noShowAt = null): void
     {
         if (!$this->ownedBy($id)) return;
         $this->db->prepare('
             UPDATE Services
             SET noShowStatus = 1, noShowPhotoPath = :photo,
                 noShowLat = :lat, noShowLng = :lng,
-                noShowReportPath = :report
+                noShowReportPath = :report,
+                noShowAt = :noShowAt
             WHERE ID = :id
-        ')->execute(['photo' => $photoPath, 'lat' => $lat, 'lng' => $lng, 'report' => $reportPath, 'id' => $id]);
+        ')->execute([
+            'photo'    => $photoPath,
+            'lat'      => $lat,
+            'lng'      => $lng,
+            'report'   => $reportPath,
+            'noShowAt' => $noShowAt ?? date('Y-m-d H:i:s'),
+            'id'       => $id,
+        ]);
     }
 
     public function setTripType(int $id, int $type): void
@@ -555,6 +583,8 @@ final class ServiceRepository
                  s.valor_motorista,
                  s.grouping_ref, s.is_aggregate_master,
                  s.has_key, s.partner_id, s.status_pedido,
+                 COALESCE(s.status_id, 0) AS status_id,
+                 s.driver_note, s.admin_note,
                  s.original_company_id, oc.name AS origin_company_name';
 
         [$join, $where, $baseParams, $driverCol, $countJoin] = $this->filterFragments($filter);
@@ -587,8 +617,9 @@ final class ServiceRepository
         if ($search !== '') {
             $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search) . '%';
             $searchWhere  = ' AND (s.NomeCliente LIKE ? OR s.FlightNumber LIKE ?'
-                          . ' OR s.serviceStartPoint LIKE ? OR s.serviceTargetPoint LIKE ?)';
-            $searchParams = [$like, $like, $like, $like];
+                          . ' OR s.serviceStartPoint LIKE ? OR s.serviceTargetPoint LIKE ?'
+                          . ' OR s.grouping_ref LIKE ? OR s.reference_no LIKE ?)';
+            $searchParams = [$like, $like, $like, $like, $like, $like];
         }
 
         // COUNT uses the minimal join: COUNT(*) when no row-multiplying join is
@@ -835,13 +866,19 @@ final class ServiceRepository
     public function update(int $id, array $data): void
     {
         if (!$this->ownedBy($id)) return;
+        $price = (float) ($data['total_price'] ?? 0);
+        // price_explicit: set to 1 if a price is explicitly provided; otherwise keep existing value
+        // (edit form has the price field disabled so it often submits as 0 — don't reset the flag)
         $this->db->prepare('
             UPDATE Services
             SET serviceDate=:date, serviceStartTime=:time, serviceStartPoint=:pickup,
                 serviceTargetPoint=:dropoff, paxADT=:adults, paxCHD=:children,
                 paxBBY=:bby,
                 FlightNumber=:flight, NomeCliente=:client, ClientNumber=:phone,
-                total_price=:price, valor_motorista=:driver_pay
+                total_price=:price,
+                price_explicit = IF(:price2 > 0, 1, price_explicit),
+                valor_motorista=:driver_pay,
+                admin_note=:admin_note
             WHERE ID = :id
         ')->execute([
             'date'       => $data['serviceDate'],
@@ -854,8 +891,10 @@ final class ServiceRepository
             'flight'     => $data['FlightNumber'] ?? null,
             'client'     => $data['NomeCliente']  ?? null,
             'phone'      => $data['ClientNumber'] ?? null,
-            'price'      => (float) ($data['total_price'] ?? 0),
+            'price'      => $price,
+            'price2'     => $price,
             'driver_pay' => isset($data['valor_motorista']) && $data['valor_motorista'] !== null ? (float) $data['valor_motorista'] : null,
+            'admin_note' => (isset($data['admin_note']) && trim((string) $data['admin_note']) !== '') ? trim((string) $data['admin_note']) : null,
             'id'         => $id,
         ]);
     }
@@ -1028,6 +1067,29 @@ final class ServiceRepository
     }
 
     /** @return array<array<string,mixed>> */
+    public function markVoucher(int $id, string $photoPath): void
+    {
+        if (!$this->ownedBy($id)) return;
+        $this->db->prepare('UPDATE Services SET voucher_photo = :photo WHERE ID = :id')
+            ->execute(['photo' => $photoPath, 'id' => $id]);
+    }
+
+    public function listVouchersForAdmin(): array
+    {
+        $sql  = "SELECT s.ID, s.serviceDate, s.serviceStartTime,
+                        s.NomeCliente, s.serviceStartPoint, s.serviceTargetPoint,
+                        s.voucher_photo,
+                        u.name AS driverName
+                 FROM Services s
+                 LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
+                 LEFT JOIN Users u ON sr.UserID = u.ID
+                 WHERE s.voucher_photo IS NOT NULL " . $this->sc('AND', 's') . "
+                 ORDER BY s.serviceDate DESC, s.serviceStartTime DESC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($this->cb());
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function listNoShowsForAdmin(): array
     {
         $sql  = "SELECT s.ID, s.serviceDate, s.serviceStartTime,
@@ -1050,7 +1112,8 @@ final class ServiceRepository
         $stmt = $this->db->prepare("
             SELECT s.NomeCliente, s.serviceStartPoint, s.serviceTargetPoint,
                    s.serviceDate, s.serviceStartTime,
-                   s.noShowLat, s.noShowLng,
+                   s.noShowLat, s.noShowLng, s.noShowAt,
+                   s.ts_start_pickup, s.ts_arrived_pickup,
                    s.company_id,
                    c.name  AS company_name,
                    s.partner_id,
@@ -1072,11 +1135,32 @@ final class ServiceRepository
     public function getTimestamps(int $id): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT ts_start_pickup, ts_arrived_pickup, ts_with_client, ts_start_trip, ts_completed FROM Services WHERE ID = :id'
+            'SELECT ts_start_pickup, ts_arrived_pickup, ts_with_client, ts_start_trip, ts_completed,
+                    is_aggregate_master
+             FROM Services WHERE ID = :id'
         );
         $stmt->execute(['id' => $id]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $row ?: null;
+        if (!$row) {
+            return null;
+        }
+
+        // Multi-stop (aggregate master): include per-stop timeline so the admin sees
+        // real progress instead of the generic 5-step single-ride timeline.
+        $row['is_aggregate_master'] = (int) $row['is_aggregate_master'];
+        if ($row['is_aggregate_master'] === 1) {
+            $sStmt = $this->db->prepare(
+                'SELECT stop_order, stop_type, location, client_name, scheduled_time,
+                        ts_arrived, ts_departed
+                 FROM ServiceStops
+                 WHERE master_service_id = :mid
+                 ORDER BY stop_order, id'
+            );
+            $sStmt->execute(['mid' => $id]);
+            $row['stops'] = $sStmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+
+        return $row;
     }
 
     // ── Driver-stats helpers ───────────────────────────────────────────────
@@ -1271,8 +1355,11 @@ final class ServiceRepository
                           s.serviceStartPoint, s.serviceTargetPoint,
                           s.paxADT, s.paxCHD, s.paxBBY,
                           s.FlightNumber, s.NomeCliente,
-                          s.ClientNumber, s.serviceType, s.total_price, s.has_key,
+                          s.ClientNumber, s.serviceType,
+                          IF(s.price_explicit = 1, s.total_price, NULL) AS total_price,
+                          s.has_key,
                           s.partner_id, COALESCE(s.status_id, 0) AS status_id,
+                          s.driver_note, s.admin_note,
                           u.name AS AgencyName, u.phone AS AgencyPhone,
                           COALESCE(s.is_aggregate_master, 0) AS is_aggregate_master
                    FROM Services_Rides sr
@@ -1301,18 +1388,33 @@ final class ServiceRepository
         if ($masterIds !== []) {
             $ph    = implode(',', array_fill(0, count($masterIds), '?'));
             $sStmt = $this->db->prepare(
-                "SELECT master_service_id, stop_type, location, scheduled_time, client_name, pax_total
-                 FROM ServiceStops WHERE master_service_id IN ({$ph})
-                 ORDER BY master_service_id, stop_order, id"
+                "SELECT ss.id, ss.master_service_id, ss.source_service_id, ss.stop_type,
+                        ss.location, ss.scheduled_time, ss.client_name, ss.pax_total,
+                        ss.ts_arrived, ss.ts_departed,
+                        s.FlightNumber AS flight_number, s.ClientNumber AS client_number,
+                        s.paxADT AS pax_adt, s.paxCHD AS pax_chd, s.paxBBY AS pax_bby
+                 FROM ServiceStops ss
+                 LEFT JOIN Services s ON ss.source_service_id = s.ID
+                 WHERE ss.master_service_id IN ({$ph})
+                 ORDER BY ss.master_service_id, ss.stop_order, ss.id"
             );
             $sStmt->execute($masterIds);
             foreach ($sStmt->fetchAll(PDO::FETCH_ASSOC) as $s) {
                 $stopsByMaster[(int) $s['master_service_id']][] = [
-                    'type'     => $s['stop_type'],
-                    'location' => $s['location'],
-                    'time'     => $s['scheduled_time'],
-                    'client'   => $s['client_name'],
-                    'pax'      => $s['pax_total'],
+                    'id'           => (int) $s['id'],
+                    'source_id'    => (int) $s['source_service_id'],
+                    'type'         => $s['stop_type'],
+                    'location'     => $s['location'],
+                    'time'         => $s['scheduled_time'],
+                    'client'       => $s['client_name'],
+                    'client_phone' => $s['client_number'],
+                    'pax'          => $s['pax_total'],
+                    'pax_adt'      => (int) ($s['pax_adt'] ?? 0),
+                    'pax_chd'      => (int) ($s['pax_chd'] ?? 0),
+                    'pax_bby'      => (int) ($s['pax_bby'] ?? 0),
+                    'flight'       => $s['flight_number'],
+                    'ts_arrived'   => $s['ts_arrived'],
+                    'ts_departed'  => $s['ts_departed'],
                 ];
             }
         }
@@ -1321,6 +1423,18 @@ final class ServiceRepository
             $row['stops'] = $stopsByMaster[(int) $row['ServiceID']] ?? [];
         }
         return $rows;
+    }
+
+    public function updateStopTimestamp(int $stopId, int $masterId, string $field): bool
+    {
+        if (!in_array($field, ['ts_arrived', 'ts_departed'], true)) {
+            return false;
+        }
+        $stmt = $this->db->prepare(
+            "UPDATE ServiceStops SET {$field} = NOW() WHERE id = :id AND master_service_id = :mid"
+        );
+        $stmt->execute(['id' => $stopId, 'mid' => $masterId]);
+        return $stmt->rowCount() > 0;
     }
 
     public function driverCountToday(int $driverId): int
@@ -1440,13 +1554,15 @@ final class ServiceRepository
             INSERT INTO Services (
                 serviceDate, serviceStartTime, serviceStartPoint, serviceTargetPoint,
                 paxADT, paxCHD, paxBBY, NomeCliente, FlightNumber, partner_id,
-                status_pedido, serviceType, ClientNumber, total_price, has_key, company_id
+                status_pedido, serviceType, ClientNumber, total_price, has_key, company_id, admin_note
             ) VALUES (
                 :date, :time, :pickup, :dropoff,
                 :pax_adt, :pax_chd, :bby, :client_name, :flight, :partner_id,
-                "pendente", 1, :client_phone, :price, :has_key, :company_id
+                "pendente", 1, :client_phone, :price, :has_key, :company_id, :admin_note
             )
         ');
+        $note = isset($data['admin_note']) && trim((string) $data['admin_note']) !== ''
+            ? trim((string) $data['admin_note']) : null;
         $stmt->execute([
             'date'         => $data['date'],
             'time'         => $data['time'],
@@ -1462,6 +1578,7 @@ final class ServiceRepository
             'price'        => isset($data['price']) && $data['price'] !== '' ? (float) $data['price'] : null,
             'has_key'      => (int) ($data['has_key'] ?? 0),
             'company_id'   => $cid,
+            'admin_note'   => $note,
         ]);
         return (int) $this->db->lastInsertId();
     }
@@ -1474,34 +1591,37 @@ final class ServiceRepository
     public function updateForPartner(int $partnerId, int $rideId, array $data): bool
     {
         $check = $this->db->prepare(
-            'SELECT COUNT(*) FROM Services WHERE ID = :id AND partner_id = :pid AND COALESCE(status_id, 0) = 0'
+            'SELECT COUNT(*) FROM Services WHERE ID = :id AND partner_id = :pid AND COALESCE(status_id, 0) < 3'
         );
         $check->execute(['id' => $rideId, 'pid' => $partnerId]);
         if ((int) $check->fetchColumn() === 0) {
             return false;
         }
 
+        $note = isset($data['admin_note']) && trim((string) $data['admin_note']) !== ''
+            ? trim((string) $data['admin_note']) : null;
         $this->db->prepare('
             UPDATE Services
             SET serviceDate=:date, serviceStartTime=:time,
                 serviceStartPoint=:pickup, serviceTargetPoint=:dropoff,
                 paxADT=:adt, paxCHD=:chd, paxBBY=:bby,
                 FlightNumber=:flight, NomeCliente=:client,
-                ClientNumber=:phone
-            WHERE ID = :id AND partner_id = :pid AND COALESCE(status_id, 0) = 0
+                ClientNumber=:phone, admin_note=:admin_note
+            WHERE ID = :id AND partner_id = :pid AND COALESCE(status_id, 0) < 3
         ')->execute([
-            'date'   => $data['date'],
-            'time'   => $data['time'],
-            'pickup' => $data['pickup'],
-            'dropoff'=> $data['dropoff'],
-            'adt'    => (int) ($data['pax_adt']  ?? 1),
-            'chd'    => (int) ($data['pax_chd']  ?? 0),
-            'bby'    => (int) ($data['pax_bby']  ?? 0),
-            'flight' => $data['flight']       ?? '',
-            'client' => $data['client_name']  ?? '',
-            'phone'  => $data['client_phone'] ?? '',
-            'id'     => $rideId,
-            'pid'    => $partnerId,
+            'date'       => $data['date'],
+            'time'       => $data['time'],
+            'pickup'     => $data['pickup'],
+            'dropoff'    => $data['dropoff'],
+            'adt'        => (int) ($data['pax_adt']  ?? 1),
+            'chd'        => (int) ($data['pax_chd']  ?? 0),
+            'bby'        => (int) ($data['pax_bby']  ?? 0),
+            'flight'     => $data['flight']       ?? '',
+            'client'     => $data['client_name']  ?? '',
+            'phone'      => $data['client_phone'] ?? '',
+            'admin_note' => $note,
+            'id'         => $rideId,
+            'pid'        => $partnerId,
         ]);
 
         return true;
@@ -1613,6 +1733,9 @@ final class ServiceRepository
             SELECT s.ID, s.serviceDate, s.serviceStartTime,
                    s.NomeCliente, s.serviceStartPoint, s.serviceTargetPoint,
                    s.FlightNumber, s.paxADT, s.paxCHD, s.paxBBY, s.serviceType,
+                   s.status_id,
+                   s.ts_start_pickup, s.ts_arrived_pickup, s.ts_with_client,
+                   s.ts_start_trip, s.ts_completed,
                    u.id AS driver_id, u.name AS driver_name
             FROM Services s
             LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
@@ -1633,6 +1756,46 @@ final class ServiceRepository
         if (!$this->ownedBy($id)) return;
         $this->db->prepare('UPDATE Services SET serviceDate = :date, serviceStartTime = :time WHERE ID = :id')
             ->execute(['date' => $date, 'time' => $time, 'id' => $id]);
+    }
+
+    /** Update only the flight number of a ride (scoped to company). */
+    public function setFlightNumber(int $id, string $flight): void
+    {
+        if (!$this->ownedBy($id)) return;
+        $this->db->prepare('UPDATE Services SET FlightNumber = :f WHERE ID = :id')
+            ->execute(['f' => $flight, 'id' => $id]);
+    }
+
+    /**
+     * Serviços de um intervalo, com os campos necessários ao recálculo de
+     * preços (1 condutor por serviço, via subquery, para não multiplicar linhas).
+     *
+     * @return array<array<string,mixed>>
+     */
+    public function forRecalculation(string $from, string $to): array
+    {
+        $sql = "SELECT s.ID, s.supplier, s.resort, s.distributor_code, s.vehicle_label,
+                       s.serviceType, s.paxADT, s.paxCHD, s.paxBBY, s.hotel_extra,
+                       s.total_price, s.valor_motorista, s.pay_basis,
+                       (SELECT sr.UserID FROM Services_Rides sr WHERE sr.RideID = s.ID LIMIT 1) AS driver_id
+                FROM Services s
+                WHERE s.serviceDate BETWEEN :from AND :to";
+        $params = ['from' => $from, 'to' => $to];
+        if ($this->companyId !== null) {
+            $sql .= ' AND s.company_id = :cid';
+            $params['cid'] = $this->companyId;
+        }
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** Grava receita/custo/base recalculados (scoped à empresa). */
+    public function applyPricing(int $id, ?float $revenue, ?float $payout, ?string $basis): void
+    {
+        if (!$this->ownedBy($id)) return;
+        $this->db->prepare('UPDATE Services SET total_price = :p, valor_motorista = :v, pay_basis = :b WHERE ID = :id')
+            ->execute(['p' => $revenue, 'v' => $payout, 'b' => $basis, 'id' => $id]);
     }
 
     /** Remove driver assignment from a ride (verifies ownership). */

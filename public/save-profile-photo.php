@@ -15,8 +15,8 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = $_SESSION['user_id'];
 $defaultImgPath = 'Includes/dist/assets/img/user2-160x160.jpg';
 
-// Define o URL de redirecionamento para o Painel do Condutor
-$redirectUrl = 'Includes/dist/pages/driver.php';
+// Redireciona de volta para o dashboard do condutor (caminho atual)
+$redirectUrl = '/SRMT/public/driver/';
 
 
 // Lógica para REMOVER FOTO

@@ -108,10 +108,13 @@ final class UploadController extends BaseController
 
         $fileName   = 'voucher_' . $tripId . '_' . time() . '.jpg';
         $serverPath = $uploadDir . $fileName;
+        $dbPath     = 'uploads/vouchers/' . $fileName;
 
         if (file_put_contents($serverPath, $imgBytes) === false) {
             $this->json(['success' => false, 'message' => 'Failed to save image.'], 500);
         }
+
+        $this->services->markVoucher($tripId, $dbPath);
 
         // Use the owning company's settings (shared driver may submit for another company).
         $ownerCompanyId = ($ride->companyId ?? 0) ?: null;

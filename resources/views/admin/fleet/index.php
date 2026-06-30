@@ -12,8 +12,6 @@ View::layout('layouts.admin', [
     'title'        => 'Fleet — SyncRide OS',
     'active'       => 'fleet',
     'extraScripts' => '
-        <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet">
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
         <script>
             var SR_FLEET = { edit: "' . t('fleet.edit_vehicle') . '", newV: "' . t('fleet.new_vehicle') . '" };
             function openVehicleModal(v) {

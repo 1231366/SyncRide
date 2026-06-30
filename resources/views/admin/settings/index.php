@@ -19,6 +19,7 @@ use App\Http\View;
  * @var string      $schedule_recipient
  * @var string      $schedule_my_copy
  * @var bool        $wpp_agenda_enabled
+ * @var bool        $wpp_track_enabled
  * @var string      $admin_email
  * @var string|null $flash
  * @var string|null $error
@@ -389,18 +390,29 @@ View::layout('layouts.admin', [
             </div>
         </div>
 
-        <!-- 5. WhatsApp Agenda -->
+        <!-- 5. WhatsApp -->
         <div class="settings-card">
-            <div class="card-heading"><i data-lucide="message-circle" class="w-4 h-4" style="color:#22c55e"></i> WhatsApp Agenda</div>
-            <div class="card-sub">Envio automático da agenda de amanhã para cada condutor via WhatsApp.</div>
+            <div class="card-heading"><i data-lucide="message-circle" class="w-4 h-4" style="color:#22c55e"></i> WhatsApp</div>
+            <div class="card-sub">Automações de mensagens WhatsApp para condutores e clientes.</div>
 
             <div class="setting-row">
                 <div>
-                    <div class="setting-label"><?= t('settings.enable') ?></div>
-                    <div class="setting-desc">Ativa o envio automático da agenda via WhatsApp todos os dias.</div>
+                    <div class="setting-label">Agenda diária</div>
+                    <div class="setting-desc">Envio automático da agenda de amanhã para cada condutor via WhatsApp.</div>
                 </div>
                 <label class="toggle-wrap">
                     <input type="checkbox" name="wpp_agenda_enabled" value="1" <?= $wpp_agenda_enabled ? 'checked' : '' ?>>
+                    <span class="toggle-track"></span>
+                </label>
+            </div>
+
+            <div class="setting-row" style="border-top:1px solid rgba(0,0,0,0.06);margin-top:12px;padding-top:16px;">
+                <div>
+                    <div class="setting-label">Link de tracking automático</div>
+                    <div class="setting-desc">Quando o condutor inicia a recolha, envia automaticamente o link de tracking ao cliente via WhatsApp. Se desativado, o condutor envia manualmente pelo seu próprio número.</div>
+                </div>
+                <label class="toggle-wrap">
+                    <input type="checkbox" name="wpp_track_enabled" value="1" <?= $wpp_track_enabled ? 'checked' : '' ?>>
                     <span class="toggle-track"></span>
                 </label>
             </div>

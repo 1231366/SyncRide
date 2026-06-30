@@ -170,9 +170,9 @@ View::layout('layouts.admin', [
     </div>
 </section>
 
-<section class="px-6 mt-6 grid grid-cols-4 gap-2 text-center">
+<section class="px-6 mt-6 grid grid-cols-3 gap-2 text-center">
     <div class="flex flex-col items-center gap-1.5">
-        <a href="/SRMT/public/admin/rides.php" class="action-circle text-blue-500"><i data-lucide="plus" class="w-5 h-5"></i></a>
+        <a href="/SRMT/public/admin/rides.php?new=1" class="action-circle text-blue-500"><i data-lucide="plus" class="w-5 h-5"></i></a>
         <span class="text-[8px] font-black text-zinc-500 uppercase"><?= t('dash.create') ?></span>
     </div>
     <div class="flex flex-col items-center gap-1.5">
@@ -180,12 +180,8 @@ View::layout('layouts.admin', [
         <span class="text-[8px] font-black text-zinc-500 uppercase"><?= t('dash.xml') ?></span>
     </div>
     <div class="flex flex-col items-center gap-1.5">
-        <a href="/SRMT/public/admin/driver-stats.php" class="action-circle text-zinc-400"><i data-lucide="bar-chart-3" class="w-5 h-5"></i></a>
-        <span class="text-[8px] font-black text-zinc-500 uppercase"><?= t('dash.stats') ?></span>
-    </div>
-    <div class="flex flex-col items-center gap-1.5">
-        <a href="/SRMT/public/admin/users.php" class="action-circle text-zinc-400"><i data-lucide="users" class="w-5 h-5"></i></a>
-        <span class="text-[8px] font-black text-zinc-500 uppercase"><?= t('dash.team') ?></span>
+        <a href="/SRMT/public/admin/import.php" class="action-circle text-emerald-500"><i data-lucide="file-spreadsheet" class="w-5 h-5"></i></a>
+        <span class="text-[8px] font-black text-zinc-500 uppercase"><?= t('dash.excel') ?></span>
     </div>
 </section>
 

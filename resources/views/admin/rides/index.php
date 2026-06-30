@@ -13,7 +13,6 @@ ob_start();
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
-<link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet"/>
 <style>
     :root {
         --safe-top: env(safe-area-inset-top, 0px);
@@ -105,44 +104,147 @@ ob_start();
     .search-wrap .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
     [data-theme="dark"] .search-wrap input { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08); color: #fff; }
     [data-theme="dark"] .search-wrap input:focus { border-color: rgba(255,255,255,0.2); }
-    /* Ride cards */
+    /* Ride cards — compact */
     #tabelaViagens { display: block; width: 100%; }
     #tabelaViagens thead { display: none; }
     #tabelaViagens tbody { display: block; }
     #tabelaViagens tbody tr {
         display: block; position: relative;
         background: rgba(255,255,255,0.65); border: 1px solid rgba(0,0,0,0.08);
-        border-radius: 22px; margin-bottom: 10px; padding: 16px 18px;
-        backdrop-filter: blur(20px); transition: all .2s;
+        border-radius: 16px; margin-bottom: 7px; padding: 10px 14px;
+        backdrop-filter: blur(20px); transition: background .15s, border-color .15s, transform .1s;
+        cursor: pointer; -webkit-tap-highlight-color: transparent;
     }
     #tabelaViagens tbody tr:hover { background: rgba(255,255,255,0.82); border-color: rgba(0,0,0,0.13); }
+    #tabelaViagens tbody tr:active { transform: scale(0.985); }
     [data-theme="dark"] #tabelaViagens tbody tr { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.08); }
     [data-theme="dark"] #tabelaViagens tbody tr:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.15); }
+    /* Past/completed rides: muted */
+    #tabelaViagens tbody tr.ride-past { opacity: 0.45; }
+    /* A decorrer: motorista já começou mas ainda não terminou */
+    #tabelaViagens tbody tr.ride-active {
+        border-color: rgba(34,197,94,0.4) !important;
+        box-shadow: 0 0 0 1px rgba(34,197,94,0.12), 0 2px 12px rgba(34,197,94,0.08) !important;
+    }
+    #tabelaViagens tbody tr.ride-active::before {
+        content: 'A DECORRER';
+        position: absolute; top: -9px; left: 14px;
+        font-size: 8px; font-weight: 800; letter-spacing: 0.12em;
+        color: #16a34a; background: rgba(34,197,94,0.1);
+        border: 1px solid rgba(34,197,94,0.3);
+        padding: 1px 7px; border-radius: 999px;
+        animation: pulse-green 1.4s ease-in-out infinite;
+    }
+    @keyframes pulse-green {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.35; }
+    }
+    /* Overdue: hora passou mas ainda não começou */
+    #tabelaViagens tbody tr.ride-overdue {
+        border-color: rgba(234,88,12,0.35) !important;
+        background: rgba(255,237,213,0.5) !important;
+    }
+    [data-theme="dark"] #tabelaViagens tbody tr.ride-overdue {
+        border-color: rgba(234,88,12,0.3) !important;
+        background: rgba(124,45,18,0.15) !important;
+    }
+    #tabelaViagens tbody tr.ride-overdue::before {
+        content: 'POR INICIAR';
+        position: absolute; top: -9px; left: 14px;
+        font-size: 8px; font-weight: 800; letter-spacing: 0.12em;
+        color: #ea580c; background: rgba(234,88,12,0.1);
+        border: 1px solid rgba(234,88,12,0.3);
+        padding: 1px 7px; border-radius: 999px;
+    }
+    /* Pill "X concluídas" acima — vive dentro da .rides-sticky */
+    #completedStackedPill {
+        display: none; align-items: center; justify-content: center; gap: 5px;
+        margin: -2px auto 6px; padding: 5px 13px; border-radius: 999px;
+        background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.08);
+        font-size: 11px; font-weight: 700; color: #64748b;
+        cursor: pointer; width: fit-content;
+        transition: background .15s;
+    }
+    #completedStackedPill:hover { background: rgba(0,0,0,0.09); }
+    [data-theme="dark"] #completedStackedPill { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.08); color: #a1a1aa; }
     #tabelaViagens tbody td { display: block; border: none !important; padding: 0 !important; background: transparent !important; color: #0f172a; }
     [data-theme="dark"] #tabelaViagens tbody td { color: #fff; }
-    #tabelaViagens tbody td.col-selection { display: none; position: absolute; top: 16px; left: 14px; }
+    #tabelaViagens tbody td.col-selection { display: none; position: absolute; top: 12px; left: 12px; }
     .selection-active #tabelaViagens tbody td.col-selection { display: block; }
-    .selection-active #tabelaViagens tbody tr { padding-left: 46px; }
-    #tabelaViagens tbody td:nth-child(2) { font-size: 10px; font-weight: 800; color: #94a3b8; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 2px; font-family: monospace; }
-    [data-theme="dark"] #tabelaViagens tbody td:nth-child(2) { color: #71717a; }
-    #tabelaViagens tbody td:nth-child(3) { font-size: 14px; font-weight: 800; color: #0f172a; margin-bottom: 8px; }
+    .selection-active #tabelaViagens tbody tr { padding-left: 40px; }
+    /* ID (#2) — inline before time */
+    #tabelaViagens tbody td:nth-child(2) { display: inline-block !important; font-size: 9px; font-weight: 700; color: #94a3b8; letter-spacing: 0.08em; text-transform: uppercase; font-family: monospace; margin-bottom: 0; vertical-align: middle; margin-right: 5px; }
+    [data-theme="dark"] #tabelaViagens tbody td:nth-child(2) { color: #52525b; }
+    /* Time (#3) — inline with ID, then force new line via block after */
+    #tabelaViagens tbody td:nth-child(3) { display: inline-block !important; font-size: 14px; font-weight: 800; color: #0f172a; margin-bottom: 4px; vertical-align: middle; }
+    #tabelaViagens tbody td:nth-child(3)::after { content: ''; display: block; }
     [data-theme="dark"] #tabelaViagens tbody td:nth-child(3) { color: #fff; }
-    #tabelaViagens tbody td:nth-child(4) { font-size: 12px; color: #475569; margin-bottom: 10px; }
-    [data-theme="dark"] #tabelaViagens tbody td:nth-child(4) { color: #d4d4d8; }
-    #tabelaViagens tbody td:nth-child(5),
-    #tabelaViagens tbody td:nth-child(6) { font-size: 12px; color: #334155; padding-left: 20px !important; position: relative; line-height: 1.4; margin-bottom: 6px; }
+    /* Driver + cliente (#4) */
+    #tabelaViagens tbody td:nth-child(4) { font-size: 11px; color: #475569; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    [data-theme="dark"] #tabelaViagens tbody td:nth-child(4) { color: #a1a1aa; }
+    .card-client { font-size: 10px; color: #94a3b8; font-weight: 600; }
+    .card-client::before { content: '·'; margin-right: 4px; }
+    [data-theme="dark"] .card-client { color: #52525b; }
+    /* Pickup (#5) — inline, truncate, green dot */
+    #tabelaViagens tbody td:nth-child(5) { display: inline-block !important; width: auto !important; font-size: 11px; color: #334155; padding-left: 16px !important; position: relative; line-height: 1.4; margin-bottom: 2px; max-width: 44%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+    /* Hide delegation/grouping badges inside pickup cell */
+    #tabelaViagens tbody td:nth-child(5) > div { display: none; }
+    /* → separator */
+    #tabelaViagens tbody td:nth-child(5)::after { content: ' \2192'; color: #94a3b8; }
+    /* Dropoff (#6) — inline, truncate, red dot */
+    #tabelaViagens tbody td:nth-child(6) { display: inline-block !important; width: auto !important; font-size: 11px; color: #334155; padding-left: 16px !important; position: relative; line-height: 1.4; margin-bottom: 4px; max-width: 44%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
     [data-theme="dark"] #tabelaViagens tbody td:nth-child(5),
-    [data-theme="dark"] #tabelaViagens tbody td:nth-child(6) { color: #e4e4e7; }
-    #tabelaViagens tbody td:nth-child(5):before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #10b981; position: absolute; left: 4px; top: 6px; box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
-    #tabelaViagens tbody td:nth-child(6):before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; position: absolute; left: 4px; top: 6px; box-shadow: 0 0 0 3px rgba(239,68,68,0.15); }
-    #tabelaViagens tbody td:nth-child(7) { display: inline-block; width: auto !important; font-size: 9px; padding: 3px 10px; border-radius: 999px; font-weight: 800; background: rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.10); color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; }
+    [data-theme="dark"] #tabelaViagens tbody td:nth-child(6) { color: #d4d4d8; }
+    #tabelaViagens tbody td:nth-child(5):before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #10b981; position: absolute; left: 3px; top: 5px; box-shadow: 0 0 0 2px rgba(16,185,129,0.15); }
+    #tabelaViagens tbody td:nth-child(6):before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #ef4444; position: absolute; left: 3px; top: 5px; box-shadow: 0 0 0 2px rgba(239,68,68,0.15); }
+    /* Type badge (#7) — absolute top-right, no onClick (use drawer) */
+    #tabelaViagens tbody td:nth-child(7) { position: absolute; top: 10px; right: 12px; display: inline-block !important; width: auto !important; font-size: 9px; padding: 2px 8px; border-radius: 999px; font-weight: 800; background: rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.10); color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 0; }
+    #tabelaViagens tbody td:nth-child(7) span { pointer-events: none; }
     [data-theme="dark"] #tabelaViagens tbody td:nth-child(7) { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: #a1a1aa; }
-    #tabelaViagens tbody td:nth-child(8) { position: absolute; bottom: 16px; right: 60px; width: auto !important; }
-    #tabelaViagens tbody td:last-child { position: absolute; top: 14px; right: 14px; display: flex; gap: 6px; width: auto !important; }
+    /* Key/chave (#8) — hidden (available in drawer) */
+    #tabelaViagens tbody td:nth-child(8) { display: none !important; }
+    /* Actions (last) — hidden from card, content used in drawer */
+    #tabelaViagens tbody td:last-child { display: none !important; }
     @media (min-width: 992px) {
-        #tabelaViagens tbody { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; }
+        #tabelaViagens tbody { display: grid; grid-template-columns: repeat(2,1fr); gap: 7px; }
         #tabelaViagens tbody tr { margin-bottom: 0; }
     }
+    /* Ride drawer */
+    #rideDrawerBackdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.28); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); z-index: 1050; }
+    #rideDrawer {
+        position: fixed; bottom: 0; left: 0; right: 0; z-index: 1060;
+        transform: translateY(100%); transition: transform .3s cubic-bezier(.32,.72,0,1);
+        background: rgba(255,255,255,0.97); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+        border-radius: 24px 24px 0 0; border-top: 1px solid rgba(0,0,0,0.08);
+        padding: 16px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+        max-height: 70vh; overflow-y: auto; box-shadow: 0 -20px 60px rgba(0,0,0,0.12);
+    }
+    [data-theme="dark"] #rideDrawer { background: rgba(15,15,25,0.97); border-top-color: rgba(255,255,255,0.08); box-shadow: 0 -20px 60px rgba(0,0,0,0.5); }
+    #rideDrawer.open { transform: translateY(0); }
+    .drawer-handle { width: 36px; height: 4px; background: rgba(0,0,0,0.12); border-radius: 2px; margin: 0 auto 14px; }
+    [data-theme="dark"] .drawer-handle { background: rgba(255,255,255,0.12); }
+    .drawer-ride-meta { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid rgba(0,0,0,0.07); }
+    [data-theme="dark"] .drawer-ride-meta { border-bottom-color: rgba(255,255,255,0.07); }
+    .drawer-time { font-size: 17px; font-weight: 800; color: #0f172a; }
+    [data-theme="dark"] .drawer-time { color: #fff; }
+    .drawer-id { font-size: 10px; font-weight: 700; color: #94a3b8; font-family: monospace; letter-spacing: 0.08em; }
+    .drawer-route { font-size: 12px; color: #475569; margin-top: 5px; display: flex; align-items: center; gap: 6px; }
+    [data-theme="dark"] .drawer-route { color: #a1a1aa; }
+    .drawer-driver { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+    .drawer-actions { display: grid; gap: 8px; }
+    .drawer-actions .btn { width: 100% !important; height: auto !important; padding: 11px 16px !important; border-radius: 14px !important; font-size: 13px !important; font-weight: 700 !important; display: flex !important; align-items: center !important; gap: 10px !important; justify-content: flex-start !important; background: rgba(0,0,0,0.04) !important; border: 1px solid rgba(0,0,0,0.08) !important; color: #0f172a !important; }
+    [data-theme="dark"] .drawer-actions .btn { background: rgba(255,255,255,0.05) !important; border-color: rgba(255,255,255,0.08) !important; color: #fff !important; }
+    .drawer-actions .btn:hover { background: rgba(0,0,0,0.08) !important; }
+    [data-theme="dark"] .drawer-actions .btn:hover { background: rgba(255,255,255,0.09) !important; }
+    .drawer-actions .btn-primary  { color: #2563eb !important; border-color: rgba(37,99,235,0.25) !important; background: rgba(37,99,235,0.06) !important; }
+    .drawer-actions .btn-warning  { color: #d97706 !important; border-color: rgba(217,119,6,0.25) !important; background: rgba(217,119,6,0.06) !important; }
+    .drawer-actions .btn-danger   { color: #dc2626 !important; border-color: rgba(220,38,38,0.25) !important; background: rgba(220,38,38,0.06) !important; }
+    .drawer-actions .btn-info     { color: #0891b2 !important; border-color: rgba(8,145,178,0.25) !important; background: rgba(8,145,178,0.06) !important; }
+    .drawer-actions .btn-secondary{ color: #64748b !important; border-color: rgba(100,116,139,0.2) !important; }
+    .drawer-actions .btn-success  { color: #16a34a !important; border-color: rgba(22,163,74,0.25) !important; background: rgba(22,163,74,0.06) !important; }
+    .drawer-actions .btn-outline-warning { color: #d97706 !important; border-color: rgba(217,119,6,0.3) !important; background: rgba(217,119,6,0.06) !important; }
+    .drawer-actions .btn-outline-info { color: #0891b2 !important; border-color: rgba(8,145,178,0.3) !important; background: rgba(8,145,178,0.06) !important; }
+    .drawer-actions .btn i { font-size: 15px; flex-shrink: 0; }
     #tabelaViagens .btn,
     #tabelaViagens button:not(.btn-circle-mobile):not([data-bs-dismiss]):not(.btn-close) {
         width: 32px; height: 32px; padding: 0;
@@ -220,7 +322,7 @@ ob_start();
     .rides-skeleton { display: grid; gap: 10px; margin-top: 4px; }
     @media (min-width: 992px) { .rides-skeleton { grid-template-columns: repeat(2,1fr); } }
     .rides-skeleton .sk-card {
-        height: 130px; border-radius: 22px;
+        height: 78px; border-radius: 16px;
         background: linear-gradient(110deg, rgba(0,0,0,0.04) 8%, rgba(0,0,0,0.07) 18%, rgba(0,0,0,0.04) 33%);
         background-size: 200% 100%; border: 1px solid rgba(0,0,0,0.06);
         animation: shimmer 1.4s linear infinite;
@@ -230,6 +332,8 @@ ob_start();
         border-color: rgba(255,255,255,0.06);
     }
     @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    /* No modo timeline (hoje), esconder paginação — tudo carregado de uma vez */
+    .today-mode .dataTables_paginate { display: none !important; }
     /* DataTable search */
     .dataTables_filter, .dataTables_length, .dataTables_info { display: none !important; }
     #filter-container .dataTables_filter { display: block !important; margin: 0; padding: 0; }
@@ -337,14 +441,16 @@ ob_start();
         }
         /* Push + Novo to the far right of the tools row */
         .rides-toolbar .btn-primary-modern { margin-left: auto; }
-        /* Selection-mode toggle is a desktop bulk-action; hide on mobile */
-        #toggleSelectionMode { display: none; }
         /* Slightly smaller icon buttons to give breathing room */
         .rides-toolbar .icon-btn { width: 36px; height: 36px; }
 
         /* ── Pagination: horizontal scroll if many pages ── */
         .p-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        .dataTables_paginate { padding: 16px 0 8px 0; }
+        .dataTables_paginate {
+            padding: 16px 0 8px 0;
+            /* Clear the floating bottom nav pill so the last page row isn't hidden behind it */
+            margin-bottom: calc(84px + var(--safe-bottom));
+        }
     }
     .page-title { font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; }
     [data-theme="dark"] .page-title { color: #fff; }
@@ -368,35 +474,161 @@ ob_start();
             background: linear-gradient(to right, transparent, rgba(2,6,23,0.98));
         }
     }
-    /* ── Stops modal mobile ───────────────────────────────── */
-    #stopsModal .modal-body { padding: 1.25rem !important; }
-    @media (max-width: 576px) {
-        #stopsModal .modal-header {
-            flex-wrap: wrap !important;
-            padding: 1rem !important;
-            gap: 10px !important;
-        }
-        #stopsModal .modal-header .stops-header-actions {
-            width: 100%;
-            display: flex;
-            gap: 8px;
-        }
-        #stopsModal .modal-header .stops-header-actions #btnSaveOrder,
-        #stopsModal .modal-header .stops-header-actions #btnDisaggregateAll {
-            flex: 1;
-            justify-content: center;
-            min-height: 40px;
-        }
+    /* ── Stops modal ─────────────────────────────────────── */
+    #stopsModal .modal-content { border-radius: 20px !important; }
+    #stopsModal .modal-header  { border-bottom: 1px solid rgba(0,0,0,0.07) !important; flex-wrap: wrap; gap: 8px; }
+    [data-theme="dark"] #stopsModal .modal-header { border-color: rgba(255,255,255,0.07) !important; }
+    #stopsModal .modal-body    { padding: 1rem 1rem 1.25rem !important; }
+    /* Stop cards */
+    .stop-item {
+        background: rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.08);
+        border-radius: 14px; padding: 12px; min-height: 52px; touch-action: pan-y;
+        transition: background .15s;
     }
-    /* Ensure stop list items have good touch targets */
-    #stopsList .stop-item {
-        min-height: 52px;
-        touch-action: pan-y;
+    [data-theme="dark"] .stop-item {
+        background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08);
+    }
+    .stop-drag-handle {
+        cursor: grab; width: 24px; min-height: 44px; touch-action: none;
+        color: #cbd5e1; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    [data-theme="dark"] .stop-drag-handle { color: #52525b; }
+    .stop-type-badge {
+        width: 28px; height: 28px; border-radius: 8px; font-size: 11px; font-weight: 900;
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .stop-type-badge.pickup  { background: rgba(239,68,68,.12);  color: #ef4444; }
+    .stop-type-badge.dropoff { background: rgba(34,197,94,.12);  color: #22c55e; }
+    .stop-loc  { font-weight: 700; font-size: 13px; margin-bottom: 1px; }
+    .stop-meta { font-size: 11px; color: #94a3b8; margin-bottom: 0; }
+    .stop-ref  { font-size: 10px; color: #94a3b8; padding-top: 2px; flex-shrink: 0; }
+    /* Stop edit fields */
+    .stop-edit .stop-field {
+        background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.12);
+        color: inherit; border-radius: 8px; padding: 5px 9px; font-size: 12px; font-weight: 600;
+        outline: none;
+    }
+    .stop-edit .stop-field:focus { border-color: rgba(37,99,235,0.5); }
+    [data-theme="dark"] .stop-edit .stop-field {
+        background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); color: #fff;
+    }
+    /* Header action buttons */
+    .stops-action-btn {
+        border-radius: 10px; font-weight: 800; font-size: 11px; min-height: 36px;
+        padding: 0 12px; border: 1px solid transparent; cursor: pointer; display: inline-flex;
+        align-items: center; gap: 5px; transition: background .15s;
+    }
+    .stops-action-btn.edit  { background: rgba(37,99,235,.1);   color: #2563eb; border-color: rgba(37,99,235,.25); }
+    .stops-action-btn.save  { background: rgba(34,197,94,.1);   color: #16a34a; border-color: rgba(34,197,94,.25); }
+    .stops-action-btn.split { background: rgba(251,191,36,.1);  color: #d97706; border-color: rgba(251,191,36,.25); }
+    [data-theme="dark"] .stops-action-btn.edit  { color: #60a5fa; border-color: rgba(96,165,250,.3); }
+    [data-theme="dark"] .stops-action-btn.save  { color: #4ade80; border-color: rgba(74,222,128,.3); }
+    [data-theme="dark"] .stops-action-btn.split { color: #fbbf24; border-color: rgba(251,191,36,.3); }
+    @media (max-width: 576px) {
+        #stopsModal .modal-header .stops-header-actions { width: 100%; }
+        .stops-action-btn { flex: 1; justify-content: center; }
     }
     /* Touch-action on all toolbar/action buttons */
     .icon-btn, .btn-ghost, .btn-primary-modern, .pill {
         touch-action: manipulation;
     }
+    /* ── Sticky filters: tabs + toolbar stay pinned while the list scrolls.
+          The page title above scrolls away; they pin right under the app header
+          (--sr-header-h is published by the layout). Scroll context: #app-container. ── */
+    .rides-sticky {
+        position: sticky;
+        top: var(--sr-header-h, 0px);
+        z-index: 30;
+        margin: 0 -24px;                 /* full-bleed over the main's px-6 padding */
+        padding: 8px 24px 2px;
+        background: rgba(241,245,249,0.82);
+        backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+        transition: padding .22s ease;
+    }
+    [data-theme="dark"] .rides-sticky { background: rgba(2,6,23,0.82); }
+    .rides-sticky .ride-tabs-wrap,
+    .rides-sticky .rides-toolbar { transition: margin .22s ease; }
+    /* ── Scrolled: ultra-compact sticky ───────────────────────────── */
+    #app-container.scrolled .rides-sticky {
+        padding: 3px 24px 2px;
+    }
+    #app-container.scrolled .rides-sticky .ride-tabs-wrap { margin-bottom: 2px !important; }
+    /* Tab pills — smaller */
+    #app-container.scrolled .rides-sticky .pill {
+        padding: 3px 9px; font-size: 10px;
+    }
+    #app-container.scrolled .rides-sticky .pill-count {
+        min-width: 13px; height: 13px; font-size: 8px; padding: 0 3px;
+    }
+    #app-container.scrolled .rides-sticky .pill i { display: none; }
+    /* Toolbar: strip the glass card, make it a flat thin bar */
+    #app-container.scrolled .rides-sticky .rides-toolbar {
+        background: transparent !important;
+        border: none !important;
+        backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+        border-radius: 0 !important;
+        padding: 0 !important;
+        margin-bottom: 3px !important;
+        gap: 5px !important;
+        box-shadow: none !important;
+    }
+    /* Search input compact */
+    #app-container.scrolled .rides-sticky .search-wrap input {
+        padding: 5px 10px 5px 30px !important;
+        font-size: 11px !important;
+        border-radius: 9px !important;
+    }
+    #app-container.scrolled .rides-sticky .search-wrap .search-icon { left: 9px; width: 13px; height: 13px; }
+    /* Icon buttons compact */
+    #app-container.scrolled .rides-sticky .icon-btn {
+        width: 28px !important; height: 28px !important;
+    }
+    #app-container.scrolled .rides-sticky .icon-btn svg { width: 13px !important; height: 13px !important; }
+    /* + Novo compact */
+    #app-container.scrolled .rides-sticky .btn-primary-modern {
+        padding: 5px 11px !important; font-size: 10px !important; border-radius: 9px !important;
+    }
+    /* ── Timeline: próxima viagem destaca-se ────────────────────────── */
+    #tabelaViagens tbody tr.ride-current {
+        border-color: rgba(37,99,235,0.4) !important;
+        box-shadow: 0 0 0 1px rgba(37,99,235,0.12), 0 2px 12px rgba(37,99,235,0.08);
+    }
+    #tabelaViagens tbody tr.ride-current::before {
+        content: 'PRÓXIMA';
+        position: absolute; top: -9px; left: 14px;
+        font-size: 8px; font-weight: 800; letter-spacing: 0.15em;
+        color: #2563eb; background: rgba(37,99,235,0.08);
+        border: 1px solid rgba(37,99,235,0.2);
+        padding: 1px 7px; border-radius: 999px;
+    }
+    [data-theme="dark"] #tabelaViagens tbody tr.ride-current {
+        border-color: rgba(96,165,250,0.4) !important;
+        box-shadow: 0 0 0 1px rgba(96,165,250,0.12), 0 2px 12px rgba(96,165,250,0.08);
+    }
+    [data-theme="dark"] #tabelaViagens tbody tr.ride-current::before {
+        color: #60a5fa; background: rgba(96,165,250,0.08); border-color: rgba(96,165,250,0.2);
+    }
+
+    /* ── Autocomplete de localizações (OSM / Photon) ─────────────── */
+    .place-field { position: relative; }
+    .place-suggestions {
+        position: absolute; z-index: 1080; left: 0; right: 0; top: 100%;
+        margin-top: 4px; background: #fff; border: 1px solid rgba(0,0,0,.1);
+        border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.18);
+        overflow: hidden; display: none; max-height: 240px; overflow-y: auto;
+    }
+    [data-theme="dark"] .place-suggestions { background: #1e293b; border-color: rgba(255,255,255,.1); }
+    .place-suggestions.open { display: block; }
+    .place-item {
+        padding: 9px 12px; font-size: 12.5px; cursor: pointer; line-height: 1.3;
+        border-bottom: 1px solid rgba(0,0,0,.05); color: #1e293b;
+    }
+    [data-theme="dark"] .place-item { color: #e2e8f0; border-bottom-color: rgba(255,255,255,.05); }
+    .place-item:last-child { border-bottom: 0; }
+    .place-item:hover, .place-item.active { background: rgba(37,99,235,.1); }
+    .place-item .pi-main { font-weight: 700; }
+    .place-item .pi-sub  { font-size: 11px; opacity: .65; }
+    .place-loading { padding: 9px 12px; font-size: 11px; opacity: .6; }
 </style>
 <?php $ridesHead = ob_get_clean(); ?>
 <?php
@@ -404,7 +636,6 @@ ob_start();
 ?>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
@@ -422,6 +653,8 @@ ob_start();
 
     let tabelaViagens;
     let selectionMode = false;
+    let selectedIds = new Map(); // id → row data, persists across pages
+    let _timelineScrolled = false; // auto-scroll to current ride only once per tab load
 
     $(document).ready(function () {
         const urlParams = new URLSearchParams(window.location.search);
@@ -469,11 +702,64 @@ ob_start();
                 { data: 'flight_number', visible: false, searchable: true, defaultContent: '' }
             ],
             language: { search: '', searchPlaceholder: "<?= t('rides.search') ?>", lengthMenu: '', info: '', paginate: { next: '→', previous: '←' }, zeroRecords: SR_RIDES.noRides },
-            order: [[2,'asc']], pageLength: 10, dom: 'frt<"p-wrap"p>'
+            order: [[2,'asc']], pageLength: currentStatus === 'today' ? 500 : 10, dom: 'frt<"p-wrap"p>',
+            createdRow: function(row, data) {
+                row.dataset.rideId = String(data.raw_id || '');
+                if (data.is_completed) {
+                    row.classList.add('ride-past');
+                } else if (data.raw_status > 0) {
+                    // Motorista já iniciou mas ainda não terminou → a decorrer
+                    row.classList.add('ride-active');
+                } else {
+                    // status = 0: ainda não começou
+                    const [datePart, timePart] = (data.data_hora || '').split(' ');
+                    const [y, mo, d] = (datePart || '').split('-').map(Number);
+                    const [h, mi] = (timePart || '0:0').split(':').map(Number);
+                    const dt = new Date(y, mo - 1, d, h, mi);
+                    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+                    if (!isNaN(dt.getTime()) && dt < oneHourAgo) {
+                        row.classList.add('ride-overdue');
+                    }
+                }
+                // Injetar nome do cliente na card (após o condutor, td 4)
+                if (data.client_name) {
+                    const driverCell = row.cells[3];
+                    if (driverCell) {
+                        const el = document.createElement('span');
+                        el.className = 'card-client';
+                        el.textContent = data.client_name;
+                        driverCell.appendChild(el);
+                    }
+                }
+            }
+        });
+
+        // Aplicar today-mode no load inicial se arrancar no tab Hoje
+        if (currentStatus === 'today') {
+            setTimeout(function() {
+                document.getElementById('tabelaViagens_wrapper')?.classList.add('today-mode');
+            }, 0);
+        }
+
+        // Open actions drawer on card tap (not in selection mode, not on interactive elements)
+        $('#tabelaViagens tbody').on('click', 'tr', function(e) {
+            if (selectionMode) return;
+            if ($(e.target).is('input')) return;
+            const rowData = tabelaViagens.row(this).data();
+            if (rowData) openRideDrawer(rowData, this);
         });
 
         $('#tabelaViagens_filter').appendTo('#filter-container');
         $('#tabelaViagens_filter input').addClass('form-control-search');
+
+        // Deep-link vindo do Quadro: ?q=<cliente> pré-preenche a pesquisa (e, no
+        // separador "Todas", ordena do mais recente para o mais antigo).
+        const _deepQ = urlParams.get('q');
+        if (_deepQ) {
+            if (currentStatus === 'all') tabelaViagens.order([2, 'desc']);
+            $('#tabelaViagens_filter input').val(_deepQ);
+            tabelaViagens.search(_deepQ).draw();
+        }
 
         $('#ride-tabs a').on('click', function(e) {
             e.preventDefault();
@@ -484,6 +770,12 @@ ob_start();
             url.searchParams.set('tab', status);
             window.history.replaceState({}, '', url);
             tabelaViagens.search('');
+            _timelineScrolled = false; // permitir auto-scroll na próxima carga
+            // Hoje: carregar tudo para o timeline funcionar sem paginação
+            tabelaViagens.page.len(status === 'today' ? 500 : 10);
+            document.getElementById('tabelaViagens_wrapper')?.classList.toggle('today-mode', status === 'today');
+            // "Todas" mostra histórico — mais recentes primeiro. Restantes: ordem cronológica.
+            tabelaViagens.order(status === 'all' ? [2, 'desc'] : [2, 'asc']);
             tabelaViagens.ajax.url('rides-data.php?status=' + status).load();
             disableSelectionMode();
         });
@@ -499,8 +791,58 @@ ob_start();
             const skel = document.getElementById('ridesSkeleton');
             if (skel) skel.style.display = 'none';
             $('#tabelaViagens').show();
+            // Restore checkbox state for rows visible on this page
+            if (selectionMode) {
+                $('.ride-checkbox').each(function() {
+                    const id = $(this).val();
+                    if (selectedIds.has(id)) $(this).prop('checked', true);
+                });
+            }
             // NOTE: badge is NOT refreshed here — that fired an extra HTTP request on
             // every sort/page/filter. It's refreshed once on load and after approve/reject.
+
+            // ── Timeline: marcar próxima viagem e ancorar no scroll ───────
+            const activeTab = $('#ride-tabs a.active').data('status');
+            if (activeTab === 'today') {
+                document.querySelectorAll('#tabelaViagens tbody tr.ride-current').forEach(function(r) {
+                    r.classList.remove('ride-current');
+                });
+                const rows = Array.from(document.querySelectorAll('#tabelaViagens tbody tr'));
+                // PRÓXIMA = primeira que está pendente E não está atrasada NEM em curso
+                const firstCurrent = rows.find(function(r) {
+                    return !r.classList.contains('ride-past')
+                        && !r.classList.contains('ride-overdue')
+                        && !r.classList.contains('ride-active');
+                });
+                if (firstCurrent) firstCurrent.classList.add('ride-current');
+
+                // Pill "X concluídas" — atualizar ANTES de calcular o offset do scroll
+                const doneCount = rows.filter(function(r) { return r.classList.contains('ride-past'); }).length;
+                const pill = document.getElementById('completedStackedPill');
+                const pillText = document.getElementById('completedStackedText');
+                if (pill) {
+                    if (doneCount > 0) {
+                        pill.style.display = 'flex';
+                        if (pillText) pillText.textContent = doneCount + ' concluída' + (doneCount !== 1 ? 's' : '') + ' acima';
+                    } else {
+                        pill.style.display = 'none';
+                    }
+                }
+
+                // Scroll instantâneo ao primeiro carregamento (após pill estar visível → offsetHeight correto)
+                if (firstCurrent && !_timelineScrolled) {
+                    _timelineScrolled = true;
+                    const container = document.getElementById('app-container');
+                    const sticky    = document.querySelector('.rides-sticky');
+                    const headerH   = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sr-header-h')) || 81;
+                    const stickyH   = sticky ? sticky.offsetHeight : 0;
+                    const cRect     = container.getBoundingClientRect();
+                    const rRect     = firstCurrent.getBoundingClientRect();
+                    const rowTop    = rRect.top - cRect.top + container.scrollTop;
+                    const target    = Math.max(0, rowTop - headerH - stickyH - 12);
+                    container.scrollTop = target;
+                }
+            }
         });
 
         refreshPendingBadge(); // initial badge load (once)
@@ -525,8 +867,28 @@ ob_start();
     function applyDateFilter() {
         window._dateFrom = document.getElementById('dateFrom').value || '';
         window._dateTo   = document.getElementById('dateTo').value   || '';
+        const hasRange   = !!(window._dateFrom || window._dateTo);
         const btn = document.getElementById('dateFilterBtn');
-        if (btn) btn.classList.toggle('active', !!(window._dateFrom || window._dateTo));
+        if (btn) btn.classList.toggle('active', hasRange);
+
+        // Um intervalo de datas só faz sentido sobre TODO o histórico. Se o utilizador
+        // estiver no separador "Hoje" (ou outro de dia único), saltamos para "Todas" e
+        // ordenamos do mais recente para o mais antigo — é assim que se procuram
+        // serviços passados (ex.: reclamações).
+        if (hasRange) {
+            const active = $('#ride-tabs a.active').data('status');
+            if (active !== 'all') {
+                $('#ride-tabs a').removeClass('active');
+                $('#ride-tabs a[data-status="all"]').addClass('active');
+                const url = new URL(window.location);
+                url.searchParams.set('tab', 'all');
+                window.history.replaceState({}, '', url);
+                tabelaViagens.search('');
+                tabelaViagens.order([2, 'desc']);
+                tabelaViagens.ajax.url('rides-data.php?status=all').load();
+                return;
+            }
+        }
         tabelaViagens.ajax.reload();
     }
     function clearDateFilter() {
@@ -558,6 +920,7 @@ ob_start();
     }
     function disableSelectionMode() {
         selectionMode = false;
+        selectedIds.clear();
         const t = document.getElementById('tabelaViagens');
         t.parentElement.classList.remove('selection-active');
         document.body.classList.remove('selection-active');
@@ -566,19 +929,22 @@ ob_start();
         updateBulkButton();
     }
     function updateBulkButton() {
-        const selected = $('.ride-checkbox:checked').length;
+        // Sync current-page checkboxes into selectedIds
+        $('.ride-checkbox').each(function() {
+            const id  = $(this).val();
+            const tr  = $(this).closest('tr');
+            const row = tabelaViagens.row(tr).data();
+            if ($(this).prop('checked')) { if (row) selectedIds.set(id, row); }
+            else { selectedIds.delete(id); }
+        });
+        const selected = selectedIds.size;
         $('#selectedCount').text(selected);
         $('#aggCount').text(selected);
         $('#btnBulkDelete').toggle(selected > 0);
         $('#btnBulkAggregate').toggle(selected >= 2);
     }
     function aggregateSelected() {
-        const rows = [];
-        $('.ride-checkbox:checked').each(function() {
-            const tr   = $(this).closest('tr');
-            const data = tabelaViagens.row(tr).data();
-            if (data) rows.push(data);
-        });
+        const rows = Array.from(selectedIds.values());
         if (rows.length < 2) { toastr.warning('<?= View::e(t('rides.aggregate_min')) ?>'); return; }
 
         // Só Shared (raw_type === 0) podem ser agrupados
@@ -663,30 +1029,25 @@ ob_start();
             div.className = 'stop-item';
             div.dataset.id   = s.id;
             div.dataset.type = s.stop_type;
-            div.style.cssText = 'background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:12px;margin-bottom:0';
 
             // ── View mode ──────────────────────────────────────────────
             const view = document.createElement('div');
             view.className = 'stop-view d-flex align-items-start gap-3';
             view.innerHTML = `
-                <span class="drag-handle d-flex align-items-center justify-content-center flex-shrink-0"
-                    style="cursor:grab;width:24px;min-height:44px;touch-action:none;color:#3f3f46">
+                <span class="drag-handle stop-drag-handle">
                     <i class="bi bi-grip-vertical" style="font-size:15px;pointer-events:none"></i>
                 </span>
-                <span class="d-flex align-items-center justify-content-center flex-shrink-0 rounded-lg fw-black"
-                    style="width:30px;height:30px;font-size:11px;background:${isPickup ? 'rgba(239,68,68,.15)' : 'rgba(34,197,94,.15)'};color:${isPickup ? '#ef4444' : '#22c55e'}">
-                    ${isPickup ? 'P' : 'D'}
-                </span>
+                <span class="stop-type-badge ${isPickup ? 'pickup' : 'dropoff'}">${isPickup ? 'P' : 'D'}</span>
                 <div class="flex-1 min-w-0">
-                    <p class="fw-bold text-white mb-0 text-sm">${escHtml(s.location || '')}</p>
-                    <p class="text-zinc-400 mb-0" style="font-size:11px">
+                    <p class="stop-loc">${escHtml(s.location || '')}</p>
+                    <p class="stop-meta">
                         ${s.scheduled_time ? '<span>' + escHtml(s.scheduled_time.substring(0,5)) + '</span> · ' : ''}
                         ${s.client_name   ? escHtml(s.client_name) : ''}
                         ${s.pax_total     ? ' · ' + s.pax_total + ' pax' : ''}
                         ${s.reference_no  ? ' · ' + escHtml(s.reference_no) : ''}
                     </p>
                 </div>
-                <span class="text-zinc-600 flex-shrink-0" style="font-size:10px;padding-top:2px">#${escHtml(String(s.source_service_id || ''))}</span>
+                <span class="stop-ref">#${escHtml(String(s.source_service_id || ''))}</span>
             `;
 
             // ── Edit mode ──────────────────────────────────────────────
@@ -694,21 +1055,16 @@ ob_start();
             edit.className = 'stop-edit d-none';
             edit.innerHTML = `
                 <div class="d-flex align-items-center gap-2 mb-2">
-                    <select class="stop-field" data-f="stop_type"
-                        style="background:#1a1a2e;border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:4px 8px;font-size:11px;font-weight:700;flex-shrink:0">
+                    <select class="stop-field flex-shrink-0" data-f="stop_type" style="width:auto">
                         <option value="pickup"  ${isPickup ? 'selected' : ''}>P – Recolha</option>
                         <option value="dropoff" ${!isPickup ? 'selected' : ''}>D – Entrega</option>
                     </select>
-                    <input class="stop-field flex-1" data-f="location" value="${escHtml(s.location || '')}"
-                        placeholder="Local" style="background:#1a1a2e;border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;min-width:0">
+                    <input class="stop-field flex-1" data-f="location" value="${escHtml(s.location || '')}" placeholder="Local" style="min-width:0">
                 </div>
                 <div class="d-flex gap-2">
-                    <input class="stop-field" data-f="scheduled_time" type="time" value="${escHtml(s.scheduled_time ? s.scheduled_time.substring(0,5) : '')}"
-                        style="background:#1a1a2e;border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:5px 8px;font-size:11px;width:90px;flex-shrink:0">
-                    <input class="stop-field flex-1" data-f="client_name" value="${escHtml(s.client_name || '')}"
-                        placeholder="Cliente" style="background:#1a1a2e;border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:5px 10px;font-size:11px;min-width:0">
-                    <input class="stop-field" data-f="pax_total" type="number" min="0" max="99" value="${s.pax_total || ''}"
-                        placeholder="Pax" style="background:#1a1a2e;border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:5px 8px;font-size:11px;width:56px;flex-shrink:0">
+                    <input class="stop-field flex-shrink-0" data-f="scheduled_time" type="time" value="${escHtml(s.scheduled_time ? s.scheduled_time.substring(0,5) : '')}" style="width:90px">
+                    <input class="stop-field flex-1" data-f="client_name" value="${escHtml(s.client_name || '')}" placeholder="Cliente" style="min-width:0">
+                    <input class="stop-field flex-shrink-0" data-f="pax_total" type="number" min="0" max="99" value="${s.pax_total || ''}" placeholder="Pax" style="width:56px">
                 </div>
             `;
 
@@ -826,8 +1182,14 @@ ob_start();
             else { toastr.error('Error'); }
         });
     }
-    function editTravel(id, dataHora, condutor, recolha, entrega, paxADT, paxCHD, paxBBY, flightNumber, clientName, clientNumber, serviceType, totalPrice, valorMotorista) {
+    function editTravel(id, dataHora, condutor, recolha, entrega, paxADT, paxCHD, paxBBY, flightNumber, clientName, clientNumber, serviceType, totalPrice, valorMotorista, driverNoteB64, adminNoteB64) {
         disableEdit();
+        const b64dec = b => { try { return b ? decodeURIComponent(escape(atob(b))) : ''; } catch (e) { return ''; } };
+        const driverNote = b64dec(driverNoteB64), adminNote = b64dec(adminNoteB64);
+        const dnWrap = document.getElementById('editDriverNoteWrap');
+        if (driverNote.trim()) { document.getElementById('editDriverNoteText').textContent = driverNote; dnWrap.style.display = 'block'; }
+        else { dnWrap.style.display = 'none'; }
+        document.getElementById('editAdminNote').value = adminNote;
         document.getElementById('editTripId').value = id;
         document.getElementById('editDataHora').value = dataHora.replace(' ','T');
         document.getElementById('editCondutor').value = condutor;
@@ -847,14 +1209,23 @@ ob_start();
             changeTripType(id, serviceType);
         };
     }
+    function openChangeDriverFromEdit() {
+        const id = document.getElementById('editTripId').value;
+        if (!id) return;
+        bootstrap.Modal.getInstance(document.getElementById('editModal'))?.hide();
+        setViagemId(id);
+        new bootstrap.Modal(document.getElementById('atribuirCondutorModal')).show();
+    }
     function enableEdit() {
         document.querySelectorAll('#editTripForm input').forEach(input => { if (input.id !== 'editCondutor' && input.id !== 'editTripTypeDisplay') input.disabled = false; });
+        document.getElementById('editAdminNote').disabled = false;
         document.getElementById('saveChangesBtn').style.display = 'inline-block';
         const btn = document.getElementById('enableEditBtn');
         btn.textContent = 'Cancel'; btn.setAttribute('onclick','disableEdit()');
     }
     function disableEdit() {
         document.querySelectorAll('#editTripForm input').forEach(input => input.disabled = true);
+        document.getElementById('editAdminNote').disabled = true;
         document.getElementById('saveChangesBtn').style.display = 'none';
         const btn = document.getElementById('enableEditBtn');
         btn.textContent = "<?= t('rides.edit_details') ?>"; btn.setAttribute('onclick','enableEdit()');
@@ -886,16 +1257,31 @@ ob_start();
                     const dd = new Date(t.replace(' ','T'));
                     return dd.toLocaleString('en-GB', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
                 };
-                const steps = [
-                    { label: 'Started Pickup',       time: d.ts_start_pickup },
-                    { label: 'Arrived at Pickup',    time: d.ts_arrived_pickup },
-                    { label: 'With Client',          time: d.ts_with_client },
-                    { label: 'Trip Started',         time: d.ts_start_trip },
-                    { label: 'Trip Completed',       time: d.ts_completed }
-                ];
+                const esc = s => (s == null ? '' : String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])));
+
+                let steps;
+                if (d.is_aggregate_master === 1 && Array.isArray(d.stops) && d.stops.length) {
+                    // Multi-stop: one "Arrived" + "Departed" pair per stop, in admin order
+                    steps = [];
+                    d.stops.forEach((s, i) => {
+                        const isPickup = s.stop_type === 'pickup';
+                        const who      = s.client_name ? ' · ' + esc(s.client_name) : '';
+                        const place    = s.location ? ' — ' + esc(s.location) : '';
+                        steps.push({ label: (isPickup ? 'Recolha ' : 'Entrega ') + (i + 1) + who + place, time: s.ts_arrived,  sub: 'Chegou' });
+                        steps.push({ label: (isPickup ? 'Saída recolha ' : 'Saída entrega ') + (i + 1), time: s.ts_departed, sub: 'Saiu' });
+                    });
+                } else {
+                    steps = [
+                        { label: 'Started Pickup',       time: d.ts_start_pickup },
+                        { label: 'Arrived at Pickup',    time: d.ts_arrived_pickup },
+                        { label: 'With Client',          time: d.ts_with_client },
+                        { label: 'Trip Started',         time: d.ts_start_trip },
+                        { label: 'Trip Completed',       time: d.ts_completed }
+                    ];
+                }
                 let html = '<div class="logs-timeline">';
                 steps.forEach(step => {
-                    const done = step.time !== null;
+                    const done = step.time != null;
                     html += '<div class="logs-item ' + (done ? 'completed' : 'pending') + '"><div class="logs-dot"></div><div class="logs-content"><div class="logs-title">' + step.label + '</div><div class="logs-date">' + fmt(step.time) + '</div></div></div>';
                 });
                 content.innerHTML = html + '</div>';
@@ -903,6 +1289,96 @@ ob_start();
                 content.innerHTML = '<p class="text-center" style="color:#f87171">Error loading logs.</p>';
             }
         });
+    }
+
+    // ── Ride actions drawer ───────────────────────────────────────
+    function openRideDrawer(row, tr) {
+        const timeStr  = (row.data_hora || '').split(' ').slice(1).join(' ') || row.data_hora || '';
+        const dateStr  = (row.data_hora || '').split(' ')[0] || '';
+        const driverTxt = (tr ? tr.cells[3]?.innerText : '') || '';
+
+        // Header
+        document.getElementById('drawerTime').textContent   = timeStr || row.data_hora;
+        document.getElementById('drawerDate').textContent   = dateStr;
+        document.getElementById('drawerId').textContent     = row.id || ('#' + row.raw_id);
+        document.getElementById('drawerPickup').textContent  = row.recolha ? row.recolha.replace(/<[^>]*>/g,'').split('\n')[0].trim() : '';
+        document.getElementById('drawerDropoff').textContent = row.entrega ? row.entrega.replace(/<[^>]*>/g,'').trim() : '';
+        document.getElementById('drawerDriver').textContent  = driverTxt;
+
+        // Actions: inject server-generated HTML, unwrap the flex container so grid layout works
+        const actionsEl = document.getElementById('drawerActions');
+        const tmpWrap = document.createElement('div');
+        tmpWrap.innerHTML = row.acoes || '';
+        const innerFlex = tmpWrap.querySelector('.d-flex') || tmpWrap;
+        actionsEl.innerHTML = innerFlex.innerHTML;
+
+        // Admin can complete the service if the driver forgot — but only for rides that
+        // are already in progress (status > 0) OR whose scheduled time is in the past.
+        // Never allow concluding a future, not-yet-started ride.
+        const rawStatus = parseInt(row.raw_status);
+        let rideInPast = false;
+        const dh = (row.data_hora || '').trim();
+        if (dh) {
+            const [dp, tp] = dh.split(' ');
+            const rideDt = new Date(dp + 'T' + (tp || '00:00'));
+            if (!isNaN(rideDt.getTime())) rideInPast = rideDt < new Date();
+        }
+        if (rawStatus !== 4 && (rawStatus > 0 || rideInPast)) {
+            const cBtn = document.createElement('button');
+            cBtn.type = 'button';
+            cBtn.className = 'btn';
+            cBtn.style.cssText = 'color:#16a34a !important;border-color:rgba(34,197,94,0.3) !important;background:rgba(34,197,94,0.08) !important;';
+            cBtn.innerHTML = '<i class="bi bi-check-circle-fill"></i><span><?= t('rides.conclude') ?></span>';
+            cBtn.addEventListener('click', function () { concludeRide(row.raw_id || row.id); });
+            actionsEl.prepend(cBtn);
+        }
+
+        // Add text labels; remove assign-driver (agora no modal editar) e change-type
+        actionsEl.querySelectorAll('button, a').forEach(function(btn) {
+            const oc = btn.getAttribute('onclick') || '';
+            // Remover assign driver (move-se para o modal de edição)
+            if (oc.includes('atribuirCondutorModal')) { btn.remove(); return; }
+            const icon = btn.querySelector('i');
+            if (!icon) return;
+            const cls = btn.className;
+            let label = '';
+            if (oc.includes('viewTripLogs'))                                   label = '<?= t('rides.trip_history') ?>';
+            else if (cls.includes('btn-warning') && cls.includes('text-dark')) label = '<?= t('rides.view_details') ?>';
+            else if (cls.includes('btn-danger'))                               label = '<?= t('rides.delete') ?>';
+            else if (cls.includes('btn-secondary'))                            label = '<?= t('rides.delegate_btn') ?>';
+            else if (cls.includes('btn-outline-warning'))                      label = '<?= t('rides.recall_btn') ?>';
+            else if (cls.includes('btn-outline-info'))                         label = '<?= t('rides.stops_open_btn') ?>';
+            else if (cls.includes('btn-success'))                              label = '<?= t('rides.approve') ?>';
+            else if (cls.includes('btn-danger'))                               label = '<?= t('rides.delete') ?>';
+            if (label) {
+                const span = document.createElement('span');
+                span.textContent = label;
+                btn.appendChild(span);
+            }
+            btn.addEventListener('click', function() { setTimeout(closeRideDrawer, 80); }, { once: true });
+        });
+
+        document.getElementById('rideDrawerBackdrop').style.display = 'block';
+        requestAnimationFrame(function() {
+            document.getElementById('rideDrawer').classList.add('open');
+        });
+    }
+    function closeRideDrawer() {
+        document.getElementById('rideDrawer').classList.remove('open');
+        setTimeout(function() {
+            document.getElementById('rideDrawerBackdrop').style.display = 'none';
+        }, 300);
+    }
+    // Admin marks a service completed (status_id = 4) — same backend path as the driver.
+    function concludeRide(id) {
+        if (!id) return;
+        if (!confirm('<?= t('rides.conclude_confirm') ?>')) return;
+        const fd = new FormData(); fd.append('ride_id', id); fd.append('status', 4);
+        fetch('/SRMT/public/api/status-update.php', { method: 'POST', body: fd })
+            .then(r => r.json()).then(d => {
+                if (d && d.success) { toastr.success('OK'); closeRideDrawer(); tabelaViagens.ajax.reload(null, false); }
+                else { toastr.error((d && d.error) || 'Erro'); }
+            }).catch(() => toastr.error('Erro'));
     }
 
     toastr.options = { closeButton: true, progressBar: true, positionClass: 'toast-top-right', timeOut: '3000' };
@@ -990,6 +1466,93 @@ ob_start();
             btn.innerHTML = '<i class="bi bi-send me-1"></i> <?= t('rides.delegate_btn') ?>';
         }
     }
+
+    if (new URLSearchParams(window.location.search).get('new') === '1') {
+        new bootstrap.Modal(document.getElementById('modalCriarViagem')).show();
+    }
+
+    // ── Autocomplete de localizações (OSM via Photon, grátis, sem chave) ──────
+    // Type-ahead com sugestões reais do OpenStreetMap. Enviesado para a zona de
+    // Lisboa para que hotéis/locais locais apareçam primeiro. O valor escolhido
+    // fica em texto legível (igual ao que o motorista precisa de ler).
+    (function () {
+        // Photon só aceita lang en/de/fr; os nomes do OSM já vêm no idioma local
+        // (PT em Portugal), por isso não enviamos 'lang' para evitar 400.
+        const BIAS = { lat: 38.7223, lon: -9.1393 }; // Lisboa
+        const esc  = s => { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; };
+
+        function label(props) {
+            const main = props.name || [props.street, props.housenumber].filter(Boolean).join(' ') || props.city || '';
+            const subParts = [props.postcode, props.city, props.state, props.country]
+                .filter(Boolean).filter(v => v !== main);
+            return { main, sub: [...new Set(subParts)].join(', ') };
+        }
+        function value(props) {
+            const l = label(props);
+            return l.sub && props.city && props.city !== l.main ? `${l.main}, ${props.city}` : l.main;
+        }
+
+        function attach(input) {
+            const box = input.parentElement.querySelector('.place-suggestions');
+            if (!box) return;
+            let timer = null, ctrl = null, items = [], active = -1;
+
+            const close = () => { box.classList.remove('open'); box.innerHTML = ''; items = []; active = -1; };
+            const render = feats => {
+                items = feats;
+                if (!feats.length) { close(); return; }
+                box.innerHTML = feats.map((f, i) => {
+                    const l = label(f.properties);
+                    return `<div class="place-item" data-i="${i}">
+                        <div class="pi-main">${esc(l.main)}</div>
+                        ${l.sub ? `<div class="pi-sub">${esc(l.sub)}</div>` : ''}</div>`;
+                }).join('');
+                box.classList.add('open');
+                active = -1;
+            };
+            const pick = i => {
+                const f = items[i]; if (!f) return;
+                input.value = value(f.properties);
+                close(); input.focus();
+            };
+
+            input.addEventListener('input', () => {
+                const q = input.value.trim();
+                clearTimeout(timer);
+                if (q.length < 3) { close(); return; }
+                timer = setTimeout(async () => {
+                    if (ctrl) ctrl.abort();
+                    ctrl = new AbortController();
+                    box.innerHTML = '<div class="place-loading">…</div>'; box.classList.add('open');
+                    try {
+                        const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}`
+                                  + `&limit=6&lat=${BIAS.lat}&lon=${BIAS.lon}`;
+                        const res = await fetch(url, { signal: ctrl.signal });
+                        const data = await res.json();
+                        render((data.features || []).filter(f => f.properties));
+                    } catch (e) { if (e.name !== 'AbortError') close(); }
+                }, 300);
+            });
+
+            input.addEventListener('keydown', e => {
+                if (!box.classList.contains('open') || !items.length) return;
+                if (e.key === 'ArrowDown')      { e.preventDefault(); active = (active + 1) % items.length; }
+                else if (e.key === 'ArrowUp')   { e.preventDefault(); active = (active - 1 + items.length) % items.length; }
+                else if (e.key === 'Enter')     { if (active >= 0) { e.preventDefault(); pick(active); } return; }
+                else if (e.key === 'Escape')    { close(); return; }
+                else return;
+                box.querySelectorAll('.place-item').forEach((el, i) => el.classList.toggle('active', i === active));
+            });
+
+            box.addEventListener('mousedown', e => {
+                const it = e.target.closest('.place-item');
+                if (it) { e.preventDefault(); pick(parseInt(it.dataset.i, 10)); }
+            });
+            input.addEventListener('blur', () => setTimeout(close, 150));
+        }
+
+        document.querySelectorAll('.js-place').forEach(attach);
+    })();
 </script>
 <?php $ridesScripts = ob_get_clean(); ?>
 <?php
@@ -1008,6 +1571,7 @@ View::layout('layouts.admin', [
         <p class="page-subtitle mt-1"><?= t('rides.subtitle') ?></p>
     </div>
 
+    <div class="rides-sticky">
     <div class="ride-tabs-wrap mb-3">
     <div class="flex flex-wrap gap-2 no-scrollbar pb-2" id="ride-tabs">
         <a class="pill active" data-bs-toggle="tab" href="#today" data-status="today">
@@ -1078,6 +1642,10 @@ View::layout('layouts.admin', [
             <i data-lucide="plus" class="w-4 h-4"></i> <?= t('rides.new') ?>
         </button>
     </div>
+    <div id="completedStackedPill" onclick="document.getElementById('app-container').scrollTo({top:0,behavior:'smooth'})">
+        <i class="bi bi-chevron-up"></i> <span id="completedStackedText"></span>
+    </div>
+    </div><!-- /.rides-sticky -->
 
     <div id="ridesSkeleton" class="rides-skeleton">
         <div class="sk-card"></div><div class="sk-card"></div>
@@ -1098,6 +1666,28 @@ View::layout('layouts.admin', [
 
 </main>
 
+<!-- Actions Drawer -->
+<div id="rideDrawerBackdrop" onclick="closeRideDrawer()"></div>
+<div id="rideDrawer">
+    <div class="drawer-handle"></div>
+    <div class="drawer-ride-meta">
+        <div class="d-flex align-items-baseline gap-2">
+            <span class="drawer-time" id="drawerTime"></span>
+            <span class="drawer-date text-zinc-400" id="drawerDate" style="font-size:11px"></span>
+            <span class="drawer-id ms-auto" id="drawerId"></span>
+        </div>
+        <div class="drawer-route">
+            <span style="color:#10b981">●</span>
+            <span id="drawerPickup" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+            <span style="color:#94a3b8">→</span>
+            <span style="color:#ef4444">●</span>
+            <span id="drawerDropoff" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+        </div>
+        <div class="drawer-driver" id="drawerDriver"></div>
+    </div>
+    <div class="drawer-actions" id="drawerActions"></div>
+</div>
+
 <!-- Create Ride Modal -->
 <div class="modal fade" id="modalCriarViagem" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
@@ -1117,8 +1707,8 @@ View::layout('layouts.admin', [
                         <div class="col-4"><label class="form-label small"><?= t('rides.children') ?></label><input type="number" class="form-control-custom" name="paxCHD" required placeholder="0" /></div>
                         <div class="col-4"><label class="form-label small"><?= t('rides.babies') ?></label><input type="number" class="form-control-custom" name="paxBBY" min="0" placeholder="0" /></div>
                     </div>
-                    <div class="mb-2"><label class="form-label small"><?= t('rides.pickup') ?></label><input type="text" class="form-control-custom" name="serviceStartPoint" required placeholder="Address or Hotel" /></div>
-                    <div class="mb-2"><label class="form-label small"><?= t('rides.dropoff') ?></label><input type="text" class="form-control-custom" name="serviceTargetPoint" required placeholder="Final destination" /></div>
+                    <div class="mb-2 place-field"><label class="form-label small"><?= t('rides.pickup') ?></label><input type="text" class="form-control-custom js-place" autocomplete="off" name="serviceStartPoint" required placeholder="Address or Hotel" /><div class="place-suggestions"></div></div>
+                    <div class="mb-2 place-field"><label class="form-label small"><?= t('rides.dropoff') ?></label><input type="text" class="form-control-custom js-place" autocomplete="off" name="serviceTargetPoint" required placeholder="Final destination" /><div class="place-suggestions"></div></div>
                     <div class="row mb-2">
                         <div class="col-6">
                             <label class="form-label small"><?= t('rides.driver') ?></label>
@@ -1153,6 +1743,10 @@ View::layout('layouts.admin', [
                             <label class="form-label small" style="color:#38bdf8 !important;"><i class="bi bi-person-badge"></i> <?= t('rides.driver_amount') ?></label>
                             <input type="number" step="0.01" class="form-control-custom" name="valorMotorista" placeholder="e.g. 11.00">
                         </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small" style="color:#38bdf8 !important;"><i class="bi bi-megaphone"></i> <?= t('rides.admin_note') ?></label>
+                        <textarea class="form-control-custom" name="adminNote" rows="2" placeholder="<?= t('rides.admin_note_ph') ?>"></textarea>
                     </div>
                     <button type="submit" class="btn-modern w-100 mt-1"><?= t('rides.create_ride') ?></button>
                 </form>
@@ -1226,38 +1820,64 @@ View::layout('layouts.admin', [
 <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
-            <div class="modal-header border-bottom-0"><h5 class="modal-title"><?= t('rides.edit_details') ?></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-            <div class="modal-body p-4">
+            <div class="modal-header border-bottom-0 pb-2"><h5 class="modal-title"><?= t('rides.view_details') ?></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body px-3 py-2">
                 <form id="editTripForm" action="ride-update.php" method="POST">
                     <input type="hidden" name="edit_trip_id" id="editTripId">
-                    <div class="row mb-3">
+                    <!-- Linha 1: Data/Hora + Condutor -->
+                    <div class="row g-2 mb-2">
                         <div class="col-6"><label class="small">Date / Time</label><input type="datetime-local" class="form-control-custom" id="editDataHora" name="edit_departure_datetime" disabled></div>
-                        <div class="col-6"><label class="small"><?= t('rides.driver') ?></label><input type="text" class="form-control-custom" id="editCondutor" name="edit_driverName" disabled></div>
+                        <div class="col-6">
+                            <label class="small"><?= t('rides.driver') ?></label>
+                            <div class="d-flex align-items-center gap-1">
+                                <input type="text" class="form-control-custom flex-1" id="editCondutor" name="edit_driverName" disabled style="min-width:0">
+                                <button type="button" class="btn-ghost flex-shrink-0" id="btnChangeDriverEdit" onclick="openChangeDriverFromEdit()" title="<?= t('rides.assign_driver') ?>" style="padding:6px 9px;border-radius:10px;">
+                                    <i class="bi bi-person-check-fill"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3"><label class="small"><?= t('rides.pickup') ?></label><input type="text" class="form-control-custom" id="editRecolha" name="edit_origin" disabled></div>
-                    <div class="mb-3"><label class="small"><?= t('rides.dropoff') ?></label><input type="text" class="form-control-custom" id="editEntrega" name="edit_destination" disabled></div>
-                    <div class="row mb-3">
-                        <div class="col-4"><label class="small"><?= t('rides.adt') ?></label><input type="number" class="form-control-custom" id="editpaxADT" name="edit_paxADT" disabled></div>
-                        <div class="col-4"><label class="small"><?= t('rides.chd') ?></label><input type="number" class="form-control-custom" id="editpaxCHD" name="edit_paxCHD" disabled></div>
-                        <div class="col-4"><label class="small"><?= t('rides.col_flight') ?></label><input type="text" class="form-control-custom" id="editflightNumber" name="edit_flightNumber" disabled></div>
+                    <!-- Linha 2: Origem + Destino -->
+                    <div class="row g-2 mb-2">
+                        <div class="col-6"><label class="small"><?= t('rides.pickup') ?></label><input type="text" class="form-control-custom" id="editRecolha" name="edit_origin" disabled></div>
+                        <div class="col-6"><label class="small"><?= t('rides.dropoff') ?></label><input type="text" class="form-control-custom" id="editEntrega" name="edit_destination" disabled></div>
                     </div>
-                    <div class="mb-3"><label class="small"><?= t('rides.babies') ?></label><input type="number" class="form-control-custom" id="editPaxBBY" name="edit_paxBBY" min="0" disabled></div>
-                    <div class="row mb-3">
-                        <div class="col-md-6"><label class="small"><?= t('rides.client') ?></label><input type="text" class="form-control-custom" id="editclientName" name="edit_clientName" disabled></div>
-                        <div class="col-md-6"><label class="small"><?= t('rides.client_number') ?></label><input type="text" class="form-control-custom" id="editclientNumber" name="edit_clientNumber" disabled></div>
+                    <!-- Linha 3: ADT + CHD + BBY + Voo -->
+                    <div class="row g-2 mb-2">
+                        <div class="col-3"><label class="small"><?= t('rides.adt') ?></label><input type="number" class="form-control-custom" id="editpaxADT" name="edit_paxADT" disabled></div>
+                        <div class="col-3"><label class="small"><?= t('rides.chd') ?></label><input type="number" class="form-control-custom" id="editpaxCHD" name="edit_paxCHD" disabled></div>
+                        <div class="col-3"><label class="small"><?= t('rides.babies') ?></label><input type="number" class="form-control-custom" id="editPaxBBY" name="edit_paxBBY" min="0" disabled></div>
+                        <div class="col-3"><label class="small"><?= t('rides.col_flight') ?></label><input type="text" class="form-control-custom" id="editflightNumber" name="edit_flightNumber" disabled></div>
                     </div>
-                    <div class="row mb-3">
-                        <div class="col-6"><label class="form-label small" style="color:#34d399 !important;"><?= t('rides.amount') ?></label><input type="number" step="0.01" class="form-control-custom" id="editTotalPrice" name="edit_totalPrice" disabled></div>
-                        <div class="col-6"><label class="form-label small" style="color:#38bdf8 !important;"><?= t('rides.driver_amount') ?></label><input type="number" step="0.01" class="form-control-custom" id="editValorMotorista" name="edit_valorMotorista" disabled></div>
+                    <!-- Linha 4: Cliente + Nr Cliente -->
+                    <div class="row g-2 mb-2">
+                        <div class="col-6"><label class="small"><?= t('rides.client') ?></label><input type="text" class="form-control-custom" id="editclientName" name="edit_clientName" disabled></div>
+                        <div class="col-6"><label class="small"><?= t('rides.client_number') ?></label><input type="text" class="form-control-custom" id="editclientNumber" name="edit_clientNumber" disabled></div>
                     </div>
-                    <div class="mt-4 pt-3 d-flex justify-content-between align-items-center edit-type-row">
-                        <div><span class="text-zinc-500 small me-2">Type:</span><input type="text" class="d-inline-block border-0 bg-transparent fw-bold text-white" style="width:100px;" id="editTripTypeDisplay" disabled></div>
+                    <!-- Linha 5: Valor cliente + Valor motorista -->
+                    <div class="row g-2 mb-2">
+                        <div class="col-6"><label class="small" style="color:#34d399 !important;"><?= t('rides.amount') ?></label><input type="number" step="0.01" class="form-control-custom" id="editTotalPrice" name="edit_totalPrice" disabled></div>
+                        <div class="col-6"><label class="small" style="color:#38bdf8 !important;"><?= t('rides.driver_amount') ?></label><input type="number" step="0.01" class="form-control-custom" id="editValorMotorista" name="edit_valorMotorista" disabled></div>
+                    </div>
+                    <!-- Linha 6: Tipo -->
+                    <div class="d-flex justify-content-between align-items-center edit-type-row pt-2">
+                        <div><span class="text-zinc-500 small me-2">Type:</span><input type="text" class="d-inline-block border-0 bg-transparent fw-bold text-white" style="width:90px;" id="editTripTypeDisplay" disabled></div>
                         <button type="button" id="btnChangeTypeEdit" class="btn-ghost"><i class="bi bi-shuffle"></i> <?= t('rides.change') ?></button>
+                    </div>
+                    <!-- Nota do condutor (read-only) -->
+                    <div id="editDriverNoteWrap" class="mt-2" style="display:none;">
+                        <label class="small" style="color:#fbbf24 !important;"><i class="bi bi-chat-left-text"></i> <?= t('rides.driver_note') ?></label>
+                        <div id="editDriverNoteText" class="form-control-custom" style="white-space:pre-wrap;opacity:.9;"></div>
+                    </div>
+                    <!-- Nota do escritório para o condutor -->
+                    <div class="mt-2">
+                        <label class="small" style="color:#38bdf8 !important;"><i class="bi bi-megaphone"></i> <?= t('rides.admin_note') ?></label>
+                        <textarea class="form-control-custom" id="editAdminNote" name="edit_adminNote" rows="2" placeholder="<?= t('rides.admin_note_ph') ?>" disabled></textarea>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer border-top-0">
-                <button type="button" class="btn-ghost w-100" style="color:#fbbf24;border-color:rgba(251,191,36,0.3);background:rgba(251,191,36,0.08);padding:12px;" id="enableEditBtn" onclick="enableEdit()"><?= t('rides.edit_details') ?></button>
+            <div class="modal-footer border-top-0 pt-2">
+                <button type="button" class="btn-ghost w-100" style="color:#fbbf24;border-color:rgba(251,191,36,0.3);background:rgba(251,191,36,0.08);padding:10px;" id="enableEditBtn" onclick="enableEdit()"><?= t('rides.edit_details') ?></button>
                 <button type="submit" class="btn-modern w-100" form="editTripForm" id="saveChangesBtn" style="display:none;"><?= t('rides.save') ?></button>
             </div>
         </div>
@@ -1308,30 +1928,28 @@ View::layout('layouts.admin', [
 <!-- Modal: paragens da viagem multi-paragem -->
 <div class="modal fade" id="stopsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content" style="background:#111;border:1px solid rgba(255,255,255,.1);border-radius:20px">
-            <div class="modal-header border-b border-white/10 px-4 py-3 d-flex align-items-start gap-3" style="flex-wrap:wrap">
-                <div class="d-flex align-items-center gap-2 flex-1">
-                    <h5 class="modal-title font-black text-white text-base mb-0">
-                        <i class="bi bi-signpost-2 me-2" style="color:#06b6d4"></i><?= t('rides.stops_modal_title') ?>
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white ms-auto d-sm-none" data-bs-dismiss="modal"></button>
+        <div class="modal-content">
+            <div class="modal-header px-4 py-3">
+                <div class="d-flex align-items-center gap-2 flex-1 min-w-0">
+                    <i class="bi bi-signpost-2 text-primary flex-shrink-0"></i>
+                    <h5 class="modal-title mb-0"><?= t('rides.stops_modal_title') ?></h5>
+                    <span id="stopsModalSub" class="text-zinc-400 ms-1 flex-shrink-0" style="font-size:11px"></span>
                 </div>
-                <p id="stopsModalSub" class="text-[10px] text-zinc-500 mb-0 w-100 d-block"></p>
-                <div class="stops-header-actions d-flex gap-2 align-items-center flex-wrap">
-                    <button id="btnStopsEditToggle" class="btn btn-sm" style="background:rgba(6,182,212,.15);color:#06b6d4;border:1px solid rgba(6,182,212,.3);border-radius:10px;font-weight:800;font-size:11px;min-height:38px;touch-action:manipulation" onclick="toggleStopsEditMode()">
-                        <i class="bi bi-pencil me-1"></i><?= t('rides.stops_edit_mode') ?>
+                <div class="stops-header-actions d-flex gap-2 align-items-center ms-2">
+                    <button id="btnStopsEditToggle" class="stops-action-btn edit" onclick="toggleStopsEditMode()" style="touch-action:manipulation">
+                        <i class="bi bi-pencil"></i><?= t('rides.stops_edit_mode') ?>
                     </button>
-                    <button id="btnSaveStops" class="btn btn-sm" style="display:none;background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:10px;font-weight:800;font-size:11px;min-height:38px;touch-action:manipulation" onclick="saveStopsAll()">
-                        <i class="bi bi-floppy me-1"></i><?= t('rides.stops_save_order') ?>
+                    <button id="btnSaveStops" class="stops-action-btn save" onclick="saveStopsAll()" style="display:none;touch-action:manipulation">
+                        <i class="bi bi-floppy"></i><?= t('rides.stops_save_order') ?>
                     </button>
-                    <button id="btnDisaggregateAll" class="btn btn-sm" style="background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.25);border-radius:10px;font-weight:800;font-size:11px;min-height:38px;touch-action:manipulation" onclick="disaggregateAll()">
-                        <i class="bi bi-scissors me-1"></i><?= t('rides.stops_split_all') ?>
+                    <button id="btnDisaggregateAll" class="stops-action-btn split" onclick="disaggregateAll()" style="touch-action:manipulation">
+                        <i class="bi bi-scissors"></i><?= t('rides.stops_split_all') ?>
                     </button>
-                    <button type="button" class="btn-close btn-close-white d-none d-sm-inline-flex" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
             </div>
-            <div class="modal-body p-3 p-sm-4">
-                <div id="stopsLoading" class="text-center py-6 text-zinc-500 text-sm d-none">
+            <div class="modal-body">
+                <div id="stopsLoading" class="text-center py-4 text-zinc-400 small d-none">
                     <div class="spinner-border spinner-border-sm me-2"></div><?= t('rides.loading') ?>
                 </div>
                 <div id="stopsList" class="d-flex flex-column gap-2"></div>

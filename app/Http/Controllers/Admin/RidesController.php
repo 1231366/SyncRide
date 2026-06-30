@@ -10,7 +10,9 @@ use App\Repositories\CompanyPartnershipRepository;
 use App\Repositories\LogRepository;
 use App\Repositories\ServiceRepository;
 use App\Repositories\UserRepository;
+use App\Services\FCMSender;
 use App\Services\PricingEngine;
+use App\Support\Database;
 use App\Support\Session;
 
 /**
@@ -25,6 +27,7 @@ final class RidesController extends BaseController
     private UserRepository               $users;
     private LogRepository                $logs;
     private CompanyPartnershipRepository $partnerships;
+    private bool                         $hasActivePartners = false;
 
     public function __construct()
     {
@@ -57,12 +60,16 @@ final class RidesController extends BaseController
         $filter   = trim((string) ($_GET['status'] ?? 'today'));
         $draw     = (int) ($_GET['draw']   ?? 1);
         $start    = max(0, (int) ($_GET['start']  ?? 0));
-        $length   = min(200, max(1, (int) ($_GET['length'] ?? 25)));
+        $length   = min(500, max(1, (int) ($_GET['length'] ?? 25)));
         $search   = trim((string) ($_GET['search']['value'] ?? ''));
         $orderCol = (int) ($_GET['order'][0]['column'] ?? 2);
         $orderDir = strtoupper(trim((string) ($_GET['order'][0]['dir'] ?? 'asc'))) === 'DESC' ? 'DESC' : 'ASC';
         $dateFrom = trim((string) ($_GET['date_from'] ?? ''));
         $dateTo   = trim((string) ($_GET['date_to']   ?? ''));
+
+        // Only offer "Delegate" when this company actually has a partner to delegate to.
+        $companyId = Session::companyId() ?? 0;
+        $this->hasActivePartners = $companyId > 0 && $this->partnerships->activePartnersFor($companyId) !== [];
 
         $result = $this->services->listForAdminPaginated($filter, $start, $length, $search, $orderCol, $orderDir, $dateFrom, $dateTo);
 
@@ -105,11 +112,14 @@ final class RidesController extends BaseController
             'ClientNumber'       => $this->input('ClientNumber') ?: null,
             'total_price'        => $price,
             'valor_motorista'    => $driverPay,
+            'admin_note'         => $this->input('adminNote'),
         ]);
 
         $driver = $this->input('driver', '');
         if ($driver !== '' && $driver !== 'later' && ctype_digit((string) $driver)) {
-            $this->services->assignDriver($ride->id, (int) $driver);
+            $driverId = (int) $driver;
+            $this->services->assignDriver($ride->id, $driverId);
+            FCMSender::sendToUser($driverId, 'Nova viagem atribuída', $this->rideNotifBody($date, $time), ['ride_id' => (string) $ride->id]);
         }
 
         $this->logs->record("Admin created ride #{$ride->id}");
@@ -153,6 +163,7 @@ final class RidesController extends BaseController
             'ClientNumber'       => $this->input('edit_clientNumber') ?: null,
             'total_price'        => $price,
             'valor_motorista'    => $driverPay,
+            'admin_note'         => $this->input('edit_adminNote'),
         ]);
 
         $this->logs->record("Admin updated ride #{$id}");
@@ -217,6 +228,15 @@ final class RidesController extends BaseController
         $this->services->assignDriver($rideId, $driverId);
         $this->applyDriverPayout($rideId, $driverId, $payBasis);
         $this->logs->record("Admin assigned driver #{$driverId} to ride #{$rideId}");
+
+        $stmt = Database::connection()->prepare('SELECT serviceDate, serviceStartTime FROM Services WHERE ID = ? LIMIT 1');
+        $stmt->execute([$rideId]);
+        $info = $stmt->fetch(\PDO::FETCH_ASSOC);
+        $notifBody = $info
+            ? $this->rideNotifBody((string) $info['serviceDate'], (string) $info['serviceStartTime'])
+            : 'Tens uma nova viagem atribuída. Vê mais detalhes na app!';
+
+        FCMSender::sendToUser($driverId, 'Nova viagem atribuída 🚗', $notifBody, ['ride_id' => (string) $rideId]);
         $this->redirect('/SRMT/public/admin/rides.php?success=viagemAtribuida');
     }
 
@@ -384,6 +404,32 @@ final class RidesController extends BaseController
 
         $status = $action === 'approve' ? 'aprovado' : 'rejeitado';
         $this->services->setApprovalStatus($id, $status);
+
+        if ($ride->partnerId !== null) {
+            $d = \DateTime::createFromFormat('Y-m-d', $ride->date);
+            $t = \DateTime::createFromFormat('H:i:s', $ride->startTime)
+              ?: \DateTime::createFromFormat('H:i', $ride->startTime);
+            $dateStr = $d ? $d->format('d/m/Y') : $ride->date;
+            $timeStr = $t ? $t->format('H:i')   : $ride->startTime;
+            $client  = $ride->clientName ?? 'Cliente';
+
+            if ($action === 'approve') {
+                FCMSender::sendToUser(
+                    $ride->partnerId,
+                    '✅ Pedido confirmado',
+                    "{$client} · {$dateStr} às {$timeStr}\nO vosso pedido foi aprovado.",
+                    ['ride_id' => (string) $id]
+                );
+            } else {
+                FCMSender::sendToUser(
+                    $ride->partnerId,
+                    '❌ Pedido recusado',
+                    "{$client} · {$dateStr} às {$timeStr}\nO vosso pedido foi recusado. Contacte o operador.",
+                    ['ride_id' => (string) $id]
+                );
+            }
+        }
+
         $this->json(['success' => true]);
     }
 
@@ -431,6 +477,15 @@ final class RidesController extends BaseController
             $keyBadge = '<span class="text-muted small">—</span>';
         }
 
+        // Grouping ID / Reference — visível na lista e pesquisável (importante para
+        // tratamento de reclamações). Mostra-se um badge discreto quando existe.
+        $groupingBadge = '';
+        $groupingRef   = trim((string) ($row['grouping_ref'] ?? ''));
+        if ($groupingRef !== '') {
+            $groupingBadge = '<div class="mt-1"><span class="badge" style="background:rgba(100,116,139,.12);color:#64748b;border:1px solid rgba(100,116,139,.2);font-size:.62rem" title="Grouping ID"><i class="bi bi-hash"></i>'
+                . htmlspecialchars($groupingRef) . '</span></div>';
+        }
+
         $delegationBadge = '';
         if (!empty($row['_delegated_out']) && !empty($row['driverName'])) {
             $targetName      = htmlspecialchars((string) $row['driverName']);
@@ -449,7 +504,7 @@ final class RidesController extends BaseController
                 : ($driverName
                     ? '<span class="badge text-bg-success">' . htmlspecialchars((string) $driverName) . '</span>'
                     : '<span class="badge bg-secondary">N.A</span>'),
-            'recolha'             => htmlspecialchars((string) $row['serviceStartPoint']) . $delegationBadge,
+            'recolha'             => htmlspecialchars((string) $row['serviceStartPoint']) . $delegationBadge . $groupingBadge,
             'entrega'             => htmlspecialchars((string) $row['serviceTargetPoint']),
             'tipo'                => '<span style="cursor:pointer;" onclick="changeTripType('
                                      . $row['ID'] . ',' . $row['serviceType'] . ')">'
@@ -474,6 +529,8 @@ final class RidesController extends BaseController
             'client_name'         => htmlspecialchars((string) ($row['NomeCliente']   ?? '')),
             'flight_number'       => htmlspecialchars((string) ($row['FlightNumber']  ?? '')),
             'pax_bby'             => (int) ($row['paxBBY'] ?? 0),
+            'is_completed'        => (int) ($row['status_id'] ?? 0) === 4,
+            'raw_status'          => (int) ($row['status_id'] ?? 0),
         ];
     }
 
@@ -513,8 +570,12 @@ final class RidesController extends BaseController
         $assignIcon = $row['driverName'] ? 'bi-person-check-fill' : 'bi-person-plus-fill';
         $assignBtn  = $row['driverName'] ? 'btn-info'             : 'btn-primary';
 
+        // Notes are free text — pass base64 to avoid breaking the inline JS call.
+        $driverNoteB64 = base64_encode((string) ($row['driver_note'] ?? ''));
+        $adminNoteB64  = base64_encode((string) ($row['admin_note']  ?? ''));
+
         $editCall = sprintf(
-            "editTravel(%d,'%sT%s','%s','%s','%s',%d,%d,%d,'%s','%s','%s',%d,'%s','%s')",
+            "editTravel(%d,'%sT%s','%s','%s','%s',%d,%d,%d,'%s','%s','%s',%d,'%s','%s','%s','%s')",
             $id,
             $row['serviceDate'],
             substr((string) $row['serviceStartTime'], 0, 5),
@@ -523,7 +584,8 @@ final class RidesController extends BaseController
             (int) ($row['paxBBY'] ?? 0),
             $flight, $client, $phone,
             (int) $row['serviceType'],
-            $price, $driverPay
+            $price, $driverPay,
+            $driverNoteB64, $adminNoteB64
         );
 
         $disaggregateBtn = '';
@@ -537,9 +599,12 @@ final class RidesController extends BaseController
         $delegateBtn = '';
         $returnBtn   = '';
         if (empty($row['original_company_id'])) {
-            $delegateBtn = '<button class="btn btn-secondary rounded-circle ms-1" title="' . t('rides.delegate_btn') . '" '
-                . 'onclick="openDelegateModal(' . $id . ')">'
-                . '<i class="bi bi-send"></i></button>';
+            // Delegate only makes sense if there's at least one active partnership.
+            if ($this->hasActivePartners) {
+                $delegateBtn = '<button class="btn btn-secondary rounded-circle ms-1" title="' . t('rides.delegate_btn') . '" '
+                    . 'onclick="openDelegateModal(' . $id . ')">'
+                    . '<i class="bi bi-send"></i></button>';
+            }
         } else {
             // Received trip — show Return button instead of Delegate
             $returnBtn = '<button class="btn btn-outline-warning rounded-circle ms-1" title="' . t('rides.return_btn') . '" onclick="recallTrip(' . $id . ')">'
@@ -563,5 +628,14 @@ final class RidesController extends BaseController
             . $delegateBtn
             . $returnBtn
             . '</div>';
+    }
+
+    private function rideNotifBody(string $date, string $time): string
+    {
+        $d = \DateTime::createFromFormat('Y-m-d', $date);
+        $t = \DateTime::createFromFormat('H:i:s', $time) ?: \DateTime::createFromFormat('H:i', $time);
+        $dayStr  = $d ? $d->format('d/m/Y') : $date;
+        $timeStr = $t ? $t->format('H:i')   : $time;
+        return "Serviço atribuído para dia {$dayStr} às {$timeStr}. Vê mais detalhes na app!";
     }
 }

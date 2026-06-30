@@ -75,39 +75,52 @@ $avatarFallback = 'data:image/svg+xml;base64,' . base64_encode($svgAvatar);
 
         /* Driver sheet */
         .driver-sheet {
-            position: fixed; bottom: calc(100px + var(--safe-bottom)); left: 16px; right: 16px;
-            z-index: 2000; padding: 24px; border-radius: 32px; transform: translateY(150%);
-            transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
-            background: rgba(255,255,255,0.96); backdrop-filter: blur(30px);
-            border: 1px solid rgba(0,0,0,0.10); color: #0f172a;
-            box-shadow: 0 24px 64px rgba(0,0,0,0.12);
+            position: fixed; bottom: calc(86px + var(--safe-bottom)); left: 12px; right: 12px;
+            z-index: 2000; padding: 16px 18px 14px; border-radius: 26px; transform: translateY(200%);
+            transition: transform 0.45s cubic-bezier(0.19, 1, 0.22, 1);
+            background: rgba(255,255,255,0.97); backdrop-filter: blur(30px);
+            border: 1px solid rgba(0,0,0,0.09); color: #0f172a;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.14), 0 4px 12px rgba(0,0,0,0.06);
         }
         [data-theme="dark"] .driver-sheet {
-            background: rgba(20,20,20,0.95);
-            border-color: rgba(255,255,255,0.15); color: #fff;
-            box-shadow: none;
+            background: rgba(15,17,25,0.97);
+            border-color: rgba(255,255,255,0.12); color: #f1f5f9;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.6);
         }
         .driver-sheet.active { transform: translateY(0); }
-        .driver-sheet h3 { color: #0f172a; }
-        [data-theme="dark"] .driver-sheet h3 { color: #fff; }
-        .driver-sheet .speed-label { color: #64748b; }
-        [data-theme="dark"] .driver-sheet .speed-label { color: #71717a; }
-        .driver-sheet .speed-val { color: #0f172a; }
-        [data-theme="dark"] .driver-sheet .speed-val { color: #fff; }
-        .driver-sheet .drag-handle { background: #e2e8f0; }
-        [data-theme="dark"] .driver-sheet .drag-handle { background: #3f3f46; }
-        .driver-sheet .info-block {
-            background: rgba(0,0,0,0.04); border-radius: 16px; padding: 16px;
+        .driver-sheet .drag-handle { background: #cbd5e1; }
+        [data-theme="dark"] .driver-sheet .drag-handle { background: #334155; }
+        .driver-sheet .ds-name { font-size: 15px; font-weight: 800; color: #0f172a; line-height: 1.2; }
+        [data-theme="dark"] .driver-sheet .ds-name { color: #f1f5f9; }
+        .driver-sheet .ds-company { font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #2563eb; }
+        .driver-sheet .ds-speed-box {
+            background: rgba(37,99,235,0.08); border: 1px solid rgba(37,99,235,0.15);
+            border-radius: 14px; padding: 8px 12px; text-align: center; min-width: 72px;
         }
-        [data-theme="dark"] .driver-sheet .info-block { background: rgba(255,255,255,0.05); }
-        .driver-sheet .info-text { color: #475569; }
-        [data-theme="dark"] .driver-sheet .info-text { color: #a1a1aa; }
-        .driver-sheet .close-btn {
-            background: rgba(0,0,0,0.05); color: #475569;
+        [data-theme="dark"] .driver-sheet .ds-speed-box { background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.2); }
+        .driver-sheet .ds-speed-val { font-size: 20px; font-weight: 900; color: #2563eb; line-height: 1; }
+        [data-theme="dark"] .driver-sheet .ds-speed-val { color: #60a5fa; }
+        .driver-sheet .ds-speed-lbl { font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: #94a3b8; margin-top: 2px; }
+        .driver-sheet .ds-route {
+            display: flex; align-items: center; gap: 8px; margin-top: 10px;
+            background: rgba(0,0,0,0.04); border-radius: 14px; padding: 10px 12px;
         }
-        .driver-sheet .close-btn:hover { background: rgba(0,0,0,0.10); }
-        [data-theme="dark"] .driver-sheet .close-btn { background: rgba(255,255,255,0.05); color: #a1a1aa; }
-        [data-theme="dark"] .driver-sheet .close-btn:hover { background: rgba(255,255,255,0.10); }
+        [data-theme="dark"] .driver-sheet .ds-route { background: rgba(255,255,255,0.05); }
+        .driver-sheet .ds-route-text { font-size: 11px; font-weight: 600; color: #475569; flex: 1; min-width: 0; }
+        [data-theme="dark"] .driver-sheet .ds-route-text { color: #94a3b8; }
+        .driver-sheet .ds-route-text strong { color: #0f172a; display: block; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        [data-theme="dark"] .driver-sheet .ds-route-text strong { color: #e2e8f0; }
+        .driver-sheet .ds-ping { font-size: 8px; font-weight: 700; color: #94a3b8; margin-top: 6px; text-align: right; }
+        .driver-sheet .ds-close {
+            position: absolute; top: 14px; right: 14px;
+            width: 28px; height: 28px; border-radius: 999px;
+            background: rgba(0,0,0,0.06); border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; color: #64748b;
+            transition: background .15s;
+        }
+        [data-theme="dark"] .driver-sheet .ds-close { background: rgba(255,255,255,0.08); color: #94a3b8; }
+        .driver-sheet .ds-close:hover { background: rgba(0,0,0,0.12); }
+        [data-theme="dark"] .driver-sheet .ds-close:hover { background: rgba(255,255,255,0.14); }
 
         .status-pill {
             display: inline-flex; align-items: center; gap: 6px;
@@ -145,45 +158,106 @@ $avatarFallback = 'data:image/svg+xml;base64,' . base64_encode($svgAvatar);
         [data-theme="dark"] .fit-btn { background: rgba(20,20,20,0.92); border-color: rgba(255,255,255,0.12); color: #fff; }
         [data-theme="dark"] .fit-btn:hover { background: rgba(40,40,40,0.95); }
 
-        /* Bottom nav — pill (identical to layout) */
-        .nav-bottom {
+        /* ── Shared nav pill base ───────────────────────────── */
+        .nav-pill-base {
             position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
-            width: calc(100% - 24px); max-width: 480px; height: 66px;
-            margin-bottom: calc(10px + var(--safe-bottom));
+            height: 66px; margin-bottom: calc(10px + var(--safe-bottom));
             background: rgba(255,255,255,0.90);
             backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
             border: 1px solid rgba(0,0,0,0.07); border-radius: 26px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06);
             display: flex; align-items: stretch; z-index: 3000; overflow: hidden;
         }
-        [data-theme="dark"] .nav-bottom {
+        [data-theme="dark"] .nav-pill-base {
             background: rgba(10,14,30,0.95); border-color: rgba(255,255,255,0.09);
             box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
         }
-        .nav-bottom a, .nav-bottom button {
+        /* Mobile nav */
+        .nav-mobile { width: calc(100% - 24px); max-width: 480px; }
+        .nav-mobile a, .nav-mobile button {
             flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
             gap: 3px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
             color: #94a3b8; background: none; border: none; cursor: pointer;
             text-decoration: none; transition: color .15s; padding: 0;
         }
-        .nav-bottom a i, .nav-bottom button i { width: 20px; height: 20px; display: block; }
-        .nav-bottom a:hover, .nav-bottom button:hover { color: #64748b; }
-        [data-theme="dark"] .nav-bottom a, [data-theme="dark"] .nav-bottom button { color: #475569; }
-        [data-theme="dark"] .nav-bottom a:hover, [data-theme="dark"] .nav-bottom button:hover { color: #94a3b8; }
-        .nav-bottom a.sr-nav-active { color: #2563eb; }
-        [data-theme="dark"] .nav-bottom a.sr-nav-active { color: #60a5fa; }
-        /* Full menu overlay (identical to layout) */
-        .menu-backdrop { background: rgba(248,250,252,0.98); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
-        [data-theme="dark"] .menu-backdrop { background: rgba(2,6,23,0.99); }
-        .menu-content { color: #0f172a; }
-        [data-theme="dark"] .menu-content { color: #f1f5f9; }
-        .menu-hr { border-color: #e2e8f0; }
-        [data-theme="dark"] .menu-hr { border-color: #1e293b; }
-        .menu-link { color: #0f172a !important; text-decoration: none; }
-        [data-theme="dark"] .menu-link { color: #f1f5f9 !important; }
-        .menu-link.menu-active { color: #2563eb !important; }
-        [data-theme="dark"] .menu-link.menu-active { color: #60a5fa !important; }
-        .menu-link-danger { color: #dc2626 !important; }
+        .nav-mobile a i, .nav-mobile button i { width: 20px; height: 20px; display: block; }
+        .nav-mobile a:hover, .nav-mobile button:hover { color: #64748b; }
+        [data-theme="dark"] .nav-mobile a, [data-theme="dark"] .nav-mobile button { color: #475569; }
+        [data-theme="dark"] .nav-mobile a:hover, [data-theme="dark"] .nav-mobile button:hover { color: #94a3b8; }
+        .nav-mobile a.sr-nav-active { color: #2563eb; }
+        [data-theme="dark"] .nav-mobile a.sr-nav-active { color: #60a5fa; }
+        /* Desktop nav */
+        .nav-desktop {
+            display: none; width: calc(100% - 40px); max-width: 1400px;
+            overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+        }
+        .nav-desktop::-webkit-scrollbar { display: none; }
+        .nav-desktop-inner { display: flex; align-items: stretch; height: 100%; min-width: max-content; padding: 0 8px; }
+        .nav-desktop a, .nav-desktop button {
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+            min-width: 72px; padding: 0 10px;
+            font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
+            color: #94a3b8; background: none; border: none; cursor: pointer;
+            text-decoration: none; transition: color .15s; white-space: nowrap;
+        }
+        .nav-desktop a i, .nav-desktop button i { width: 20px; height: 20px; display: block; }
+        .nav-desktop a:hover, .nav-desktop button:hover { color: #64748b; }
+        [data-theme="dark"] .nav-desktop a, [data-theme="dark"] .nav-desktop button { color: #475569; }
+        [data-theme="dark"] .nav-desktop a:hover, [data-theme="dark"] .nav-desktop button:hover { color: #94a3b8; }
+        .nav-desktop a.sr-nav-active { color: #2563eb; }
+        [data-theme="dark"] .nav-desktop a.sr-nav-active { color: #60a5fa; }
+        .nav-desktop-sep { width: 1px; flex-shrink: 0; background: rgba(0,0,0,0.07); margin: 14px 6px; }
+        [data-theme="dark"] .nav-desktop-sep { background: rgba(255,255,255,0.08); }
+        .nav-desktop .nav-danger { color: #ef4444 !important; }
+        [data-theme="dark"] .nav-desktop .nav-danger { color: #f87171 !important; }
+        /* Responsive swap */
+        @media (min-width: 768px) {
+            .nav-mobile  { display: none !important; }
+            .nav-desktop { display: flex; }
+            #fullMenu    { display: none !important; }
+        }
+        /* ── More overlay — settings-style ─────────────────── */
+        .more-overlay {
+            position: fixed; inset: 0; z-index: 2000;
+            overflow-y: auto; -webkit-overflow-scrolling: touch;
+            background: #f1f5f9;
+        }
+        [data-theme="dark"] .more-overlay { background: #020617; }
+        .more-sticky-hdr {
+            position: sticky; top: 0; z-index: 10;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: calc(env(safe-area-inset-top, 0px) + 40px) 20px 12px;
+            background: rgba(241,245,249,0.95);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        [data-theme="dark"] .more-sticky-hdr { background: rgba(2,6,23,0.95); border-bottom-color: rgba(255,255,255,0.05); }
+        .more-profile {
+            margin: 14px 16px 0; padding: 14px 16px; border-radius: 18px;
+            display: flex; align-items: center; gap: 13px;
+            background: rgba(255,255,255,0.75); border: 1px solid rgba(0,0,0,0.07);
+        }
+        [data-theme="dark"] .more-profile { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.09); }
+        .more-sec-label {
+            font-size: 10px; font-weight: 800; text-transform: uppercase;
+            letter-spacing: .1em; color: #94a3b8; padding: 20px 20px 6px;
+        }
+        .more-card { margin: 0 16px; border-radius: 18px; overflow: hidden; background: rgba(255,255,255,0.75); border: 1px solid rgba(0,0,0,0.07); }
+        [data-theme="dark"] .more-card { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.09); }
+        .more-row {
+            display: flex; align-items: center; gap: 13px; padding: 13px 14px;
+            text-decoration: none; color: #0f172a;
+            -webkit-tap-highlight-color: transparent; transition: background .1s;
+        }
+        [data-theme="dark"] .more-row { color: #f1f5f9; }
+        .more-row:active { background: rgba(0,0,0,0.04); }
+        .more-row-danger { color: #ef4444 !important; }
+        .more-icon {
+            width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .more-divider { height: 1px; background: rgba(0,0,0,0.06); margin: 0 14px; }
+        [data-theme="dark"] .more-divider { background: rgba(255,255,255,0.07); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
 
         /* Map decorations — always dark since map is dark */
@@ -252,72 +326,153 @@ $avatarFallback = 'data:image/svg+xml;base64,' . base64_encode($svgAvatar);
     </button>
 
     <div id="driverSheet" class="driver-sheet">
-        <div class="drag-handle w-12 h-1 rounded-full mx-auto mb-6 cursor-pointer" onclick="closeSheet()"></div>
-        <div class="flex justify-between items-start mb-6">
-            <div>
-                <h3 id="sDriver" class="text-lg font-black" data-did=""><?= t('map.driver') ?></h3>
-                <p id="sVehicle" class="text-[9px] text-blue-500 font-bold uppercase tracking-widest"><?= t('map.vehicle') ?></p>
-                <span id="sStatus" class="status-pill s-pending">—</span>
+        <button class="ds-close" onclick="closeSheet()"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+        <div class="drag-handle w-8 h-1 rounded-full mx-auto mb-3 cursor-pointer" onclick="closeSheet()"></div>
+
+        <div class="flex items-center gap-3">
+            <div class="flex-1 min-w-0">
+                <div class="ds-name" id="sDriver" data-did=""><?= t('map.driver') ?></div>
+                <div class="ds-company" id="sVehicle"><?= t('map.vehicle') ?></div>
+                <span id="sStatus" class="status-pill s-pending" style="margin-top:5px">—</span>
             </div>
-            <div class="text-right">
-                <p class="speed-label text-[8px] font-bold uppercase"><?= t('map.speed') ?></p>
-                <p id="sSpeed" class="speed-val text-xl font-black">0 km/h</p>
-                <p id="sLastUpdate" class="speed-label text-[8px] font-bold uppercase mt-1"><?= t('map.ping') ?> —</p>
+            <div class="ds-speed-box">
+                <div class="ds-speed-val" id="sSpeed">0</div>
+                <div class="ds-speed-lbl">km/h</div>
             </div>
         </div>
-        <div class="space-y-4">
-            <div class="info-block space-y-3">
-                <div class="flex items-center gap-3">
-                    <i data-lucide="map-pin" class="w-3 h-3 text-emerald-500"></i>
-                    <p id="sDest" class="info-text text-[10px] font-medium truncate">---</p>
-                </div>
-                <div class="flex items-center gap-3">
-                    <i data-lucide="user" class="w-3 h-3 text-blue-500"></i>
-                    <p id="sClient" class="info-text text-[10px] font-medium">---</p>
-                </div>
+
+        <div class="ds-route">
+            <i data-lucide="navigation" class="w-3.5 h-3.5 text-blue-500 shrink-0"></i>
+            <div class="ds-route-text">
+                <strong id="sDest">---</strong>
+                <span id="sClient">---</span>
             </div>
-            <button onclick="closeSheet()" class="close-btn w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
-                <?= t('map.close_details') ?>
-            </button>
         </div>
+        <div class="ds-ping" id="sLastUpdate"><?= t('map.ping') ?> —</div>
     </div>
 
-    <!-- Bottom nav -->
-    <nav class="nav-bottom">
+    <!-- Mobile nav (5 items) -->
+    <nav class="nav-pill-base nav-mobile">
         <a href="/SRMT/public/admin/"><i data-lucide="home"></i><?= t('nav.home') ?></a>
         <a href="/SRMT/public/admin/rides.php"><i data-lucide="calendar"></i><?= t('nav.rides') ?></a>
+        <a href="/SRMT/public/admin/schedule-board.php"><i data-lucide="calendar-days"></i><?= t('nav.board') ?></a>
         <a href="/SRMT/public/admin/live-map.php" class="sr-nav-active"><i data-lucide="locate-fixed"></i><?= t('nav.live') ?></a>
-        <a href="/SRMT/public/admin/financial.php"><i data-lucide="wallet"></i><?= t('nav.cash') ?></a>
         <button onclick="toggleMenu()"><i data-lucide="grid-2x2"></i><?= t('nav.more') ?></button>
     </nav>
 
-    <!-- Full-screen overlay menu -->
-    <div id="fullMenu" class="fixed inset-0 z-[2000] hidden">
-        <div class="menu-backdrop absolute inset-0" onclick="toggleMenu()"></div>
-        <div class="menu-content relative h-full flex flex-col p-10 overflow-y-auto no-scrollbar">
-            <div class="flex justify-between items-center mb-12">
-                <h2 class="text-3xl font-black italic tracking-tighter">SyncRide <span class="text-blue-600">OS</span></h2>
-                <button onclick="toggleMenu()" class="glass w-12 h-12 rounded-full flex items-center justify-center border-0">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <nav class="grid grid-cols-1 gap-5 text-xl font-bold">
-                <a href="/SRMT/public/admin/"                 class="menu-link flex items-center gap-4"><i data-lucide="layout-grid"></i> <?= t('nav.dashboard') ?></a>
-                <a href="/SRMT/public/admin/rides.php"        class="menu-link flex items-center gap-4"><i data-lucide="navigation"></i> <?= t('nav.rides') ?></a>
-                <a href="/SRMT/public/admin/live-map.php"     class="menu-link menu-active flex items-center gap-4"><i data-lucide="map"></i> <?= t('nav.live_map') ?></a>
-                <hr class="menu-hr border-t">
-                <a href="/SRMT/public/admin/users.php"        class="menu-link flex items-center gap-4"><i data-lucide="users"></i> <?= t('nav.team') ?></a>
-                <a href="/SRMT/public/admin/fleet.php"        class="menu-link flex items-center gap-4"><i data-lucide="truck"></i> <?= t('nav.fleet') ?></a>
-                <a href="/SRMT/public/admin/financial.php"    class="menu-link flex items-center gap-4"><i data-lucide="banknote"></i> <?= t('nav.financial') ?></a>
-                <hr class="menu-hr border-t">
-                <a href="/SRMT/public/admin/driver-stats.php" class="menu-link flex items-center gap-4"><i data-lucide="bar-chart-3"></i> <?= t('nav.stats') ?></a>
-                <a href="/SRMT/public/admin/no-shows.php"     class="menu-link flex items-center gap-4"><i data-lucide="alert-triangle"></i> <?= t('nav.noshows') ?></a>
-                <a href="/SRMT/public/admin/storage.php"      class="menu-link flex items-center gap-4"><i data-lucide="database"></i> <?= t('nav.storage') ?></a>
-                <a href="/SRMT/public/admin/settings.php"     class="menu-link flex items-center gap-4"><i data-lucide="settings-2"></i> <?= t('nav.settings') ?></a>
-                <hr class="menu-hr border-t">
-                <a href="/SRMT/public/auth/logout.php"        class="menu-link menu-link-danger flex items-center gap-4"><i data-lucide="log-out"></i> <?= t('nav.logout') ?></a>
-            </nav>
+    <!-- Desktop nav (all items) -->
+    <nav class="nav-pill-base nav-desktop">
+        <div class="nav-desktop-inner">
+            <a href="/SRMT/public/admin/"><i data-lucide="home"></i><?= t('nav.home') ?></a>
+            <a href="/SRMT/public/admin/rides.php"><i data-lucide="calendar"></i><?= t('nav.rides') ?></a>
+            <a href="/SRMT/public/admin/schedule-board.php"><i data-lucide="calendar-days"></i><?= t('nav.board') ?></a>
+            <a href="/SRMT/public/admin/live-map.php" class="sr-nav-active"><i data-lucide="locate-fixed"></i><?= t('nav.live') ?></a>
+            <div class="nav-desktop-sep"></div>
+            <a href="/SRMT/public/admin/financial.php"><i data-lucide="wallet"></i><?= t('nav.cash') ?></a>
+            <a href="/SRMT/public/admin/import.php"><i data-lucide="file-spreadsheet"></i><?= t('nav.import') ?></a>
+            <div class="nav-desktop-sep"></div>
+            <a href="/SRMT/public/admin/users.php"><i data-lucide="users"></i><?= t('nav.team') ?></a>
+            <a href="/SRMT/public/admin/fleet.php"><i data-lucide="truck"></i><?= t('nav.fleet') ?></a>
+            <a href="/SRMT/public/admin/pricing.php"><i data-lucide="tag"></i><?= t('nav.pricing') ?></a>
+            <div class="nav-desktop-sep"></div>
+            <a href="/SRMT/public/admin/driver-stats.php"><i data-lucide="bar-chart-3"></i><?= t('nav.stats') ?></a>
+            <a href="/SRMT/public/admin/no-shows.php"><i data-lucide="alert-triangle"></i><?= t('nav.noshows') ?></a>
+            <a href="/SRMT/public/admin/partnerships.php"><i data-lucide="handshake"></i><?= t('nav.partnerships') ?></a>
+            <div class="nav-desktop-sep"></div>
+            <a href="/SRMT/public/admin/storage.php"><i data-lucide="database"></i><?= t('nav.storage') ?></a>
+            <a href="/SRMT/public/admin/settings.php"><i data-lucide="mail"></i><?= t('nav.automations') ?></a>
+            <div class="nav-desktop-sep"></div>
+            <a href="/SRMT/public/auth/logout.php" class="nav-danger"><i data-lucide="log-out"></i><?= t('nav.logout') ?></a>
         </div>
+    </nav>
+
+    <!-- More overlay — iOS settings style (mobile only) -->
+    <div id="fullMenu" class="more-overlay hidden">
+        <div class="more-sticky-hdr">
+            <h1 class="text-2xl font-black"><?= t('nav.more') ?></h1>
+            <button onclick="toggleMenu()" class="glass w-10 h-10 rounded-full flex items-center justify-center border-0">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+        <div class="more-profile">
+            <img src="<?= $safePhoto ?>" onerror="this.onerror=null;this.src='<?= $avatarFallback ?>'"
+                 class="w-14 h-14 rounded-full border-2 border-blue-500/20 object-cover flex-shrink-0" alt="">
+            <div class="flex-1 min-w-0">
+                <h3 class="font-bold text-[16px] leading-snug truncate"><?= htmlspecialchars($userName) ?></h3>
+                <p class="text-[11px] text-zinc-500 font-semibold uppercase tracking-wider mt-0.5"><?= t('nav.system_admin') ?></p>
+            </div>
+        </div>
+        <p class="more-sec-label"><?= t('nav.sec_operations') ?></p>
+        <div class="more-card">
+            <a href="/SRMT/public/admin/financial.php" onclick="toggleMenu()" class="more-row">
+                <div class="more-icon" style="background:rgba(37,99,235,.12)"><i data-lucide="wallet" class="w-[17px] h-[17px] text-blue-500"></i></div>
+                <span class="flex-1 text-[15px] font-semibold"><?= t('nav.financial') ?></span>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-zinc-400"></i>
+            </a>
+        </div>
+        <p class="more-sec-label"><?= t('nav.sec_team') ?></p>
+        <div class="more-card">
+            <a href="/SRMT/public/admin/users.php" onclick="toggleMenu()" class="more-row">
+                <div class="more-icon" style="background:rgba(139,92,246,.12)"><i data-lucide="users" class="w-[17px] h-[17px] text-violet-500"></i></div>
+                <span class="flex-1 text-[15px] font-semibold"><?= t('nav.team') ?></span>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-zinc-400"></i>
+            </a>
+            <div class="more-divider"></div>
+            <a href="/SRMT/public/admin/fleet.php" onclick="toggleMenu()" class="more-row">
+                <div class="more-icon" style="background:rgba(249,115,22,.12)"><i data-lucide="truck" class="w-[17px] h-[17px] text-orange-500"></i></div>
+                <span class="flex-1 text-[15px] font-semibold"><?= t('nav.fleet') ?></span>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-zinc-400"></i>
+            </a>
+            <div class="more-divider"></div>
+            <a href="/SRMT/public/admin/pricing.php" onclick="toggleMenu()" class="more-row">
+                <div class="more-icon" style="background:rgba(6,182,212,.12)"><i data-lucide="tag" class="w-[17px] h-[17px] text-cyan-500"></i></div>
+                <span class="flex-1 text-[15px] font-semibold"><?= t('nav.pricing') ?></span>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-zinc-400"></i>
+            </a>
+        </div>
+        <p class="more-sec-label"><?= t('nav.sec_reports') ?></p>
+        <div class="more-card">
+            <a href="/SRMT/public/admin/driver-stats.php" onclick="toggleMenu()" class="more-row">
+                <div class="more-icon" style="background:rgba(37,99,235,.12)"><i data-lucide="bar-chart-3" class="w-[17px] h-[17px] text-blue-500"></i></div>
+                <span class="flex-1 text-[15px] font-semibold"><?= t('nav.stats') ?></span>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-zinc-400"></i>
+            </a>
+            <div class="more-divider"></div>
+            <a href="/SRMT/public/admin/no-shows.php" onclick="toggleMenu()" class="more-row">
+                <div class="more-icon" style="background:rgba(245,158,11,.12)"><i data-lucide="alert-triangle" class="w-[17px] h-[17px] text-amber-500"></i></div>
+                <span class="flex-1 text-[15px] font-semibold"><?= t('nav.noshows') ?></span>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-zinc-400"></i>
+            </a>
+            <div class="more-divider"></div>
+            <a href="/SRMT/public/admin/partnerships.php" onclick="toggleMenu()" class="more-row">
+                <div class="more-icon" style="background:rgba(34,197,94,.12)"><i data-lucide="handshake" class="w-[17px] h-[17px] text-green-500"></i></div>
+                <span class="flex-1 text-[15px] font-semibold"><?= t('nav.partnerships') ?></span>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-zinc-400"></i>
+            </a>
+        </div>
+        <p class="more-sec-label"><?= t('nav.sec_system') ?></p>
+        <div class="more-card">
+            <a href="/SRMT/public/admin/storage.php" onclick="toggleMenu()" class="more-row">
+                <div class="more-icon" style="background:rgba(100,116,139,.12)"><i data-lucide="database" class="w-[17px] h-[17px] text-slate-500"></i></div>
+                <span class="flex-1 text-[15px] font-semibold"><?= t('nav.storage') ?></span>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-zinc-400"></i>
+            </a>
+            <div class="more-divider"></div>
+            <a href="/SRMT/public/admin/settings.php" onclick="toggleMenu()" class="more-row">
+                <div class="more-icon" style="background:rgba(251,146,60,.12)"><i data-lucide="mail" class="w-[17px] h-[17px] text-orange-400"></i></div>
+                <span class="flex-1 text-[15px] font-semibold"><?= t('nav.automations') ?></span>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-zinc-400"></i>
+            </a>
+        </div>
+        <p class="more-sec-label"><?= t('nav.sec_account') ?></p>
+        <div class="more-card">
+            <a href="/SRMT/public/auth/logout.php" class="more-row more-row-danger">
+                <div class="more-icon" style="background:rgba(239,68,68,.12)"><i data-lucide="log-out" class="w-[17px] h-[17px] text-red-500"></i></div>
+                <span class="flex-1 text-[15px] font-semibold"><?= t('nav.logout') ?></span>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-red-300"></i>
+            </a>
+        </div>
+        <div style="height:48px"></div>
     </div>
 
     <script>
@@ -330,7 +485,11 @@ $avatarFallback = 'data:image/svg+xml;base64,' . base64_encode($svgAvatar);
             ping:       "<?= addslashes(t('map.ping')) ?>"
         };
         lucide.createIcons();
-        function toggleMenu() { document.getElementById('fullMenu').classList.toggle('hidden'); }
+        function toggleMenu() {
+            const m = document.getElementById('fullMenu');
+            m.classList.toggle('hidden');
+            if (!m.classList.contains('hidden')) m.scrollTop = 0;
+        }
 
         const map = L.map('adminMap', { zoomControl: false, attributionControl: false, center: [41.15, -8.62], zoom: 13 });
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
@@ -338,12 +497,33 @@ $avatarFallback = 'data:image/svg+xml;base64,' . base64_encode($svgAvatar);
         }).addTo(map);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        const carIconSvg = (heading = 0) => `
-            <svg width="40" height="40" viewBox="0 0 100 100" class="car-marker" style="transform:rotate(${heading}deg)">
-                <circle cx="50" cy="50" r="45" fill="#3b82f6" fill-opacity="0.2" stroke="#3b82f6" stroke-width="2"/>
-                <circle cx="50" cy="50" r="10" fill="#3b82f6"/>
-                <path d="M50 10 L50 35" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+        const carIconSvg = (heading = 0, statusId = 0) => {
+            const s      = parseInt(statusId);
+            const inTrip = (s === 3 || s === 5);
+            const body   = inTrip ? '#7c3aed' : '#2563eb';
+            const dark   = inTrip ? '#4c1d95' : '#1e3a8a';
+            const glass  = 'rgba(219,234,254,0.82)';
+            return `<svg width="54" height="54" viewBox="-27 -27 54 54" xmlns="http://www.w3.org/2000/svg" class="car-marker">
+                <g transform="rotate(${heading})">
+                    <!-- body — smooth sedan silhouette, no protruding wheels -->
+                    <path d="M0,-21 C5,-20 12,-16 12,-9 C12,-2 12,6 11,12 C9,17 6,20 3,21 L-3,21 C-6,20 -9,17 -11,12 C-12,6 -12,-2 -12,-9 C-12,-16 -5,-20 0,-21 Z" fill="${body}"/>
+                    <!-- front windshield -->
+                    <path d="M-8,-14 C-9,-11 -9,-6 -8,-4 L8,-4 C9,-6 9,-11 8,-14 Z" fill="${glass}"/>
+                    <!-- panoramic roof panel -->
+                    <path d="M-9,-4 L-9,9 L9,9 L9,-4 Z" fill="${dark}" opacity="0.30"/>
+                    <!-- rear window -->
+                    <path d="M-7,9 C-7,13 -4,15 0,16 C4,15 7,13 7,9 Z" fill="${glass}" opacity="0.65"/>
+                    <!-- headlights -->
+                    <ellipse cx="-9" cy="-17" rx="2.5" ry="1.4" fill="#fef9c3" opacity="0.95"/>
+                    <ellipse cx="9"  cy="-17" rx="2.5" ry="1.4" fill="#fef9c3" opacity="0.95"/>
+                    <!-- taillights -->
+                    <ellipse cx="-8" cy="17"  rx="2.3" ry="1.4" fill="#fca5a5" opacity="0.95"/>
+                    <ellipse cx="8"  cy="17"  rx="2.3" ry="1.4" fill="#fca5a5" opacity="0.95"/>
+                    <!-- nose dot — direction indicator -->
+                    <circle cx="0" cy="-21" r="2" fill="white" opacity="0.90"/>
+                </g>
             </svg>`;
+        };
 
         const geoCache = {};
         async function getCoords(address) {
@@ -365,22 +545,29 @@ $avatarFallback = 'data:image/svg+xml;base64,' . base64_encode($svgAvatar);
         }
 
         function targetAddressFor(d) {
-            return parseInt(d.status_id) === 3 ? d.serviceTargetPoint : d.serviceStartPoint;
+            // Aggregate masters: use the current active stop location from the DB
+            if (d.is_aggregate_master == 1 && d.current_stop_location) {
+                return d.current_stop_location;
+            }
+            const s = parseInt(d.status_id);
+            return (s === 3 || s === 5) ? d.serviceTargetPoint : d.serviceStartPoint;
         }
 
         async function ensureRoute(entry) {
             const d = entry.data;
             const status = parseInt(d.status_id);
             const targetAddr = targetAddressFor(d);
+            const inTrip = (status === 3 || status === 5);
+            const lineColor = inTrip ? '#8b5cf6' : '#3b82f6';
             if (status === 4 || !targetAddr) {
-                if (entry.routingControl) { map.removeControl(entry.routingControl); entry.routingControl = null; entry.lastTarget = null; }
+                if (entry.routingControl) { map.removeControl(entry.routingControl); entry.routingControl = null; entry.lastTarget = null; entry.lastColor = null; }
                 if (entry.destMarker)     { map.removeLayer(entry.destMarker); entry.destMarker = null; entry.destPinType = null; }
                 return;
             }
             const targetCoords = await getCoords(targetAddr);
             if (!targetCoords) return;
             const driverPos = entry.marker.getLatLng();
-            const pinType = status === 3 ? 'dropoff' : 'pickup';
+            const pinType = inTrip ? 'dropoff' : 'pickup';
             if (!entry.destMarker) {
                 entry.destMarker = L.marker(targetCoords, { icon: destIconFor(pinType), interactive: false }).addTo(map);
                 entry.destPinType = pinType;
@@ -388,15 +575,21 @@ $avatarFallback = 'data:image/svg+xml;base64,' . base64_encode($svgAvatar);
                 entry.destMarker.setLatLng(targetCoords);
                 if (entry.destPinType !== pinType) { entry.destMarker.setIcon(destIconFor(pinType)); entry.destPinType = pinType; }
             }
-            if (!entry.routingControl || entry.lastTarget !== targetAddr) {
+            if (!entry.routingControl || entry.lastTarget !== targetAddr || entry.lastColor !== lineColor) {
                 if (entry.routingControl) map.removeControl(entry.routingControl);
                 entry.routingControl = L.Routing.control({
                     waypoints: [driverPos, targetCoords],
                     routeWhileDragging: false, addWaypoints: false, show: false,
-                    lineOptions: { styles: [{ color: '#3b82f6', opacity: 0.85, weight: 5 }] },
+                    lineOptions: { styles: [{ color: lineColor, opacity: 0.9, weight: 6 }] },
                     createMarker: () => null, fitSelectedRoutes: false
                 }).addTo(map);
                 entry.lastTarget = targetAddr;
+                entry.lastColor = lineColor;
+                // Fit map to show full route — pad enough to see car + destination
+                entry.routingControl.on('routesfound', e => {
+                    const bounds = e.routes[0]?.bounds;
+                    if (bounds) map.fitBounds(bounds, { padding: [80, 120], maxZoom: 15, animate: true });
+                });
             } else {
                 entry.routingControl.setWaypoints([driverPos, targetCoords]);
             }
@@ -430,7 +623,7 @@ $avatarFallback = 'data:image/svg+xml;base64,' . base64_encode($svgAvatar);
         }
 
         let drivers = {}, isFetching = false;
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date().toLocaleDateString('en-CA'); // local YYYY-MM-DD (not UTC)
         let lastUpdateTimer = null, didInitialFit = false;
 
         function startLastUpdateTimer() {
@@ -478,15 +671,17 @@ $avatarFallback = 'data:image/svg+xml;base64,' . base64_encode($svgAvatar);
                     activeIds.push(id);
                     const pos = [parseFloat(d.latitude), parseFloat(d.longitude)];
                     if (!drivers[id]) {
-                        const icon = L.divIcon({ className: 'custom-car', html: carIconSvg(d.heading), iconSize: [40, 40], iconAnchor: [20, 20] });
+                        const icon = L.divIcon({ className: 'custom-car', html: carIconSvg(d.heading, d.status_id), iconSize: [54, 54], iconAnchor: [27, 27] });
                         const m = L.marker(pos, { icon }).addTo(map);
                         m.on('click', () => openSheet(id));
-                        drivers[id] = { marker: m, data: d, routingControl: null, lastTarget: null, destMarker: null, destPinType: null };
+                        drivers[id] = { marker: m, data: d, routingControl: null, lastTarget: null, lastColor: null, destMarker: null, destPinType: null };
                     } else {
+                        const prev = drivers[id].data;
                         drivers[id].data = d;
                         drivers[id].marker.setLatLng(pos);
-                        const el = drivers[id].marker.getElement();
-                        if (el) { const svg = el.querySelector('svg'); if (svg) svg.style.transform = `rotate(${d.heading || 0}deg)`; }
+                        if (Math.abs((d.heading || 0) - (prev.heading || 0)) > 4 || d.status_id !== prev.status_id) {
+                            drivers[id].marker.setIcon(L.divIcon({ className: 'custom-car', html: carIconSvg(d.heading, d.status_id), iconSize: [54, 54], iconAnchor: [27, 27] }));
+                        }
                     }
                     ensureRoute(drivers[id]);
                     if (isSheetOpen(id)) updateSheetData(d);
@@ -508,13 +703,14 @@ $avatarFallback = 'data:image/svg+xml;base64,' . base64_encode($svgAvatar);
 
         function openSheet(id) {
             const d = drivers[id].data;
+            const isInTrip = (parseInt(d.status_id) === 3 || parseInt(d.status_id) === 5);
             document.getElementById('sDriver').textContent = d.driver_name;
             document.getElementById('sDriver').dataset.did = id;
-            document.getElementById('sSpeed').textContent = Math.round(d.speed || 0) + " km/h";
-            document.getElementById('sLastUpdate').textContent = "Ping " + formatAgo(d.last_update);
-            document.getElementById('sDest').textContent = d.serviceTargetPoint || "En route…";
+            document.getElementById('sSpeed').textContent = Math.round((d.speed || 0) * 3.6);
+            document.getElementById('sLastUpdate').textContent = SR_MAP.ping + " " + formatAgo(d.last_update);
+            document.getElementById('sDest').textContent = (isInTrip ? d.serviceTargetPoint : d.serviceStartPoint) || "En route…";
             document.getElementById('sClient').textContent = d.NomeCliente || "—";
-            document.getElementById('sVehicle').textContent = "Vehicle " + (d.vehicle_plate || "Sync-X");
+            document.getElementById('sVehicle').textContent = d.vehicle_plate || "SyncRide";
             setStatusPill(d);
             document.getElementById('driverSheet').classList.add('active');
             startLastUpdateTimer();
@@ -522,8 +718,10 @@ $avatarFallback = 'data:image/svg+xml;base64,' . base64_encode($svgAvatar);
         }
 
         function updateSheetData(d) {
-            document.getElementById('sSpeed').textContent = Math.round(d.speed || 0) + " km/h";
-            document.getElementById('sLastUpdate').textContent = "Ping " + formatAgo(d.last_update);
+            const isInTrip = (parseInt(d.status_id) === 3 || parseInt(d.status_id) === 5);
+            document.getElementById('sSpeed').textContent = Math.round((d.speed || 0) * 3.6);
+            document.getElementById('sLastUpdate').textContent = SR_MAP.ping + " " + formatAgo(d.last_update);
+            document.getElementById('sDest').textContent = (isInTrip ? d.serviceTargetPoint : d.serviceStartPoint) || "En route…";
             setStatusPill(d);
         }
 

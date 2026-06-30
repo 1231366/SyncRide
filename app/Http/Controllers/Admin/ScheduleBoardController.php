@@ -42,16 +42,15 @@ final class ScheduleBoardController extends BaseController
 
         $rides = $this->services->getScheduledRides($from, $to);
 
-        $palette      = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16','#f97316','#14b8a6'];
-        $driverColors = [];
-        $events       = [];
+        // Cor determinística a partir do driver_id — TEM de ser idêntica à fórmula
+        // da legenda no JS (PALETTE[id % len]), senão o mesmo motorista aparece com
+        // cores diferentes entre a grelha e a legenda.
+        $palette = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16','#f97316','#14b8a6'];
+        $events  = [];
 
         foreach ($rides as $r) {
             $driverId = $r['driver_id'] ? (int) $r['driver_id'] : null;
-            if ($driverId !== null && !isset($driverColors[$driverId])) {
-                $driverColors[$driverId] = $palette[count($driverColors) % count($palette)];
-            }
-            $color = $driverId !== null ? $driverColors[$driverId] : '#64748b';
+            $color = $driverId !== null ? $palette[$driverId % count($palette)] : '#64748b';
 
             $startDt = $r['serviceDate'] . 'T' . substr((string) $r['serviceStartTime'], 0, 5);
             $endDt   = $r['serviceDate'] . 'T' . date('H:i', strtotime($r['serviceStartTime']) + 3600);
@@ -67,15 +66,26 @@ final class ScheduleBoardController extends BaseController
                 'backgroundColor' => $color,
                 'borderColor'     => $color,
                 'extendedProps'   => [
-                    'driver_id'   => $driverId,
-                    'driver_name' => $r['driver_name'] ?? null,
-                    'pickup'      => $r['serviceStartPoint']  ?? '',
-                    'dropoff'     => $r['serviceTargetPoint'] ?? '',
-                    'flight'      => $r['FlightNumber']       ?? '',
-                    'pax_adt'     => (int) $r['paxADT'],
-                    'pax_chd'     => (int) $r['paxCHD'],
-                    'pax_bby'     => (int) $r['paxBBY'],
-                    'type'        => (int) $r['serviceType'],
+                    'driver_id'    => $driverId,
+                    'driver_name'  => $r['driver_name'] ?? null,
+                    'driver_color' => $color,
+                    'client'       => $r['NomeCliente']      ?? '',
+                    'pickup'       => $r['serviceStartPoint']  ?? '',
+                    'dropoff'      => $r['serviceTargetPoint'] ?? '',
+                    'flight'       => $r['FlightNumber']       ?? '',
+                    'pax_adt'      => (int) $r['paxADT'],
+                    'pax_chd'      => (int) $r['paxCHD'],
+                    'pax_bby'      => (int) $r['paxBBY'],
+                    'type'         => (int) $r['serviceType'],
+                    // Cockpit: estado operacional ao vivo + timestamps de cada etapa.
+                    'status_id'    => (int) ($r['status_id'] ?? 0),
+                    'ts'           => [
+                        'start_pickup'   => $r['ts_start_pickup']   ?? null,
+                        'arrived_pickup' => $r['ts_arrived_pickup'] ?? null,
+                        'with_client'    => $r['ts_with_client']    ?? null,
+                        'start_trip'     => $r['ts_start_trip']     ?? null,
+                        'completed'      => $r['ts_completed']      ?? null,
+                    ],
                 ],
             ];
         }
@@ -116,6 +126,11 @@ final class ScheduleBoardController extends BaseController
 
         // Reschedule
         $this->services->reschedule($rideId, $date, strlen($time) === 5 ? $time . ':00' : $time);
+
+        // Optional: edição rápida do nº de voo a partir do Quadro (cockpit).
+        if (array_key_exists('flight', $_POST)) {
+            $this->services->setFlightNumber($rideId, trim((string) $this->input('flight', '')));
+        }
 
         // Driver assignment
         if ($rawDriver === 'unassign') {

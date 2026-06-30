@@ -62,6 +62,44 @@ final class CompanyRepository
         $this->db->prepare('DELETE FROM Companies WHERE id = :id')->execute(['id' => $id]);
     }
 
+    // ── Billing ──────────────────────────────────────────────────────────
+
+    /** Persist Stripe billing fields after a successful checkout / webhook. */
+    public function updateBilling(int $id, array $fields): void
+    {
+        $allowed = [
+            'stripe_customer_id', 'stripe_subscription_id',
+            'sub_status', 'sub_plan', 'sub_price_id',
+            'sub_current_period_end', 'sub_cancel_at_end',
+        ];
+        $set    = [];
+        $params = ['id' => $id];
+        foreach ($fields as $col => $val) {
+            if (!in_array($col, $allowed, true)) { continue; }
+            $set[]        = "`{$col}` = :{$col}";
+            $params[$col] = $val;
+        }
+        if ($set === []) { return; }
+        $this->db->prepare('UPDATE Companies SET ' . implode(', ', $set) . ' WHERE id = :id')
+            ->execute($params);
+    }
+
+    /** Toggle grace_access for a company (super-admin only). */
+    public function toggleGrace(int $id, bool $grace): void
+    {
+        $this->db->prepare('UPDATE Companies SET grace_access = :g WHERE id = :id')
+            ->execute(['g' => (int) $grace, 'id' => $id]);
+    }
+
+    /** Find a company by its Stripe customer ID. */
+    public function findByStripeCustomer(string $customerId): ?Company
+    {
+        $stmt = $this->db->prepare('SELECT * FROM Companies WHERE stripe_customer_id = :cid LIMIT 1');
+        $stmt->execute(['cid' => $customerId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? Company::fromRow($row) : null;
+    }
+
     public function slugExists(string $slug, int $excludeId = 0): bool
     {
         $stmt = $this->db->prepare('SELECT 1 FROM Companies WHERE slug = :slug AND id != :id');

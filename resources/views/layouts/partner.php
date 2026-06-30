@@ -62,6 +62,13 @@ $navClass = static fn(string $id): string => $id === $active ? 'active' : '';
     <script>lucide.createIcons();</script>
     <?php include __DIR__ . '/_csrf.php'; ?>
     <?= $extraScripts ?>
+    <?php include __DIR__ . '/_sr_toast.php'; ?>
     <?php include __DIR__ . '/_change_password.php'; ?>
+<script>
+(function() {
+    const BGeo = window.Capacitor?.Plugins?.BackgroundGeolocation;
+    if (BGeo?.registerFcmToken) BGeo.registerFcmToken().catch(() => {});
+})();
+</script>
 </body>
 </html>

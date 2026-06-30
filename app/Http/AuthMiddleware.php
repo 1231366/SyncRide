@@ -40,6 +40,11 @@ final class AuthMiddleware
         if ($allowedRoles !== [] && !in_array($role, $allowedRoles, true)) {
             self::forbidden();
         }
+
+        // Subscription gate for company admins
+        if ($role === 1) {
+            BillingGate::handle();
+        }
     }
 
     private static function redirectTo(string $location): never

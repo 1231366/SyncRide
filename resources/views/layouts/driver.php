@@ -19,6 +19,11 @@ $userPhotoSrc = $userPhoto
     : '/SRMT/public/assets/images/icons/Syncride.png';
 
 $navClass = static fn(string $id): string => $id === $active ? 'active' : '';
+$headerLabel = [
+    'agenda'   => t('drv.hdr_agenda'),
+    'stats'    => t('drv.hdr_stats'),
+    'settings' => t('drv.hdr_settings'),
+][$active] ?? 'SyncRide';
 ?><!DOCTYPE html>
 <html lang="en" translate="no" data-bs-theme="light" style="background:#f8fafc;">
 <head>
@@ -66,44 +71,68 @@ $navClass = static fn(string $id): string => $id === $active ? 'active' : '';
             font-family: var(--font-primary);
             background-color: var(--bg-body);
             color: var(--text-main);
-            padding-bottom: calc(80px + var(--safe-bottom));
+            padding-bottom: calc(94px + var(--safe-bottom));
             margin: 0;
+            -webkit-tap-highlight-color: transparent;
         }
         .app-header {
-            background-color: var(--bg-card);
-            border-bottom: 1px solid var(--border-color);
-            padding: calc(15px + var(--safe-top)) 20px 15px 20px;
-            display: flex; justify-content: space-between; align-items: center;
             position: sticky; top: 0; z-index: 1020;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: calc(16px + var(--safe-top)) 20px 12px;
+            background: var(--bg-body);
+            background: color-mix(in srgb, var(--bg-body) 82%, transparent);
+            backdrop-filter: blur(16px) saturate(180%); -webkit-backdrop-filter: blur(16px) saturate(180%);
         }
-        .brand-logo { height: 30px; width: auto; }
-        .user-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); }
+        .hdr-title { font-family: var(--font-display); font-size: 1.35rem; font-weight: 800; color: var(--text-main); letter-spacing: -.01em; }
+        .brand-logo { height: 28px; width: auto; }
+        .theme-btn {
+            width: 38px; height: 38px; border-radius: 50%;
+            background: var(--bg-raised); border: 1px solid var(--border-color);
+            color: var(--text-muted); display: flex; align-items: center; justify-content: center; cursor: pointer;
+        }
+        .user-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); display: block; }
+        .user-avatar-default {
+            display: flex; align-items: center; justify-content: center;
+            background: var(--accent-soft); color: var(--primary-accent); font-size: 1.1rem;
+        }
         .bottom-nav {
-            position: fixed; bottom: 0; left: 0; width: 100%;
-            height: calc(70px + var(--safe-bottom));
-            background-color: var(--bg-card); border-top: 1px solid var(--border-color);
-            display: flex; justify-content: space-around; align-items: flex-start;
-            z-index: 1030; padding-bottom: var(--safe-bottom); padding-top: 10px;
+            position: fixed; bottom: calc(12px + var(--safe-bottom)); left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 28px); max-width: 440px; height: 62px;
+            background: rgba(255,255,255,0.82);
+            backdrop-filter: blur(22px) saturate(180%); -webkit-backdrop-filter: blur(22px) saturate(180%);
+            border: 1px solid rgba(0,0,0,0.06); border-radius: 24px;
+            box-shadow: 0 10px 34px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.06);
+            display: flex; align-items: stretch; gap: 2px; padding: 6px; z-index: 1030;
+        }
+        [data-bs-theme="dark"] .bottom-nav {
+            background: rgba(20,28,46,0.86); border-color: rgba(255,255,255,0.08);
+            box-shadow: 0 10px 34px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
         }
         .nav-item-mobile {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 500;
-            width: 100%; height: 50px; transition: color 0.2s;
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 3px; border-radius: 18px;
+            color: var(--text-faint); text-decoration: none;
+            font-size: .64rem; font-weight: 600; transition: color .2s, background .2s;
         }
-        .nav-item-mobile i { font-size: 1.5rem; margin-bottom: 4px; }
-        .nav-item-mobile.active { color: var(--primary-accent); }
-        body { background-color: var(--bg-body); color: var(--text-main); }
+        .nav-item-mobile i { font-size: 1.25rem; }
+        .nav-item-mobile:active { transform: scale(.94); }
+        .nav-item-mobile.active { color: var(--primary-accent); background: var(--accent-soft); }
     </style>
     <?= $extraHead ?>
 </head>
 <body>
     <header class="app-header">
-        <img src="/SRMT/public/assets/images/icons/Syncride.png" alt="SyncRide" class="brand-logo" id="driver-logo">
-        <div class="d-flex align-items-center gap-3">
-            <button class="btn btn-link text-muted p-0 border-0" id="theme-toggle">
-                <i class="bi bi-moon-stars-fill fs-5" id="theme-icon"></i>
-            </button>
-            <img src="<?= View::e($userPhotoSrc) ?>" class="user-avatar shadow-sm" alt="" style="cursor:pointer" onclick="openChangePassword()" title="<?= t('pwd.title') ?>">
+        <div class="hdr-title" id="driver-logo"><?= View::e($headerLabel) ?></div>
+        <div class="d-flex align-items-center gap-2">
+            <button class="theme-btn" id="theme-toggle"><i class="bi bi-moon-stars-fill" id="theme-icon"></i></button>
+            <a href="/SRMT/public/driver/settings.php" aria-label="Definições">
+                <?php if ($userPhoto): ?>
+                    <img src="<?= View::e($userPhotoSrc) ?>" class="user-avatar" alt="">
+                <?php else: ?>
+                    <span class="user-avatar user-avatar-default"><i class="bi bi-person-fill"></i></span>
+                <?php endif; ?>
+            </a>
         </div>
     </header>
 
@@ -112,10 +141,10 @@ $navClass = static fn(string $id): string => $id === $active ? 'active' : '';
     </main>
 
     <nav class="bottom-nav">
-        <a href="/SRMT/public/driver/"           class="nav-item-mobile <?= $navClass('dashboard') ?>"><i class="bi bi-car-front-fill"></i><span>Rides</span></a>
-        <a href="/SRMT/public/driver/agenda.php" class="nav-item-mobile <?= $navClass('agenda') ?>">  <i class="bi bi-calendar3"></i><span>Agenda</span></a>
-        <a href="/SRMT/public/driver/stats.php"  class="nav-item-mobile <?= $navClass('stats') ?>">   <i class="bi bi-bar-chart-fill"></i><span>Stats</span></a>
-        <a href="/SRMT/public/auth/logout.php"   class="nav-item-mobile text-danger"><i class="bi bi-box-arrow-right"></i><span>Logout</span></a>
+        <a href="/SRMT/public/driver/"            class="nav-item-mobile <?= $navClass('dashboard') ?>"><i class="bi bi-car-front-fill"></i><span><?= t('drv.nav_rides') ?></span></a>
+        <a href="/SRMT/public/driver/agenda.php"  class="nav-item-mobile <?= $navClass('agenda') ?>"><i class="bi bi-calendar3"></i><span><?= t('drv.nav_agenda') ?></span></a>
+        <a href="/SRMT/public/driver/stats.php"   class="nav-item-mobile <?= $navClass('stats') ?>"><i class="bi bi-bar-chart-fill"></i><span><?= t('drv.nav_stats') ?></span></a>
+        <a href="/SRMT/public/driver/settings.php" class="nav-item-mobile <?= $navClass('settings') ?>"><i class="bi bi-gear-fill"></i><span><?= t('drv.nav_settings') ?></span></a>
     </nav>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -144,6 +173,7 @@ $navClass = static fn(string $id): string => $id === $active ? 'active' : '';
     </script>
     <?php include __DIR__ . '/_csrf.php'; ?>
     <?= $extraScripts ?>
+    <?php include __DIR__ . '/_sr_toast.php'; ?>
     <?php include __DIR__ . '/_change_password.php'; ?>
 </body>
 </html>

@@ -201,4 +201,11 @@ final class TenantSettingsRepository
     {
         return $this->get('wpp_agenda_enabled', '0') === '1';
     }
+
+    // WhatsApp tracking link ───────────────────────────────────────────────────
+
+    public function wppTrackEnabled(): bool
+    {
+        return $this->get('wpp_track_enabled', '0') === '1';
+    }
 }

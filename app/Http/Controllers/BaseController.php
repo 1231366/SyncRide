@@ -103,6 +103,22 @@ abstract class BaseController
         return $cached;
     }
 
+    /**
+     * Decodes a WAF-shielded body: JS sends `p=<base64(json)>` to bypass
+     * mod_security content inspection. Falls back to plain jsonBody() so
+     * direct API calls (e.g. tests) still work.
+     */
+    protected function shieldedBody(): array
+    {
+        if (isset($_POST['p'])) {
+            $decoded = base64_decode($_POST['p'], true);
+            if ($decoded !== false) {
+                return json_decode($decoded, true) ?? [];
+            }
+        }
+        return $this->jsonBody();
+    }
+
     protected function userId(): int
     {
         $id = Session::userId();

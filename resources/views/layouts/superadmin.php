@@ -47,7 +47,7 @@ $navClass = static function (string $id) use ($active): string {
     .bg-main {
         background: radial-gradient(circle at 50% -10%, #2e1065 0%, #020617 70%);
         background-color: #020617;
-        min-height: 100vh;
+        height: 100%;
     }
     [data-theme="light"] .bg-main {
         background: radial-gradient(circle at 50% -10%, #ede9fe 0%, #f1f5f9 65%);

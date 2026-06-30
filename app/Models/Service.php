@@ -13,13 +13,14 @@ namespace App\Models;
  */
 final class Service
 {
-    /** status_id values used by drivers / dashboards. Source: legacy code. */
+    /** status_id values used by drivers / dashboards.
+     *  Real sequence: 0 → 1 → 2 → 5 → 3 → 4 (non-sequential by design). */
     public const STATUS_PENDING       = 0;
     public const STATUS_ON_THE_WAY    = 1;
     public const STATUS_AT_PICKUP     = 2;
-    public const STATUS_WITH_CLIENT   = 3;
-    public const STATUS_ON_TRIP       = 4;
-    public const STATUS_COMPLETED     = 5;
+    public const STATUS_WITH_CLIENT   = 5;  // driver sends 5 after arriving at pickup
+    public const STATUS_ON_TRIP       = 3;  // driver sends 3 after boarding client
+    public const STATUS_COMPLETED     = 4;  // driver sends 4 to finish
 
     /** serviceType — 0 = shared, 1 = private. */
     public const TYPE_SHARED  = 0;

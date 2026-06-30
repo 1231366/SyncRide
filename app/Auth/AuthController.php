@@ -116,9 +116,9 @@ final class AuthController
         $role = (int) $user['role'];
         $lang = in_array($user['lang_pref'] ?? '', ['en', 'pt'], true) ? $user['lang_pref'] : 'en';
 
-        // Drivers (2) and partners (3) have no language switcher — they inherit the
-        // language of their company's admin, so the whole company stays consistent.
-        if (in_array($role, [2, 3], true) && isset($user['company_id']) && $user['company_id'] !== null) {
+        // Partners (3) have no language switcher — they inherit the company admin's language.
+        // Drivers (2) keep their own lang_pref set in their settings.
+        if ($role === 3 && isset($user['company_id']) && $user['company_id'] !== null) {
             try {
                 $stmt = Database::connection()->prepare(
                     "SELECT lang_pref FROM Users

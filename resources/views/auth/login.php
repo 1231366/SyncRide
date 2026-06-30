@@ -119,6 +119,13 @@ $errorCode = $errorCode ?? null;
 
             <button type="submit" class="btn">Sign in</button>
         </form>
+
+        <div style="text-align:center;margin-top:20px;font-size:13px;color:#64748b;font-weight:500;">
+            Ainda não tens conta?
+            <a href="/SRMT/public/auth/register.php" style="color:#2563eb;font-weight:700;text-decoration:none;">
+                Criar conta grátis →
+            </a>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>

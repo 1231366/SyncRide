@@ -1182,7 +1182,7 @@ ob_start();
             else { toastr.error('Error'); }
         });
     }
-    function editTravel(id, dataHora, condutor, recolha, entrega, paxADT, paxCHD, paxBBY, flightNumber, clientName, clientNumber, serviceType, totalPrice, valorMotorista, driverNoteB64, adminNoteB64) {
+    function editTravel(id, dataHora, condutor, recolha, entrega, paxADT, paxCHD, paxBBY, flightNumber, clientName, clientNumber, serviceType, totalPrice, valorMotorista, driverNoteB64, adminNoteB64, legCode) {
         disableEdit();
         const b64dec = b => { try { return b ? decodeURIComponent(escape(atob(b))) : ''; } catch (e) { return ''; } };
         const driverNote = b64dec(driverNoteB64), adminNote = b64dec(adminNoteB64);
@@ -1195,6 +1195,7 @@ ob_start();
         document.getElementById('editCondutor').value = condutor;
         document.getElementById('editRecolha').value = recolha;
         document.getElementById('editEntrega').value = entrega;
+        document.getElementById('editLegCode').value = (legCode === 'IN' || legCode === 'OT') ? legCode : '';
         document.getElementById('editpaxADT').value = paxADT;
         document.getElementById('editpaxCHD').value = paxCHD;
         document.getElementById('editPaxBBY').value = paxBBY;
@@ -1217,7 +1218,8 @@ ob_start();
         new bootstrap.Modal(document.getElementById('atribuirCondutorModal')).show();
     }
     function enableEdit() {
-        document.querySelectorAll('#editTripForm input').forEach(input => { if (input.id !== 'editCondutor' && input.id !== 'editTripTypeDisplay') input.disabled = false; });
+        document.querySelectorAll('#editTripForm input').forEach(input => { if (input.id !== 'editCondutor' && input.id !== 'editTripTypeDisplay' && input.id !== 'editTotalPrice') input.disabled = false; });
+        document.getElementById('editLegCode').disabled = false;
         document.getElementById('editAdminNote').disabled = false;
         document.getElementById('saveChangesBtn').style.display = 'inline-block';
         const btn = document.getElementById('enableEditBtn');
@@ -1225,6 +1227,7 @@ ob_start();
     }
     function disableEdit() {
         document.querySelectorAll('#editTripForm input').forEach(input => input.disabled = true);
+        document.getElementById('editLegCode').disabled = true;
         document.getElementById('editAdminNote').disabled = true;
         document.getElementById('saveChangesBtn').style.display = 'none';
         const btn = document.getElementById('enableEditBtn');
@@ -1841,6 +1844,13 @@ View::layout('layouts.admin', [
                     <div class="row g-2 mb-2">
                         <div class="col-6"><label class="small"><?= t('rides.pickup') ?></label><input type="text" class="form-control-custom" id="editRecolha" name="edit_origin" disabled></div>
                         <div class="col-6"><label class="small"><?= t('rides.dropoff') ?></label><input type="text" class="form-control-custom" id="editEntrega" name="edit_destination" disabled></div>
+                        <div class="col-6"><label class="small"><?= t('rides.direction') ?></label>
+                            <select class="form-control-custom" id="editLegCode" name="edit_leg_code" disabled>
+                                <option value=""><?= t('rides.direction_auto') ?></option>
+                                <option value="IN">IN</option>
+                                <option value="OT">OUT</option>
+                            </select>
+                        </div>
                     </div>
                     <!-- Linha 3: ADT + CHD + BBY + Voo -->
                     <div class="row g-2 mb-2">

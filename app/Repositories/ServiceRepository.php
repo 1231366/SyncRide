@@ -580,7 +580,7 @@ final class ServiceRepository
         $cols = 's.ID, s.serviceDate, s.serviceStartTime, s.paxADT, s.paxCHD, s.paxBBY,
                  s.serviceStartPoint, s.serviceTargetPoint, s.FlightNumber,
                  s.NomeCliente, s.ClientNumber, s.serviceType, s.total_price,
-                 s.valor_motorista,
+                 s.valor_motorista, s.leg_code,
                  s.grouping_ref, s.is_aggregate_master,
                  s.has_key, s.partner_id, s.status_pedido,
                  COALESCE(s.status_id, 0) AS status_id,
@@ -878,7 +878,8 @@ final class ServiceRepository
                 total_price=:price,
                 price_explicit = IF(:price2 > 0, 1, price_explicit),
                 valor_motorista=:driver_pay,
-                admin_note=:admin_note
+                admin_note=:admin_note,
+                leg_code=:leg_code
             WHERE ID = :id
         ')->execute([
             'date'       => $data['serviceDate'],
@@ -895,6 +896,7 @@ final class ServiceRepository
             'price2'     => $price,
             'driver_pay' => isset($data['valor_motorista']) && $data['valor_motorista'] !== null ? (float) $data['valor_motorista'] : null,
             'admin_note' => (isset($data['admin_note']) && trim((string) $data['admin_note']) !== '') ? trim((string) $data['admin_note']) : null,
+            'leg_code'   => (isset($data['leg_code']) && in_array($data['leg_code'], ['IN', 'OT'], true)) ? $data['leg_code'] : null,
             'id'         => $id,
         ]);
     }
@@ -1352,7 +1354,7 @@ final class ServiceRepository
     public function driverDashboardRides(int $driverId, ?int $serviceType = null): array
     {
         $sql    = 'SELECT s.ID AS ServiceID, s.serviceDate, s.serviceStartTime,
-                          s.serviceStartPoint, s.serviceTargetPoint,
+                          s.serviceStartPoint, s.serviceTargetPoint, s.leg_code,
                           s.paxADT, s.paxCHD, s.paxBBY,
                           s.FlightNumber, s.NomeCliente,
                           s.ClientNumber, s.serviceType,

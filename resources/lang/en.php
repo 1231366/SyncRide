@@ -131,6 +131,8 @@ return [
     'rides.babies'          => 'Babies',
     'rides.pickup'          => 'Pickup',
     'rides.dropoff'         => 'Drop-off',
+    'rides.direction'       => 'Direction',
+    'rides.direction_auto'  => 'Auto (from text)',
     'rides.driver'          => 'Driver',
     'rides.later'           => 'Later',
     'rides.private'         => 'Private',

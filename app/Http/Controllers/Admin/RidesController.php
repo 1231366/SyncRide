@@ -155,6 +155,7 @@ final class RidesController extends BaseController
             'serviceStartTime'   => $time,
             'serviceStartPoint'  => $this->input('edit_origin'),
             'serviceTargetPoint' => $this->input('edit_destination'),
+            'leg_code'           => $this->input('edit_leg_code') ?: null,
             'paxADT'             => (int) $this->input('edit_paxADT', 0),
             'paxCHD'             => (int) $this->input('edit_paxCHD', 0),
             'paxBBY'             => (int) $this->input('edit_paxBBY', 0),
@@ -504,7 +505,7 @@ final class RidesController extends BaseController
                 : ($driverName
                     ? '<span class="badge text-bg-success">' . htmlspecialchars((string) $driverName) . '</span>'
                     : '<span class="badge bg-secondary">N.A</span>'),
-            'recolha'             => htmlspecialchars((string) $row['serviceStartPoint']) . $delegationBadge . $groupingBadge,
+            'recolha'             => $this->ioBadge($row) . htmlspecialchars((string) $row['serviceStartPoint']) . $delegationBadge . $groupingBadge,
             'entrega'             => htmlspecialchars((string) $row['serviceTargetPoint']),
             'tipo'                => '<span style="cursor:pointer;" onclick="changeTripType('
                                      . $row['ID'] . ',' . $row['serviceType'] . ')">'
@@ -532,6 +533,41 @@ final class RidesController extends BaseController
             'is_completed'        => (int) ($row['status_id'] ?? 0) === 4,
             'raw_status'          => (int) ($row['status_id'] ?? 0),
         ];
+    }
+
+    /**
+     * IN / OUT airport badge — mirrors the driver dashboard's serviceIO().
+     * Source of truth is the imported `leg_code` (IN/OT from the Excel "Service Base
+     * Code"); the pickup/dropoff text match is only a fallback for rides that have
+     * no leg_code (manually created, or legacy imports) so edits to Origem/Destino
+     * can't desync the badge from what the operator actually entered.
+     */
+    private function ioBadge(array $row): string
+    {
+        $leg = strtoupper(trim((string) ($row['leg_code'] ?? '')));
+
+        if ($leg === 'IN') {
+            $pickIsAir = true;
+        } elseif ($leg === 'OT') {
+            $pickIsAir = false;
+        } else {
+            $isAirport = static fn(string $s): bool =>
+                (bool) preg_match('/aeroport|airport|\bLIS\b|\bOPO\b|\bFAO\b|\bFNC\b|\bPDL\b/i', $s);
+
+            $pickIsAir = $isAirport((string) ($row['serviceStartPoint']  ?? ''));
+            $dropIsAir = $isAirport((string) ($row['serviceTargetPoint'] ?? ''));
+
+            if ($pickIsAir === $dropIsAir) {
+                return ''; // both or neither → not a clear arrival/departure
+            }
+        }
+
+        [$label, $style] = $pickIsAir
+            ? ['IN',  'background:rgba(37,99,235,.12);color:#2563eb;border:1px solid rgba(37,99,235,.25)']
+            : ['OUT', 'background:rgba(220,38,38,.1);color:#dc2626;border:1px solid rgba(220,38,38,.25)'];
+
+        return '<span class="badge rounded-pill me-1" style="font-size:.6rem;font-weight:800;letter-spacing:.04em;' . $style . '">'
+            . '<i class="bi bi-airplane-fill"></i> ' . $label . '</span>';
     }
 
     private function actionsDelegatedOut(int $id): string
@@ -567,6 +603,7 @@ final class RidesController extends BaseController
             addslashes($row['serviceStartPoint'] . ' — ' . $row['serviceTargetPoint']),
             ENT_QUOTES
         );
+        $legCode    = htmlspecialchars(strtoupper(trim((string) ($row['leg_code'] ?? ''))), ENT_QUOTES);
         $assignIcon = $row['driverName'] ? 'bi-person-check-fill' : 'bi-person-plus-fill';
         $assignBtn  = $row['driverName'] ? 'btn-info'             : 'btn-primary';
 
@@ -575,7 +612,7 @@ final class RidesController extends BaseController
         $adminNoteB64  = base64_encode((string) ($row['admin_note']  ?? ''));
 
         $editCall = sprintf(
-            "editTravel(%d,'%sT%s','%s','%s','%s',%d,%d,%d,'%s','%s','%s',%d,'%s','%s','%s','%s')",
+            "editTravel(%d,'%sT%s','%s','%s','%s',%d,%d,%d,'%s','%s','%s',%d,'%s','%s','%s','%s','%s')",
             $id,
             $row['serviceDate'],
             substr((string) $row['serviceStartTime'], 0, 5),
@@ -585,7 +622,7 @@ final class RidesController extends BaseController
             $flight, $client, $phone,
             (int) $row['serviceType'],
             $price, $driverPay,
-            $driverNoteB64, $adminNoteB64
+            $driverNoteB64, $adminNoteB64, $legCode
         );
 
         $disaggregateBtn = '';

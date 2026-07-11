@@ -55,6 +55,8 @@ abstract class BaseController
         }
         http_response_code($status);
         header('Content-Type: application/json');
+        // WebView (Android app) caches GET JSON aggressively — never let it.
+        header('Cache-Control: no-store, max-age=0');
         echo json_encode($payload, JSON_UNESCAPED_UNICODE);
         exit;
     }

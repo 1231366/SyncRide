@@ -67,7 +67,7 @@ final class UploadController extends BaseController
     {
         header('Content-Type: application/json');
 
-        $body       = $this->jsonBody();
+        $body       = $this->shieldedBody();
         $tripId     = (int) ($body['trip_id']    ?? 0);
         $imgData    = (string) ($body['image_data'] ?? '');
         $lat        = isset($body['lat'])  ? (string) $body['lat']  : null;

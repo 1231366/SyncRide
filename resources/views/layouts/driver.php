@@ -175,5 +175,24 @@ $headerLabel = [
     <?= $extraScripts ?>
     <?php include __DIR__ . '/_sr_toast.php'; ?>
     <?php include __DIR__ . '/_change_password.php'; ?>
+    <script>
+    // Show instant loading overlay when navigating between driver pages (Capacitor only)
+    (function () {
+        if (!window.Capacitor?.isNativePlatform()) return;
+        const overlay = document.createElement('div');
+        overlay.id = 'nav-loading';
+        overlay.style.cssText = 'display:none;position:fixed;inset:0;z-index:99999;background:var(--bg,#f8fafc);align-items:center;justify-content:center;flex-direction:column;gap:14px;';
+        overlay.innerHTML = '<div style="width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:spin .7s linear infinite;"></div>'
+            + '<style>@keyframes spin{to{transform:rotate(360deg)}}</style>';
+        document.body.appendChild(overlay);
+        document.querySelectorAll('.bottom-nav a[href]').forEach(a => {
+            a.addEventListener('click', function (e) {
+                if (this.classList.contains('active')) return;
+                overlay.style.display = 'flex';
+            });
+        });
+        window.addEventListener('pageshow', () => { overlay.style.display = 'none'; });
+    })();
+    </script>
 </body>
 </html>

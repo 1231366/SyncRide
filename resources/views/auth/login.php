@@ -113,7 +113,7 @@ $errorCode = $errorCode ?? null;
             </div>
 
             <div class="remember">
-                <input type="checkbox" name="remember" id="rememberBox">
+                <input type="checkbox" name="remember" id="rememberBox" checked>
                 <label for="rememberBox">Keep me signed in</label>
             </div>
 

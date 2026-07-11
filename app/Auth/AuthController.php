@@ -59,7 +59,9 @@ final class AuthController
 
             $this->openSession($user);
 
-            if ($remember) {
+            // Drivers live inside the Android app WebView where the PHP session
+            // inevitably expires — always keep them signed in. Others opt in.
+            if ($remember || (int) $user['role'] === 2) {
                 (new RememberMeService($db))->issue((int) $user['id']);
             }
 
@@ -104,15 +106,7 @@ final class AuthController
     private function openSession(array $user): void
     {
         session_regenerate_id(true); // prevent session fixation
-        $_SESSION['user_id']            = (int) $user['id'];
-        $_SESSION['email']              = $user['email'];
-        $_SESSION['role']               = (int) $user['role'];
-        $_SESSION['name']               = $user['name'];
-        $_SESSION['profile_photo_path'] = $user['profile_photo_path'] ?? null;
-        // Super-admin (role=0) has no company — null means "see everything".
-        $_SESSION['company_id']         = isset($user['company_id']) && $user['company_id'] !== null
-            ? (int) $user['company_id']
-            : null;
+        Session::hydrateFromUser($user);
         $role = (int) $user['role'];
         $lang = in_array($user['lang_pref'] ?? '', ['en', 'pt'], true) ? $user['lang_pref'] : 'en';
 

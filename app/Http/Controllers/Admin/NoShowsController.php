@@ -54,7 +54,7 @@ final class NoShowsController extends BaseController
     {
         header('Content-Type: application/json');
 
-        $body    = $this->jsonBody();
+        $body    = $this->shieldedBody();
         $tripId  = (int) ($body['trip_id'] ?? 0);
         $imgData = (string) ($body['image_data'] ?? '');
         $lat     = isset($body['lat'])  ? (string) $body['lat']  : null;
@@ -103,6 +103,24 @@ final class NoShowsController extends BaseController
 
         $this->logs->record("Driver no-show reported for ride #{$tripId}");
 
+        // Moment the no-show is declared — persisted so PDF and DB always match.
+        $noShowAt = date('Y-m-d H:i:s');
+
+        // Mark in DB immediately (no PDF path yet — will be updated in background).
+        $this->services->markNoShow($tripId, $dbPath, $lat, $lng, null, $noShowAt);
+
+        // ── Respond to the driver right away; heavy work runs after flush ────
+        ignore_user_abort(true);
+        session_write_close();
+        $responseBody = json_encode(['success' => true, 'message' => 'No-show reported successfully!']);
+        header('Content-Length: ' . strlen($responseBody));
+        header('Connection: close');
+        echo $responseBody;
+        if (ob_get_level()) ob_end_flush();
+        flush();
+        if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+
+        // ── Background: FCM, PDF generation, email ────────────────────────────
         if ($ride->companyId !== null) {
             $d = \DateTime::createFromFormat('Y-m-d', $ride->date);
             $t = \DateTime::createFromFormat('H:i:s', $ride->startTime)
@@ -125,22 +143,14 @@ final class NoShowsController extends BaseController
         $reportPath = null;
         $reportDb   = null;
 
-        // Moment the no-show is declared — used both in the report (waiting time)
-        // and persisted, so it always matches what the PDF shows.
-        $noShowAt = date('Y-m-d H:i:s');
-
-        // Generate PDF report
         try {
             $reportDb   = (new NoShowReportGenerator())->generate($tripId, $tripData ?? [], $serverPath, $lat, $lng, $noShowAt);
             $reportPath = dirname(__DIR__, 4) . '/public/' . $reportDb;
+            $this->services->markNoShow($tripId, $dbPath, $lat, $lng, $reportDb, $noShowAt);
         } catch (\Throwable $e) {
             error_log('NoShowReportGenerator failed for ride #' . $tripId . ': ' . $e->getMessage());
         }
 
-        $this->services->markNoShow($tripId, $dbPath, $lat, $lng, $reportDb, $noShowAt);
-
-        // Use the settings of the company that OWNS the ride (not the driver's session
-        // company — a shared driver may report a no-show for another company's ride).
         $ownerCompanyId = (int) ($tripData['company_id'] ?? $ride->companyId ?? 0) ?: null;
         $s = new \App\Repositories\TenantSettingsRepository($this->db(), $ownerCompanyId);
         if ($tripData !== null && $s->noShowEnabled()) {
@@ -157,8 +167,6 @@ final class NoShowsController extends BaseController
                 error_log('NoShowMailer failed for ride #' . $tripId . ': ' . $e->getMessage());
             }
         }
-
-        $this->json(['success' => true, 'message' => 'No-show reported successfully!']);
     }
 
     private function formatRow(array $row): array

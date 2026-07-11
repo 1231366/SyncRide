@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http;
 
+use App\Auth\RememberMeService;
+use App\Support\Database;
 use App\Support\Session;
 
 /**
@@ -32,7 +34,21 @@ final class AuthMiddleware
     {
         Session::start();
 
+        // The Android app keeps a page alive for days; when the PHP session
+        // dies its API calls must not bounce to the login page. Restore the
+        // session transparently from the remember-me cookie when possible.
         if (!Session::isAuthenticated()) {
+            $user = (new RememberMeService(Database::connection()))->consume();
+            if ($user !== null) {
+                session_regenerate_id(true);
+                Session::hydrateFromUser($user);
+            }
+        }
+
+        if (!Session::isAuthenticated()) {
+            if (self::isApiCall()) {
+                self::unauthorized();
+            }
             self::redirectTo('/SRMT/public/');
         }
 
@@ -50,6 +66,28 @@ final class AuthMiddleware
     private static function redirectTo(string $location): never
     {
         header("Location: {$location}");
+        exit;
+    }
+
+    /**
+     * fetch()/XHR calls must get a machine-readable 401, never a 302 to the
+     * login page — the JS layer detects it and sends the user to login.
+     * Browser navigations send Sec-Fetch-Mode: navigate; fetch sends cors.
+     */
+    private static function isApiCall(): bool
+    {
+        $mode = strtolower((string) ($_SERVER['HTTP_SEC_FETCH_MODE'] ?? ''));
+        if ($mode !== '' && $mode !== 'navigate') {
+            return true;
+        }
+        return self::wantsJson();
+    }
+
+    private static function unauthorized(): never
+    {
+        http_response_code(401);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'session_expired']);
         exit;
     }
 

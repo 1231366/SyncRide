@@ -25,10 +25,16 @@ final class LogRepository
         return new self(Database::connection(), Session::companyId());
     }
 
-    public function record(string $action): void
+    public function record(string $action, ?float $lat = null, ?float $lng = null): void
     {
-        $this->db->prepare('INSERT INTO Logs (Action, date, company_id) VALUES (:a, NOW(), :cid)')
-            ->execute(['a' => $action, 'cid' => $this->companyId]);
+        $this->db->prepare(
+            'INSERT INTO Logs (Action, date, company_id, lat, lng) VALUES (:a, NOW(), :cid, :lat, :lng)'
+        )->execute([
+            'a'   => $action,
+            'cid' => $this->companyId,
+            'lat' => $lat,
+            'lng' => $lng,
+        ]);
     }
 
     /**
@@ -55,12 +61,12 @@ final class LogRepository
     /**
      * All logs mentioning a specific service ID — used for the trip report email.
      * Not company-scoped (ride IDs are globally unique).
-     * @return array<array{Action:string,date:string}>
+     * @return array<array{Action:string,date:string,lat:?string,lng:?string}>
      */
     public function forRide(int $rideId): array
     {
         $stmt = $this->db->prepare(
-            'SELECT Action, date FROM Logs WHERE Action LIKE :pat ORDER BY date ASC'
+            'SELECT Action, date, lat, lng FROM Logs WHERE Action LIKE :pat ORDER BY date ASC'
         );
         $stmt->execute(['pat' => "%ID #{$rideId}%"]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);

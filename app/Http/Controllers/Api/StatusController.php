@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\BaseController;
+use App\Repositories\LiveLocationRepository;
 use App\Repositories\LogRepository;
 use App\Repositories\ServiceRepository;
 use App\Repositories\TenantSettingsRepository;
@@ -63,9 +64,14 @@ final class StatusController extends BaseController
 
         $this->services->updateStatus($rideId, $status);
 
+        // Where the driver was when this status was set — shown per step in the
+        // trip report. Prefer the coords the app sent; otherwise fall back to the
+        // ride's most recent live-tracking fix. Both may be null (nothing shown).
+        [$lat, $lng] = $this->statusLocation($json, $rideId);
+
         $labels = [1 => 'On the way', 2 => 'At pickup', 5 => 'With client', 3 => 'Trip started', 4 => 'Completed'];
         $label  = $labels[$status] ?? "Status {$status}";
-        $this->logs->record("Service ID #{$rideId}: status changed to {$label}");
+        $this->logs->record("Service ID #{$rideId}: status changed to {$label}", $lat, $lng);
 
         if ($status === 1 || $status === 3 || $status === 4) {
             $ride = $this->services->find($rideId);
@@ -134,6 +140,32 @@ final class StatusController extends BaseController
         $this->services->setDriverNote($rideId, $note);
 
         $this->json(['success' => true]);
+    }
+
+    /**
+     * Resolve the GPS fix to attach to this status change.
+     * @param array<string,mixed> $json decoded request body
+     * @return array{0:?float,1:?float} [lat, lng]
+     */
+    private function statusLocation(array $json, int $rideId): array
+    {
+        // 1) Coords the app attached to the status update (most accurate — the
+        //    exact spot at the moment of the tap).
+        if (isset($json['lat'], $json['lng'])) {
+            $lat = (float) $json['lat'];
+            $lng = (float) $json['lng'];
+            if ($lat !== 0.0 && $lng !== 0.0) {
+                return [$lat, $lng];
+            }
+        }
+
+        // 2) Fallback: the ride's latest live-tracking position.
+        $tracking = LiveLocationRepository::default()->trackingFor($rideId);
+        if ($tracking !== null && $tracking['latitude'] !== 0.0 && $tracking['longitude'] !== 0.0) {
+            return [$tracking['latitude'], $tracking['longitude']];
+        }
+
+        return [null, null];
     }
 
     private function sendPartnerDepartureWhatsApp(int $rideId): void

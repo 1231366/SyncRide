@@ -359,6 +359,8 @@ return [
     'noshows.report.origin'            => 'Origin',
     'noshows.report.destination'       => 'Destination',
     'noshows.report.gps'               => 'GPS',
+    'noshows.report.location_trail'    => 'GPS TRAIL (PER STATUS)',
+    'noshows.report.no_gps'            => 'no GPS',
     'noshows.report.waiting_evidence'  => 'WAITING-TIME EVIDENCE',
     'noshows.report.scheduled_pickup'  => 'SCHEDULED PICKUP',
     'noshows.report.driver_arrived'    => 'DRIVER ARRIVED',

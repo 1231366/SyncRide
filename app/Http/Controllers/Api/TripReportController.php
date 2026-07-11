@@ -71,9 +71,25 @@ final class TripReportController extends BaseController
             $action = str_replace("Service ID #{$rideId}: ", '', (string) $l['Action']);
             $html  .= "<div style='display:flex;margin-bottom:10px;border-left:2px solid #e0e0e0;padding-left:15px;'>"
                     . "<div style='min-width:70px;font-weight:bold;color:#1a202c;font-size:12px;'>{$time}</div>"
-                    . "<div style='color:#4a5568;font-size:12px;'>{$action}</div></div>";
+                    . "<div style='color:#4a5568;font-size:12px;'>{$action}"
+                    . $this->coordsHtml($l['lat'] ?? null, $l['lng'] ?? null)
+                    . "</div></div>";
         }
         return $html;
+    }
+
+    /** A small "📍 lat, lng" line linking to Google Maps, when a step has coords. */
+    private function coordsHtml(?string $lat, ?string $lng): string
+    {
+        if ($lat === null || $lng === null || $lat === '' || $lng === '') {
+            return '';
+        }
+        $latF = number_format((float) $lat, 6, '.', '');
+        $lngF = number_format((float) $lng, 6, '.', '');
+        $maps = "https://www.google.com/maps?q={$latF},{$lngF}";
+        return "<div style='margin-top:3px;font-size:11px;'>"
+             . "<a href='{$maps}' style='color:#3182ce;text-decoration:none;'>"
+             . "&#128205; {$latF}, {$lngF}</a></div>";
     }
 
     private function sendEmail(int $rideId, array $ride, string $logsHtml, TenantSettingsRepository $tenantSettings): void

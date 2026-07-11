@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Repositories\LogRepository;
+use App\Support\Database;
+
 /**
  * Generates a no-show incident PDF report using FPDF.
  * Returns the relative DB path to the saved file.
@@ -226,18 +229,88 @@ final class NoShowReportGenerator
             $cx += $cw;
         }
 
+        // ── SECTION: GPS TRAIL (one coordinate per status step) ───
+        // The single GPS point above is where the no-show was declared; this
+        // section lists the whole live-status trail so every step is evidenced.
+        $steps = $this->statusTrail($tripId);
+        if ($lat && $lng) {
+            // Include the no-show declaration itself as the final step.
+            $steps[] = ['time' => $noShowTime, 'label' => $raw('noshows.report.noshow_declared'), 'lat' => $lat, 'lng' => $lng];
+        }
+
+        $photoY = 154; // default when there is no trail to show
+        if ($steps !== []) {
+            $rowH   = 6;
+            $trailY = 154;
+            $trailH = 12 + count($steps) * $rowH + 3;
+
+            $pdf->SetDrawColor(...self::BORDER);
+            $pdf->SetFillColor(255, 255, 255);
+            $pdf->Rect(15, $trailY, 180, $trailH, 'FD');
+
+            $pdf->SetXY(15, $trailY + 4);
+            $pdf->SetFont('Helvetica', 'B', 7);
+            $pdf->SetTextColor(...self::TEXT3);
+            $pdf->Cell(180, 4, '  ' . $t('noshows.report.location_trail'), 0, 1, 'L');
+            $pdf->Line(15, $trailY + 10, 195, $trailY + 10);
+
+            $ry = $trailY + 12;
+            foreach ($steps as $s) {
+                $pdf->SetXY(20, $ry);
+                $pdf->SetFont('Helvetica', 'B', 8);
+                $pdf->SetTextColor(...self::TEXT2);
+                $pdf->Cell(16, 5, $this->enc((string) $s['time']), 0, 0, 'L');
+
+                $pdf->SetXY(38, $ry);
+                $pdf->SetFont('Helvetica', '', 8.5);
+                $pdf->SetTextColor(...self::TEXT1);
+                $pdf->Cell(78, 5, $this->enc(mb_strtoupper((string) $s['label'], 'UTF-8')), 0, 0, 'L');
+
+                $pdf->SetXY(118, $ry);
+                if (!empty($s['lat']) && !empty($s['lng'])) {
+                    $coords = $s['lat'] . ', ' . $s['lng'];
+                    $url    = 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode($s['lat'] . ',' . $s['lng']);
+                    $pdf->SetFont('Helvetica', 'U', 8);
+                    $pdf->SetTextColor(...self::BLUE);
+                    $pdf->Cell(76, 5, $this->enc($coords), 0, 0, 'L', false, $url);
+                } else {
+                    $pdf->SetFont('Helvetica', 'I', 8);
+                    $pdf->SetTextColor(...self::TEXT3);
+                    $pdf->Cell(76, 5, $t('noshows.report.no_gps'), 0, 0, 'L');
+                }
+                $ry += $rowH;
+            }
+
+            $photoY = $trailY + $trailH + 6;
+        }
+
         // ── SECTION: PHOTO EVIDENCE ───────────────────────────────
-        $y = 154;
+        $y = $photoY;
 
         $pdf->SetFillColor(255, 255, 255);
         $pdf->SetDrawColor(...self::BORDER);
 
-        // Footer is at y=262; reserve 30mm for footer + gap
-        $maxPhotoH  = 262 - $y - 22 - 10; // available height for the image itself
-        $imgExists  = file_exists($photoServerPath);
-        $rawH       = $imgExists ? $this->computePhotoH($photoServerPath, 160) : 40;
-        $photoH     = min($rawH, (float) $maxPhotoH);
-        $sectionH   = $photoH + 22;
+        // Footer is at y=262; reserve room for the section chrome + gap.
+        $maxPhotoH = 262 - $y - 22 - 6; // available height for the image itself
+        $imgExists = file_exists($photoServerPath);
+        if ($imgExists) {
+            // Fit the photo INSIDE a 160 x maxPhotoH box, preserving aspect ratio.
+            // (Previously width was fixed at 160 while height was clamped, which
+            //  stretched portrait photos.)
+            [$iw, $ih] = getimagesize($photoServerPath) ?: [0, 0];
+            if ($iw > 0 && $ih > 0) {
+                $scale  = min(160.0 / $iw, (float) $maxPhotoH / $ih);
+                $photoW = $iw * $scale;
+                $photoH = $ih * $scale;
+            } else {
+                $photoW = 160.0;
+                $photoH = min(40.0, (float) $maxPhotoH);
+            }
+        } else {
+            $photoW = 160.0;
+            $photoH = 40.0;
+        }
+        $sectionH = $photoH + 22;
 
         $pdf->Rect(15, $y, 180, $sectionH, 'FD');
 
@@ -249,9 +322,8 @@ final class NoShowReportGenerator
         $pdf->Line(15, $y + 10, 195, $y + 10);
 
         if ($imgExists) {
-            $photoW = 160;
-            $imgX   = (210 - $photoW) / 2;
-            $imgY   = $y + 13;
+            $imgX = (210 - $photoW) / 2; // centred, whatever the aspect ratio
+            $imgY = $y + 13;
 
             // Shadow/border behind photo
             $pdf->SetFillColor(...self::BORDER);
@@ -316,12 +388,45 @@ final class NoShowReportGenerator
         }
     }
 
-    private function computePhotoH(string $path, float $targetW): float
+    /**
+     * The live-status trail for a ride: one entry per status change, in order,
+     * each with the GPS fix captured at that moment (may be null for old rides).
+     * Consecutive duplicates are collapsed so repeated pings don't clutter it.
+     *
+     * @return list<array{time:string,label:string,lat:?string,lng:?string}>
+     */
+    private function statusTrail(int $tripId): array
     {
-        [$w, $h] = getimagesize($path);
-        if ($w <= 0) {
-            return 80;
+        try {
+            $logs = (new LogRepository(Database::connection()))->forRide($tripId);
+        } catch (\Throwable) {
+            return [];
         }
-        return round($targetW * $h / $w, 1);
+
+        $out = [];
+        $lastLabel = null;
+        foreach ($logs as $l) {
+            $action = (string) $l['Action'];
+            // Only status-change entries (English "status changed to" or the
+            // legacy Portuguese "Estado alterado para").
+            if (stripos($action, 'status changed to') === false
+                && stripos($action, 'Estado alterado') === false) {
+                continue;
+            }
+            $label = preg_replace('/^.*#' . $tripId . ':\s*/', '', $action);
+            $label = preg_replace('/^(status changed to|Estado alterado para)\s*/i', '', (string) $label);
+            $label = trim((string) $label);
+            if ($label === '' || $label === $lastLabel) {
+                continue;
+            }
+            $lastLabel = $label;
+            $out[] = [
+                'time'  => date('H:i', strtotime((string) $l['date'])),
+                'label' => $label,
+                'lat'   => isset($l['lat']) ? (string) $l['lat'] : null,
+                'lng'   => isset($l['lng']) ? (string) $l['lng'] : null,
+            ];
+        }
+        return $out;
     }
 }

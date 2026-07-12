@@ -1350,6 +1350,67 @@ final class ServiceRepository
 
     // ── Driver dashboard helpers ───────────────────────────────────────────
 
+    /**
+     * A driver's rides for the chat's optional "associate to a ride" topic picker —
+     * informational only, not a scoping key. With no $term, the most recent 15 (a
+     * driver can rack up thousands of rides over time, so browsing without search
+     * only ever needs to show a small default list). With a $term, searches by
+     * reference number, client name, date, or pickup/dropoff across all of that
+     * driver's rides, not just the recent ones — so an old May service is still findable.
+     * @return array<array{id:int, label:string}>
+     */
+    public function recentForDriver(int $driverId, ?string $term = null): array
+    {
+        $term = trim((string) $term);
+        if ($term === '') {
+            $stmt = $this->db->prepare('
+                SELECT s.ID, s.serviceDate, s.serviceStartTime, s.serviceStartPoint, s.serviceTargetPoint
+                FROM Services_Rides sr
+                JOIN Services s ON s.ID = sr.RideID
+                WHERE sr.UserID = :did
+                ORDER BY s.serviceDate DESC, s.serviceStartTime DESC
+                LIMIT 15
+            ');
+            $stmt->execute(['did' => $driverId]);
+        } else {
+            $like = '%' . $term . '%';
+            $stmt = $this->db->prepare('
+                SELECT s.ID, s.serviceDate, s.serviceStartTime, s.serviceStartPoint, s.serviceTargetPoint
+                FROM Services_Rides sr
+                JOIN Services s ON s.ID = sr.RideID
+                WHERE sr.UserID = :did
+                  AND (s.reference_no LIKE :t1 OR s.NomeCliente LIKE :t2 OR s.serviceStartPoint LIKE :t3
+                       OR s.serviceTargetPoint LIKE :t4 OR s.serviceDate LIKE :t5 OR s.ID LIKE :t6)
+                ORDER BY s.serviceDate DESC, s.serviceStartTime DESC
+                LIMIT 20
+            ');
+            $stmt->execute(['did' => $driverId, 't1' => $like, 't2' => $like, 't3' => $like, 't4' => $like, 't5' => $like, 't6' => $like]);
+        }
+        return array_map(
+            static fn(array $r): array => ['id' => (int) $r['ID'], 'label' => self::formatRideLabel($r)],
+            $stmt->fetchAll(PDO::FETCH_ASSOC)
+        );
+    }
+
+    /** Same label format as recentForDriver(), for a single known ride — used by the chat's pinned ride banner. */
+    public function labelFor(int $rideId): ?string
+    {
+        $stmt = $this->db->prepare('
+            SELECT ID, serviceDate, serviceStartTime, serviceStartPoint, serviceTargetPoint
+            FROM Services WHERE ID = :id
+        ');
+        $stmt->execute(['id' => $rideId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? self::formatRideLabel($row) : null;
+    }
+
+    private static function formatRideLabel(array $r): string
+    {
+        $date = substr((string) $r['serviceDate'], 5); // mm-dd
+        $time = substr((string) $r['serviceStartTime'], 0, 5);
+        return "#{$r['ID']} · {$date} {$time} · {$r['serviceStartPoint']} → {$r['serviceTargetPoint']}";
+    }
+
     /** @return array<array<string,mixed>> */
     public function driverDashboardRides(int $driverId, ?int $serviceType = null): array
     {

@@ -253,6 +253,7 @@ $T_js = [
         .chat-icon-btn {
             width: 32px; height: 32px; border-radius: 10px; border: 1px solid var(--border); background: none;
             display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-1); font-size: 14px;
+            flex-shrink: 0;
         }
         .chat-icon-btn:hover { background: var(--bg-raised); }
 
@@ -1241,7 +1242,7 @@ $T_js = [
                     <input type="file" id="chatCameraInput" accept="image/*" capture="environment" style="display:none;" onchange="handleChatFileSelected(event)">
                     <button class="chat-icon-btn" title="<?= t('chat.attach_btn') ?>" onclick="document.getElementById('chatFileInput').click()"><i class="bi bi-paperclip"></i></button>
                     <button class="chat-icon-btn" title="<?= t('chat.camera_btn') ?>" onclick="document.getElementById('chatCameraInput').click()"><i class="bi bi-camera-fill"></i></button>
-                    <input type="text" id="chatInput" style="flex:1;height:42px;border-radius:999px;padding:0 16px;font-size:13.5px;border:1px solid var(--border);background:var(--bg-raised);color:var(--text-1);font-family:inherit;"
+                    <input type="text" id="chatInput" style="flex:1;min-width:0;height:42px;border-radius:999px;padding:0 16px;font-size:13.5px;border:1px solid var(--border);background:var(--bg-raised);color:var(--text-1);font-family:inherit;"
                         placeholder="<?= t('drv.chat_placeholder') ?>"
                         onkeydown="if(event.key==='Enter'){event.preventDefault();sendChatMessage();}">
                     <button type="button" onclick="sendChatMessage()"

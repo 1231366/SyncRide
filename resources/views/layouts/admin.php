@@ -336,6 +336,7 @@ $navClass = static function (string $id) use ($active): string {
     .chat-icon-btn {
         width: 32px; height: 32px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.08); background: none;
         display: flex; align-items: center; justify-content: center; cursor: pointer; color: inherit; font-size: 14px;
+        flex-shrink: 0;
     }
     [data-theme="dark"] .chat-icon-btn { border-color: rgba(255,255,255,0.1); }
     .chat-icon-btn:hover { background: rgba(0,0,0,0.05); }
@@ -417,7 +418,7 @@ $navClass = static function (string $id) use ($active): string {
     }
     .chat-compose-row { display: flex; gap: 8px; align-items: center; }
     #chatInput {
-        flex: 1; height: 42px; border-radius: 999px; padding: 0 16px; font-size: 13.5px;
+        flex: 1; min-width: 0; height: 42px; border-radius: 999px; padding: 0 16px; font-size: 13.5px;
         border: 1px solid rgba(0,0,0,0.1); background: rgba(0,0,0,0.03); color: inherit; font-family: inherit;
     }
     [data-theme="dark"] #chatInput { border-color: rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); }

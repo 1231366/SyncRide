@@ -8,6 +8,7 @@ use App\Http\Controllers\BaseController;
 use App\Repositories\ImportBatchRepository;
 use App\Repositories\LogRepository;
 use App\Services\ExcelServiceImporter;
+use App\Services\RideExportService;
 
 /**
  * Importação de serviços a partir do Excel da PRtours.
@@ -138,6 +139,29 @@ final class ImportController extends BaseController
         $this->logs->record("Excel import #{$batchId} desfeito ({$deleted} serviços removidos)");
 
         $this->json(['success' => true, 'deleted' => $deleted]);
+    }
+
+    /** GET /admin/import-export.php?date_from=Y-m-d&date_to=Y-m-d — downloads the weekly .xlsx. */
+    public function export(): never
+    {
+        $from = (string) $this->input('date_from', '');
+        $to   = (string) $this->input('date_to', '');
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $to)) {
+            $this->abort(422, 'Datas inválidas.');
+        }
+
+        $xlsx = RideExportService::default()->buildWeeklyExport($from, $to);
+        $this->logs->record("Export Excel de viagens ({$from} a {$to})");
+
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="viagens_' . $from . '_a_' . $to . '.xlsx"');
+        header('Content-Length: ' . strlen($xlsx));
+        header('Cache-Control: no-store, max-age=0');
+        echo $xlsx;
+        exit;
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

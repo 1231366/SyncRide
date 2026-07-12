@@ -82,6 +82,30 @@ final class ServiceRepository
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Rides for the weekly XML-tenant Excel export. Excludes partner-portal
+     * requests (`partner_id` is set only by `createForPartner()`, and stays
+     * set regardless of `status_pedido` later turning 'aprovado' — that
+     * column defaults to 'aprovado' for every other ride, XML-imported ones
+     * included, so it can't be used to tell them apart). Delegation
+     * (`delegateTo()`) never touches `partner_id`, so delegated rides stay.
+     * @return array<array<string,mixed>>
+     */
+    public function forWeeklyExport(string $dateFrom, string $dateTo): array
+    {
+        $sql  = "SELECT ID, serviceDate, serviceStartTime, distributor_code, reference_no,
+                        FlightNumber, paxADT, paxCHD, paxBBY, resort, NomeCliente,
+                        serviceStartPoint, serviceTargetPoint, leg_code
+                 FROM Services
+                 WHERE serviceDate BETWEEN :from AND :to
+                   AND partner_id IS NULL
+                 " . $this->sc('AND') . "
+                 ORDER BY serviceDate ASC, serviceStartTime ASC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array_merge(['from' => $dateFrom, 'to' => $dateTo], $this->cb()));
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     /** @return array<int,int> 12-element array for the current year, scoped to company. */
     public function monthlyThisYear(): array
     {

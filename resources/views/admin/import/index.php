@@ -34,6 +34,25 @@ View::layout('layouts.admin', [
         </div>
     </div>
 
+    <!-- ── Exportar ───────────────────────────────────────────────── -->
+    <div class="glass p-6 rounded-[24px] mb-6" id="exportCard">
+        <h3 class="text-sm font-black flex items-center gap-2 mb-1"><i data-lucide="file-down" class="w-4 h-4 text-blue-400"></i> <?= t('import.export_title') ?></h3>
+        <p class="text-[11px] text-zinc-500 mb-4"><?= t('import.export_desc') ?></p>
+        <div class="flex flex-wrap items-end gap-3">
+            <label class="text-[11px] text-zinc-400">
+                <?= t('import.export_from') ?>
+                <input type="date" id="exportFrom" class="glass rounded-xl px-3 py-2 text-xs block mt-1" style="min-height:40px;">
+            </label>
+            <label class="text-[11px] text-zinc-400">
+                <?= t('import.export_to') ?>
+                <input type="date" id="exportTo" class="glass rounded-xl px-3 py-2 text-xs block mt-1" style="min-height:40px;">
+            </label>
+            <button id="exportBtn" class="rounded-full px-6 text-xs font-bold flex items-center gap-2 bg-blue-500 text-white hover:bg-blue-400 transition" style="min-height:44px;touch-action:manipulation">
+                <i data-lucide="file-down" class="w-4 h-4"></i> <?= t('import.export_btn') ?>
+            </button>
+        </div>
+    </div>
+
     <!-- ── Pré-visualização ───────────────────────────────────────── -->
     <div id="previewSection" class="hidden">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
@@ -111,7 +130,16 @@ const I18N = {
     done: <?= json_encode(t('import.done')) ?>,
     undone: <?= json_encode(t('import.undone')) ?>,
     confirm_undo: <?= json_encode(t('import.confirm_undo')) ?>,
+    export_missing_dates: <?= json_encode(t('import.export_missing_dates')) ?>,
 };
+
+// ── Export ────────────────────────────────────────────────────
+$('exportBtn').addEventListener('click', () => {
+    const from = $('exportFrom').value;
+    const to   = $('exportTo').value;
+    if (!from || !to) { toastr.error(I18N.export_missing_dates); return; }
+    window.location.href = '/SRMT/public/admin/import-export.php?date_from=' + encodeURIComponent(from) + '&date_to=' + encodeURIComponent(to);
+});
 
 // ── File picking ──────────────────────────────────────────────
 $('fileInput').addEventListener('change', (e) => setFile(e.target.files[0]));

@@ -54,14 +54,18 @@ final class XmlVoucherImporter
         $insertWithId = $this->db->prepare('
             INSERT INTO Services (ID, serviceDate, serviceStartTime, paxADT, paxCHD, paxBBY,
                                   serviceStartPoint, serviceTargetPoint, FlightNumber,
-                                  NomeCliente, ClientNumber, serviceType, company_id)
-            VALUES (:ID, :sd, :st, :pa, :pc, :bby, :sp, :tp, :fn, :nc, :cn, :stype, :cid)
+                                  NomeCliente, ClientNumber, serviceType, company_id,
+                                  distributor_code, reference_no, resort, leg_code)
+            VALUES (:ID, :sd, :st, :pa, :pc, :bby, :sp, :tp, :fn, :nc, :cn, :stype, :cid,
+                    :dist, :ref, :resort, :leg)
         ');
         $insertWithoutId = $this->db->prepare('
             INSERT INTO Services (serviceDate, serviceStartTime, paxADT, paxCHD, paxBBY,
                                   serviceStartPoint, serviceTargetPoint, FlightNumber,
-                                  NomeCliente, ClientNumber, serviceType, company_id)
-            VALUES (:sd, :st, :pa, :pc, :bby, :sp, :tp, :fn, :nc, :cn, :stype, :cid)
+                                  NomeCliente, ClientNumber, serviceType, company_id,
+                                  distributor_code, reference_no, resort, leg_code)
+            VALUES (:sd, :st, :pa, :pc, :bby, :sp, :tp, :fn, :nc, :cn, :stype, :cid,
+                    :dist, :ref, :resort, :leg)
         ');
 
         $inserted = 0;
@@ -71,6 +75,8 @@ final class XmlVoucherImporter
             $isShared    = stripos((string) $group->serviceUnitVehicleName, 'Shared') !== false;
             $type        = $isShared ? \App\Models\Service::TYPE_SHARED : \App\Models\Service::TYPE_PRIVATE;
             $groupId     = (int) $group->serviceId;
+            $legRaw      = strtoupper(trim((string) ($group->serviceLegCode ?? '')));
+            $legCode     = in_array($legRaw, ['IN', 'OT'], true) ? $legRaw : null;
 
             foreach ($group->bookings->bookingItem as $index => $item) {
                 $client = (string) $item->paxLeadName;
@@ -92,18 +98,22 @@ final class XmlVoucherImporter
                 }
 
                 $params = [
-                    ':sd'    => $serviceDate,
-                    ':st'    => $serviceTime,
-                    ':pa'    => (int) $item->paxADT,
-                    ':pc'    => (int) $item->paxCHD,
-                    ':bby'   => $paxBby,
-                    ':sp'    => $pickup,
-                    ':tp'    => $dropoff,
-                    ':fn'    => $flight,
-                    ':nc'    => $client,
-                    ':cn'    => $phone,
-                    ':stype' => $type,
-                    ':cid'   => $this->companyId,
+                    ':sd'     => $serviceDate,
+                    ':st'     => $serviceTime,
+                    ':pa'     => (int) $item->paxADT,
+                    ':pc'     => (int) $item->paxCHD,
+                    ':bby'    => $paxBby,
+                    ':sp'     => $pickup,
+                    ':tp'     => $dropoff,
+                    ':fn'     => $flight,
+                    ':nc'     => $client,
+                    ':cn'     => $phone,
+                    ':stype'  => $type,
+                    ':cid'    => $this->companyId,
+                    ':dist'   => $this->extractDistributorCode($item),
+                    ':ref'    => $this->extractReference($item),
+                    ':resort' => $this->extractResort($item),
+                    ':leg'    => $legCode,
                 ];
 
                 try {
@@ -153,6 +163,31 @@ final class XmlVoucherImporter
             return (string) $item->dropoff->accommodationtName;
         }
         return (string) $group->serviceTargetPoint;
+    }
+
+    /** Distributor/agency code (e.g. "SUNTR", "ITAK") — for the weekly Excel export only. */
+    private function extractDistributorCode(SimpleXMLElement $item): ?string
+    {
+        $v = trim((string) ($item->distributorCode ?? ''));
+        return $v !== '' ? $v : null;
+    }
+
+    /** Booking/voucher reference — for the weekly Excel export only. */
+    private function extractReference(SimpleXMLElement $item): ?string
+    {
+        $v = trim((string) ($item->bookingReference ?? $item->bookingItemVoucher ?? ''));
+        return $v !== '' ? $v : null;
+    }
+
+    /** Resort/city name, from whichever side (pickup or dropoff) is the accommodation leg. */
+    private function extractResort(SimpleXMLElement $item): ?string
+    {
+        $pickupResort  = trim((string) ($item->pickup->accommodationResortName ?? ''));
+        if ($pickupResort !== '') {
+            return $pickupResort;
+        }
+        $dropoffResort = trim((string) ($item->dropoff->accommodationResortName ?? ''));
+        return $dropoffResort !== '' ? $dropoffResort : null;
     }
 
     private function extractPhone(string $remarks): string

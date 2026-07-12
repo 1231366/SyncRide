@@ -711,6 +711,14 @@ return [
     'drv.nav_stats'        => 'Stats',
     'drv.nav_settings'     => 'Definições',
 
+    // Flight status (airport pickups)
+    'drv.flight_ontime'    => 'No horário',
+    'drv.flight_delayed'   => 'Atrasado',
+    'drv.flight_landed'    => 'Aterrou',
+    'drv.flight_cancelled' => 'Cancelado',
+    'drv.flight_diverted'  => 'Desviado',
+    'drv.flight_eta'       => 'Chegada prevista',
+
     // Chat da viagem
     'drv.chat_title'       => 'Mensagens',
     'drv.chat_placeholder' => 'Escreve uma mensagem…',

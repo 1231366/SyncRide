@@ -722,6 +722,14 @@ return [
     'drv.nav_stats'        => 'Stats',
     'drv.nav_settings'     => 'Settings',
 
+    // Flight status (airport pickups)
+    'drv.flight_ontime'    => 'On time',
+    'drv.flight_delayed'   => 'Delayed',
+    'drv.flight_landed'    => 'Landed',
+    'drv.flight_cancelled' => 'Cancelled',
+    'drv.flight_diverted'  => 'Diverted',
+    'drv.flight_eta'       => 'Est. arrival',
+
     // Office chat
     'drv.chat_title'       => 'Messages',
     'drv.chat_placeholder' => 'Type a message…',

@@ -56,6 +56,17 @@ $T_js = [
     'saved'            => t('drv.saved'),
     'add_obs'          => t('drv.add_obs'),
     'edit_obs'         => t('drv.edit_obs'),
+    'fl_ontime'        => t('drv.flight_ontime'),
+    'fl_delayed'       => t('drv.flight_delayed'),
+    'fl_landed'        => t('drv.flight_landed'),
+    'fl_cancelled'     => t('drv.flight_cancelled'),
+    'fl_diverted'      => t('drv.flight_diverted'),
+    'fl_eta'           => t('drv.flight_eta'),
+    'chat_empty'       => t('drv.chat_empty'),
+    'chat_general'     => t('drv.chat_general'),
+    'chat_new_topic'   => t('drv.chat_new_topic'),
+    'chat_reply'       => t('chat.reply_btn'),
+    'chat_search_empty' => t('chat.search_empty'),
 ];
 ?><!DOCTYPE html>
 <html lang="en" data-bs-theme="light">
@@ -226,6 +237,133 @@ $T_js = [
             overflow: hidden;
         }
         .ride-card:active { transform: scale(.98); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+        .chat-unread-dot {
+            position: absolute; top: -5px; right: -5px; min-width: 15px; height: 15px;
+            padding: 0 3px; border-radius: 999px; background: #dc2626; color: #fff;
+            font-size: 9px; font-weight: 800; line-height: 15px; text-align: center;
+        }
+
+        /* ── Office chat console (modern bubbles) — ports the approved prototype ── */
+        .chat-canvas { display: flex; flex-direction: column; }
+        .chat-canvas-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px 8px; flex-shrink: 0; }
+        .chat-canvas-title-wrap { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .chat-canvas-title { font-size: 14.5px; font-weight: 800; }
+        .chat-canvas-subtitle { font-size: 11.5px; color: var(--text-2); font-weight: 500; }
+        .chat-canvas-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .chat-icon-btn {
+            width: 32px; height: 32px; border-radius: 10px; border: 1px solid var(--border); background: none;
+            display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-1); font-size: 14px;
+        }
+        .chat-icon-btn:hover { background: var(--bg-raised); }
+
+        .chat-topic-strip { display: flex; gap: 6px; overflow-x: auto; padding: 0 20px 10px; flex-shrink: 0; }
+        .chat-topic-pill {
+            display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; border-radius: 999px;
+            font-size: 11.5px; font-weight: 700; white-space: nowrap; cursor: pointer; flex-shrink: 0;
+            border: 1px solid var(--border); background: var(--bg-raised); color: var(--text-2);
+        }
+        .chat-topic-pill.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .chat-topic-pill.general { background: rgba(37,99,235,.12); color: var(--accent); border-color: transparent; }
+        .chat-topic-pill.general.active { background: var(--accent); color: #fff; }
+        .chat-topic-pill .dot { width: 6px; height: 6px; border-radius: 999px; background: #16a34a; flex-shrink: 0; }
+        .chat-topic-pill.is-closed .dot { background: #94a3b8; }
+
+        .chat-temp-banner {
+            display: none; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 20px 10px; padding: 8px 12px;
+            background: rgba(217,119,6,.14); color: #d97706; border-radius: 10px; font-size: 11.5px; font-weight: 600; flex-shrink: 0;
+        }
+        .chat-temp-banner.show { display: flex; }
+        .chat-ride-banner {
+            display: none; align-items: center; gap: 8px; margin: 0 20px 8px; padding: 7px 12px;
+            background: rgba(37,99,235,.14); color: var(--accent); border-radius: 10px; font-size: 11.5px; font-weight: 700; flex-shrink: 0;
+        }
+
+        .chat-search-bar {
+            display: flex; align-items: center; gap: 8px; background: var(--bg-raised); border-radius: 10px;
+            padding: 7px 10px; margin-bottom: 8px; font-size: 12px;
+        }
+        .chat-search-input { border: none; background: none; font-size: 12.5px; flex: 1; font-family: inherit; color: var(--text-1); }
+        .chat-search-input:focus { outline: none; }
+        .chat-search-bar button { border: none; background: none; cursor: pointer; color: var(--text-2); font-size: 13px; }
+        .chat-thread-wrap mark { background: rgba(217,119,6,.25); color: #d97706; border-radius: 3px; padding: 0 1px; }
+
+        .chat-thread-wrap {
+            flex: 1; overflow-y: auto; padding: 6px 20px; display: flex; flex-direction: column;
+            gap: 10px; min-height: 0;
+        }
+        .chat-system-note {
+            align-self: center; font-size: 11px; color: var(--text-2); background: var(--bg-raised);
+            padding: 5px 12px; border-radius: 999px; font-weight: 600;
+        }
+        .chat-bubble-row { position: relative; display: flex; flex-direction: column; max-width: 82%; }
+        .chat-bubble-row.me   { align-self: flex-end; align-items: flex-end; }
+        .chat-bubble-row.them { align-self: flex-start; align-items: flex-start; }
+        .chat-quote-block {
+            font-size: 11.5px; color: var(--text-2); background: rgba(0,0,0,.15); border-left: 3px solid var(--accent);
+            padding: 5px 9px; border-radius: 8px; margin-bottom: 4px; max-width: 100%; overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap;
+        }
+        .chat-bubble {
+            padding: 9px 13px; border-radius: 16px; font-size: 13.5px;
+            line-height: 1.42; animation: chatIn .18s ease-out;
+        }
+        .chat-bubble-me {
+            background: linear-gradient(135deg, var(--accent), #1d4ed8);
+            color: #fff; border-bottom-right-radius: 4px;
+        }
+        .chat-bubble-them {
+            background: var(--bg-raised); border: 1px solid var(--border);
+            border-bottom-left-radius: 4px;
+        }
+        .chat-bubble-photo { max-width: 220px; max-height: 220px; border-radius: 12px; margin-bottom: 6px; display: block; cursor: pointer; }
+        .chat-bubble-time { font-size: 10px; opacity: .65; margin-top: 3px; padding: 0 4px; }
+        .chat-sender-name { font-size: 10.5px; font-weight: 800; opacity: .7; margin-bottom: 2px; padding: 0 4px; }
+        @keyframes chatIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+        .chat-bubble-actions {
+            position: absolute; top: -12px; display: none; gap: 3px; background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 999px; padding: 3px; box-shadow: 0 4px 12px rgba(0,0,0,.15); z-index: 2;
+        }
+        .chat-bubble-row.me .chat-bubble-actions   { right: 0; }
+        .chat-bubble-row.them .chat-bubble-actions { left: 0; }
+        .chat-bubble-row:hover .chat-bubble-actions,
+        .chat-bubble-row:active .chat-bubble-actions { display: flex; }
+        .chat-bubble-actions button {
+            border: none; background: none; font-size: 10.5px; padding: 4px 8px; border-radius: 999px; cursor: pointer;
+            color: var(--text-2); font-weight: 700; white-space: nowrap;
+        }
+        .chat-bubble-actions button:hover { background: var(--bg-raised); color: var(--text-1); }
+
+        .chat-composer-wrap { border-top: 1px solid var(--border); padding: 12px 20px 16px; flex-shrink: 0; }
+        .chat-reply-preview {
+            display: flex; align-items: center; justify-content: space-between; gap: 8px;
+            background: var(--bg-raised); border-radius: 10px; padding: 7px 10px; margin-bottom: 8px; font-size: 12px;
+        }
+        .chat-reply-preview .rp-text { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .chat-reply-preview button { border: none; background: none; cursor: pointer; color: var(--text-2); font-size: 13px; }
+        .chat-closed-banner {
+            display: flex; align-items: center; gap: 8px; justify-content: center; padding: 8px; margin-bottom: 8px;
+            background: rgba(100,116,139,.16); color: #94a3b8; border-radius: 10px; font-size: 12px; font-weight: 700;
+        }
+        .chat-compose-row { display: flex; gap: 8px; align-items: center; }
+
+        /* Popover (new topic / close / convert — admin acts on it, driver just sees the search UI reuse the same engine) */
+        .chat-popover-backdrop {
+            position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none; align-items: center; justify-content: center; z-index: 6000;
+        }
+        .chat-popover-backdrop.open { display: flex; }
+        .chat-popover { background: var(--bg-card); border-radius: 16px; padding: 20px; width: min(320px, 90vw); box-shadow: 0 24px 64px rgba(0,0,0,.4); }
+        .chat-popover h3 { margin: 0 0 4px; font-size: 15px; font-weight: 800; color: var(--text-1); }
+        .chat-popover p.hint { margin: 0 0 14px; font-size: 12px; color: var(--text-2); }
+        .chat-popover label { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); display: block; margin: 12px 0 5px; }
+        .chat-popover input[type="text"], .chat-popover select {
+            width: 100%; height: 38px; border-radius: 10px; border: 1px solid var(--border); padding: 0 10px; font-size: 13px;
+            font-family: inherit; background: var(--bg-raised); color: var(--text-1);
+        }
+        .chat-popover-actions { display: flex; gap: 8px; margin-top: 18px; }
+        .chat-popover-actions button { flex: 1; height: 38px; border-radius: 10px; border: none; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+        .chat-btn-ghost { background: var(--bg-raised); color: var(--text-1); }
+        .chat-btn-primary { background: var(--accent); color: #fff; }
         .ride-card[data-stype="1"] { border-left-color: var(--accent); }
         .ride-card[data-stype="2"] { border-left-color: var(--warning); }
         .ride-card[data-stype="0"] { border-left-color: var(--text-3); }
@@ -681,6 +819,18 @@ $T_js = [
         }
         .photo-choice-btn:active { opacity: .7; }
 
+        /* ── Flight status chip ──────────────────────────────────────────── */
+        .flight-chip {
+            font-size: .62rem; font-weight: 800; letter-spacing: .02em;
+            padding: 3px 8px; border-radius: 7px;
+            display: inline-flex; align-items: center; gap: 4px;
+        }
+        .fl-ontime    { background: var(--success-soft); color: var(--success); border: 1px solid rgba(22,163,74,.25); }
+        .fl-delayed   { background: var(--warning-soft); color: var(--warning); border: 1px solid rgba(217,119,6,.3); }
+        .fl-late      { background: var(--danger-soft);  color: var(--danger);  border: 1px solid rgba(220,38,38,.3); }
+        .fl-landed    { background: rgba(37,99,235,.12); color: var(--accent);  border: 1px solid rgba(37,99,235,.25); }
+        .fl-cancelled { background: var(--danger);       color: #fff;           border: 1px solid var(--danger); }
+
         /* ── IN / OUT card label ─────────────────────────────────────────── */
         .io-badge {
             font-size: .6rem; font-weight: 800; letter-spacing: .06em;
@@ -845,7 +995,10 @@ $T_js = [
         <div class="hdr-sub"><?= t('drv.greeting') ?></div>
     </div>
     <div class="header-right">
-        <button class="theme-btn" id="theme-toggle"><i class="bi bi-sun-fill" id="theme-icon"></i></button>
+        <button class="theme-btn" style="position:relative;" onclick="openChatModal()" title="<?= t('drv.chat_title') ?>">
+            <i class="bi bi-chat-dots-fill"></i>
+            <span id="chatHeaderDot" class="chat-unread-dot" style="display:none;top:-4px;right:-4px;"></span>
+        </button>
         <?php if ($hasPhoto): ?>
             <img src="<?= View::e($userPhotoSrc) ?>" class="user-avatar" alt="" data-bs-toggle="modal" data-bs-target="#photoModal">
         <?php else: ?>
@@ -955,6 +1108,8 @@ $T_js = [
                             <i class="bi bi-whatsapp"></i> WhatsApp
                         </a>
                     </div>
+                    <!-- Live flight status (filled async when the ride has a flight today) -->
+                    <div id="flightStatusStrip" style="display:none;margin-top:10px;"></div>
                 </div>
 
                 <!-- Multiple clients side-by-side (shared rides) -->
@@ -1033,6 +1188,76 @@ $T_js = [
     </div>
 </div>
 
+<!-- ── Office chat console (admin <-> driver, topics) — ports the approved prototype ── -->
+<div class="modal fade" id="chatModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:640px;">
+        <div class="modal-content chat-canvas" style="background:var(--bg-card);border:1px solid var(--border);border-radius:20px;height:min(82vh,720px);">
+            <div class="chat-canvas-head">
+                <div class="chat-canvas-title-wrap">
+                    <div class="chat-avatar" id="chatAvatar">
+                        <i class="bi bi-chat-dots-fill"></i>
+                    </div>
+                    <div style="min-width:0;">
+                        <div class="chat-canvas-title"><?= t('drv.chat_title') ?></div>
+                        <div class="chat-canvas-subtitle" id="chatCanvasSubtitle"></div>
+                    </div>
+                </div>
+                <div class="chat-canvas-actions">
+                    <button class="chat-icon-btn" title="<?= t('chat.search_btn') ?>" onclick="toggleChatSearch()"><i class="bi bi-search"></i></button>
+                    <button class="chat-icon-btn" data-bs-dismiss="modal" title="<?= t('chat.close_btn') ?>"><i class="bi bi-x-lg"></i></button>
+                </div>
+            </div>
+
+            <div id="chatTopicStrip" class="chat-topic-strip"></div>
+            <div class="chat-ride-banner" id="chatRideBanner" style="display:none;">
+                <span>📌</span>
+                <span id="chatRideBannerText"></span>
+            </div>
+            <div class="chat-temp-banner" id="chatTempBanner">
+                <span>⏳</span>
+                <span><?= t('chat.general_hint') ?></span>
+            </div>
+
+            <div style="padding:0 20px;">
+                <div class="chat-search-bar" id="chatSearchBar" style="display:none;">
+                    <span><i class="bi bi-search"></i></span>
+                    <input class="chat-search-input" id="chatSearchInput" placeholder="<?= t('chat.search_placeholder') ?>" oninput="runChatSearch()">
+                    <button onclick="toggleChatSearch()">✕</button>
+                </div>
+            </div>
+
+            <div id="chatMessages" class="chat-thread-wrap"></div>
+
+            <div class="chat-composer-wrap">
+                <div id="chatReplyPreview" class="chat-reply-preview" style="display:none;">
+                    <span class="rp-text" id="chatReplyPreviewText"></span>
+                    <button onclick="cancelChatReply()">✕</button>
+                </div>
+                <div id="chatClosedBanner" class="chat-closed-banner" style="display:none;">
+                    🔒 <?= t('chat.closed_banner') ?>
+                </div>
+                <div class="chat-compose-row">
+                    <input type="file" id="chatFileInput" accept="image/*" style="display:none;" onchange="handleChatFileSelected(event)">
+                    <input type="file" id="chatCameraInput" accept="image/*" capture="environment" style="display:none;" onchange="handleChatFileSelected(event)">
+                    <button class="chat-icon-btn" title="<?= t('chat.attach_btn') ?>" onclick="document.getElementById('chatFileInput').click()"><i class="bi bi-paperclip"></i></button>
+                    <button class="chat-icon-btn" title="<?= t('chat.camera_btn') ?>" onclick="document.getElementById('chatCameraInput').click()"><i class="bi bi-camera-fill"></i></button>
+                    <input type="text" id="chatInput" style="flex:1;height:42px;border-radius:999px;padding:0 16px;font-size:13.5px;border:1px solid var(--border);background:var(--bg-raised);color:var(--text-1);font-family:inherit;"
+                        placeholder="<?= t('drv.chat_placeholder') ?>"
+                        onkeydown="if(event.key==='Enter'){event.preventDefault();sendChatMessage();}">
+                    <button type="button" onclick="sendChatMessage()"
+                        style="width:42px;height:42px;flex-shrink:0;border-radius:999px;border:none;background:linear-gradient(135deg,var(--accent),#1d4ed8);color:#fff;display:flex;align-items:center;justify-content:center;">
+                        <i class="bi bi-send-fill"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="chat-popover-backdrop" id="chatPopoverBackdrop">
+    <div class="chat-popover" id="chatPopoverBody"></div>
+</div>
+
 <!-- ── Profile photo modal ────────────────────────────────────────────── -->
 <div class="modal fade" id="photoModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
@@ -1080,29 +1305,88 @@ $T_js = [
 </nav>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Toast system (self-contained — no layout wraps this view) -->
+<style>
+#sr-toasts{position:fixed;bottom:88px;right:16px;z-index:999999;display:flex;flex-direction:column;gap:10px;max-width:340px;width:calc(100vw - 32px);pointer-events:none;}
+.sr-t{pointer-events:all;display:flex;align-items:flex-start;gap:12px;padding:13px 14px 16px;border-radius:16px;background:rgba(255,255,255,.97);border:1px solid rgba(0,0,0,.06);box-shadow:0 10px 30px rgba(0,0,0,.13);backdrop-filter:blur(20px);position:relative;overflow:hidden;animation:sr-in .35s cubic-bezier(.34,1.56,.64,1) forwards;}
+[data-bs-theme="dark"] .sr-t{background:rgba(15,23,42,.96);border-color:rgba(255,255,255,.1);}
+.sr-t.sr-out{animation:sr-out .25s ease forwards;}
+@keyframes sr-in{from{opacity:0;transform:translateX(110%) scale(.9)}to{opacity:1;transform:none}}
+@keyframes sr-out{from{opacity:1;transform:none}to{opacity:0;transform:translateX(110%) scale(.88)}}
+.sr-t-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;margin-top:1px;}
+.sr-t-body{flex:1;min-width:0;}
+.sr-t-title{font-size:.78rem;font-weight:800;color:#0f172a;line-height:1.2;margin-bottom:2px;}
+[data-bs-theme="dark"] .sr-t-title{color:#f1f5f9;}
+.sr-t-msg{font-size:.72rem;color:#64748b;line-height:1.4;}
+[data-bs-theme="dark"] .sr-t-msg{color:#94a3b8;}
+.sr-t-bar{position:absolute;bottom:0;left:0;height:3px;border-radius:0 0 16px 16px;animation:sr-bar linear forwards;}
+@keyframes sr-bar{from{width:100%}to{width:0%}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.sr-t.sr-success .sr-t-icon{background:rgba(22,163,74,.12);color:#16a34a;}
+.sr-t.sr-success .sr-t-bar{background:linear-gradient(90deg,#16a34a,#4ade80);}
+.sr-t.sr-error   .sr-t-icon{background:rgba(220,38,38,.12);color:#dc2626;}
+.sr-t.sr-error   .sr-t-bar{background:linear-gradient(90deg,#dc2626,#f87171);}
+.sr-t.sr-warning .sr-t-icon{background:rgba(217,119,6,.12);color:#d97706;}
+.sr-t.sr-warning .sr-t-bar{background:linear-gradient(90deg,#d97706,#fbbf24);}
+.sr-t.sr-info    .sr-t-icon{background:rgba(37,99,235,.12);color:#2563eb;}
+.sr-t.sr-info    .sr-t-bar{background:linear-gradient(90deg,#2563eb,#60a5fa);}
+</style>
+<div id="sr-toasts"></div>
+<script>
+(function(){
+  if(window.srToast)return;
+  const IC={success:'bi-check-circle-fill',error:'bi-x-circle-fill',warning:'bi-exclamation-triangle-fill',info:'bi-info-circle-fill'};
+  const TT={success:'Sucesso',error:'Erro',warning:'Aviso',info:'Info'};
+  function show(type,msg,title,ms){
+    ms=ms||4000;
+    const c=document.getElementById('sr-toasts'); if(!c)return;
+    const el=document.createElement('div');
+    el.className='sr-t sr-'+type;
+    el.innerHTML='<div class="sr-t-icon"><i class="bi '+(IC[type]||IC.info)+'"></i></div>'
+      +'<div class="sr-t-body"><div class="sr-t-title">'+(title||TT[type]||'')+'</div>'+(msg?'<div class="sr-t-msg">'+msg+'</div>':'')+'</div>'
+      +'<div class="sr-t-bar" style="animation-duration:'+ms+'ms"></div>';
+    c.appendChild(el);
+    setTimeout(()=>{if(!el.classList.contains('sr-out')){el.classList.add('sr-out');setTimeout(()=>el.remove(),250);}},ms);
+  }
+  window.srToast=show;
+})();
+</script>
+
 <script>
 const T = <?= json_encode($T_js, JSON_UNESCAPED_UNICODE) ?>;
 var viagens = <?= json_encode($rides, JSON_UNESCAPED_UNICODE) ?>;
 var currentDriverId = <?= $driverId ?>;
 const WPP_TRACK_AUTO = <?= json_encode((bool) ($wppTrackEnabled ?? false)) ?>;
 
-// ── Theme ─────────────────────────────────────────────────────────────────
+// ── Nav loading overlay (Capacitor only) ─────────────────────────────────
 (function () {
-    const html   = document.documentElement;
-    const toggle = document.getElementById('theme-toggle');
-    const icon   = document.getElementById('theme-icon');
-    const logo   = document.getElementById('driver-logo');
+    if (!window.Capacitor?.isNativePlatform()) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'nav-loading';
+    overlay.style.cssText = 'display:none;position:fixed;inset:0;z-index:99999;background:#f8fafc;align-items:center;justify-content:center;flex-direction:column;gap:14px;';
+    overlay.innerHTML = '<div style="width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:spin .7s linear infinite;"></div>'
+        + '<style>@keyframes spin{to{transform:rotate(360deg)}}</style>';
+    document.body.appendChild(overlay);
+    document.querySelectorAll('.bottom-nav a[href]').forEach(a => {
+        a.addEventListener('click', function () {
+            if (this.classList.contains('active')) return;
+            overlay.style.display = 'flex';
+        });
+    });
+    window.addEventListener('pageshow', () => { overlay.style.display = 'none'; });
+})();
+
+// ── Theme ─────────────────────────────────────────────────────────────────
+// Switching lives in Settings now; this just applies whatever was picked there.
+(function () {
+    const html = document.documentElement;
+    const logo = document.getElementById('driver-logo');
     function applyTheme(t) {
         html.setAttribute('data-bs-theme', t);
-        icon.className = t === 'light' ? 'bi bi-moon-stars-fill fs-5' : 'bi bi-sun-fill fs-5';
         if (logo) logo.src = t === 'dark' ? '/SRMT/public/assets/images/icons/Syncridewhite.png' : '/SRMT/public/assets/images/icons/Syncride.png';
     }
     applyTheme(localStorage.getItem('theme') || 'light');
-    toggle.addEventListener('click', () => {
-        const next = html.getAttribute('data-bs-theme') === 'light' ? 'dark' : 'light';
-        localStorage.setItem('theme', next);
-        applyTheme(next);
-    });
 })();
 
 // ── State ─────────────────────────────────────────────────────────────────
@@ -1111,11 +1395,218 @@ let localTripStatus = {}, currentFilter = 'today', stream = null, currentMode = 
 let localStopState = {}, currentMultiStopRide = null;
 let currentFacingMode = 'environment', locationWatcher = null, currentLat = null, currentLng = null;
 let cameraZoomLevel = 1, pinchInitialDistance = 0, wakeLock = null;
+// Last GPS fix seen by the live tracker — attached to status changes so the
+// trip report can show where each step happened. Purely informational.
+let lastTrackLat = null, lastTrackLng = null;
 viagens.forEach(v => { localTripStatus[String(v.ServiceID)] = parseInt(v.status_id) || 0; });
+
+// ── API helper ────────────────────────────────────────────────────────────
+// All fetches go through here: never serve from WebView cache, detect a dead
+// session (401 or an HTML login page) and send the user to login instead of
+// failing silently, and surface real HTTP errors to the caller.
+async function apiFetch(url, opts = {}) {
+    let r;
+    try {
+        r = await fetch(url, { cache: 'no-store', ...opts });
+    } catch (e) {
+        const err = new Error('network'); err.kind = 'network'; throw err;
+    }
+    const ct = (r.headers.get('content-type') || '').toLowerCase();
+    if (r.status === 401 || !ct.includes('application/json')) {
+        window.location.href = '/SRMT/public/';
+        const err = new Error('auth'); err.kind = 'auth'; throw err;
+    }
+    const data = await r.json();
+    if (!r.ok) { const err = new Error('http'); err.kind = 'http'; err.status = r.status; err.data = data; throw err; }
+    return data;
+}
+function apiErrorToast(err, fallbackMsg) {
+    if (err.kind === 'auth') return; // already navigating to login
+    if (err.kind === 'http') srToast('error', (err.data && err.data.message) || (fallbackMsg + ' (HTTP ' + err.status + ')'));
+    else srToast('error', 'Sem ligação. Verifica a internet e tenta novamente.');
+}
+
+// ── Office chat console (admin <-> driver, topics) — ports the approved prototype ──
+let chatPollTimer = null;
+let chatTopics = [];
+let currentMessages = [];
+let activeTopicId = null;
+let chatReplyTo = null;
+function chatEsc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+
+function openChatModal() {
+    document.getElementById('chatMessages').innerHTML = '';
+    new bootstrap.Modal(document.getElementById('chatModal')).show();
+    loadChatTopics();
+    chatPollTimer = setInterval(() => { loadChatTopics(); if (activeTopicId) loadChatMessages(activeTopicId); }, 5000);
+}
+document.getElementById('chatModal').addEventListener('hidden.bs.modal', () => {
+    clearInterval(chatPollTimer); chatPollTimer = null;
+    refreshChatBadge();
+});
+
+async function loadChatTopics() {
+    try {
+        const data = await apiFetch('/SRMT/public/api/driver-chat.php?topics=1');
+        if (!data.success) return;
+        chatTopics = data.topics;
+        if (activeTopicId === null || !chatTopics.find(t => t.id === activeTopicId)) {
+            activeTopicId = (chatTopics.find(t => t.is_general) || chatTopics[0]).id;
+        }
+        renderTopicStrip();
+        loadChatMessages(activeTopicId);
+    } catch (e) { /* silent, next poll retries */ }
+}
+function renderTopicStrip() {
+    const strip = document.getElementById('chatTopicStrip');
+    strip.innerHTML = chatTopics.map(t => {
+        const label = t.is_general ? T.chat_general : (t.title || T.chat_new_topic);
+        const cls = ['chat-topic-pill'];
+        if (t.is_general) cls.push('general');
+        if (t.id === activeTopicId) cls.push('active');
+        if (t.status === 'closed') cls.push('is-closed');
+        const dot  = t.is_general ? '' : '<span class="dot"></span>';
+        const star = t.pinned ? '★ ' : '';
+        return `<div class="${cls.join(' ')}" onclick="selectChatTopic(${t.id})">${dot}${star}${chatEsc(label)}</div>`;
+    }).join('');
+}
+function selectChatTopic(id) {
+    activeTopicId = id;
+    renderTopicStrip();
+    cancelChatReply();
+    closeChatSearchSilently();
+    document.getElementById('chatMessages').innerHTML = '';
+    loadChatMessages(id);
+}
+
+async function loadChatMessages(conversationId) {
+    try {
+        const data = await apiFetch('/SRMT/public/api/driver-chat.php?conversation_id=' + conversationId);
+        if (!data.success || conversationId !== activeTopicId) return;
+        currentMessages = data.messages;
+        document.getElementById('chatCanvasSubtitle').textContent = data.topic.is_general ? T.chat_general : (data.topic.title || T.chat_new_topic);
+        document.getElementById('chatTempBanner').classList.toggle('show', !!data.topic.is_general);
+        document.getElementById('chatClosedBanner').style.display = (!data.topic.is_general && data.topic.status === 'closed') ? 'flex' : 'none';
+        const rideBanner = document.getElementById('chatRideBanner');
+        if (data.topic.linked_ride_label) { document.getElementById('chatRideBannerText').textContent = data.topic.linked_ride_label; rideBanner.style.display = 'flex'; }
+        else { rideBanner.style.display = 'none'; }
+        renderChatMessages(currentMessages, data.topic);
+        setChatBadge(0);
+    } catch (e) { /* silent, next poll retries */ }
+}
+function renderChatMessages(list, topic, filterTerm) {
+    const box  = document.getElementById('chatMessages');
+    const term = (filterTerm || '').trim().toLowerCase();
+    const highlight = t => term ? chatEsc(t).replace(new RegExp('(' + term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig'), '<mark>$1</mark>') : chatEsc(t);
+
+    box.innerHTML = list.map(m => {
+        if (m.sender === 'system') {
+            if (term && !m.message.toLowerCase().includes(term)) return '';
+            return `<div class="chat-system-note">${highlight(m.message)}</div>`;
+        }
+        if (term && !(m.message || '').toLowerCase().includes(term) &&
+            !(m.attachment_path && 'foto photo'.includes(term))) return '';
+
+        const isMe    = m.sender === 'driver';
+        const nameTag = (!isMe && m.sender_name) ? `<div class="chat-sender-name">${chatEsc(m.sender_name)}</div>` : '';
+        const quoted  = m.reply_to_id ? renderChatQuote(m.reply_to_id, list) : '';
+        const photo   = m.attachment_path ? `<img class="chat-bubble-photo" src="/SRMT/public/${chatEsc(m.attachment_path)}" onclick="window.open(this.src)">` : '';
+
+        return `<div class="chat-bubble-row ${isMe ? 'me' : 'them'}">
+            <div class="chat-bubble-actions">
+                <button onclick="startChatReply(${m.id}, '${chatEsc(m.message || (m.attachment_path ? 'Foto' : '')).replace(/'/g, "\\'")}')">↩ ${T.chat_reply}</button>
+            </div>
+            ${nameTag}
+            <div class="chat-bubble ${isMe ? 'chat-bubble-me' : 'chat-bubble-them'}">
+                ${quoted}${photo}${m.message ? highlight(m.message) : ''}
+            </div>
+            <div class="chat-bubble-time">${m.timestamp.substring(11,16)}</div>
+        </div>`;
+    }).join('') || '<p class="text-center py-3" style="opacity:.6;font-size:.82rem">' + (term ? T.chat_search_empty : T.chat_empty) + '</p>';
+    box.scrollTop = box.scrollHeight;
+}
+function renderChatQuote(replyToId, list) {
+    const original = list.find(m => m.id === replyToId);
+    const text = original ? (original.message || (original.attachment_path ? '📷 Foto' : '')) : '';
+    return text ? `<div class="chat-quote-block">${chatEsc(text)}</div>` : '';
+}
+
+function startChatReply(msgId, text) {
+    chatReplyTo = { id: msgId, text };
+    document.getElementById('chatReplyPreview').style.display = 'flex';
+    document.getElementById('chatReplyPreviewText').textContent = '↩ ' + text;
+    document.getElementById('chatInput').focus();
+}
+function cancelChatReply() {
+    chatReplyTo = null;
+    document.getElementById('chatReplyPreview').style.display = 'none';
+}
+
+function toggleChatSearch() {
+    const bar = document.getElementById('chatSearchBar');
+    const opening = bar.style.display === 'none';
+    bar.style.display = opening ? 'flex' : 'none';
+    if (opening) document.getElementById('chatSearchInput').focus();
+    else { document.getElementById('chatSearchInput').value = ''; runChatSearch(); }
+}
+function closeChatSearchSilently() {
+    document.getElementById('chatSearchBar').style.display = 'none';
+    document.getElementById('chatSearchInput').value = '';
+}
+function runChatSearch() {
+    const term  = document.getElementById('chatSearchInput').value;
+    const topic = chatTopics.find(t => t.id === activeTopicId);
+    if (topic) renderChatMessages(currentMessages, topic, term);
+}
+
+async function sendChatMessage() {
+    const input = document.getElementById('chatInput');
+    const msg   = input.value.trim();
+    if (!msg || !activeTopicId) return;
+    input.value = '';
+    await postChatSend({ conversation_id: activeTopicId, message: msg, reply_to_id: chatReplyTo ? chatReplyTo.id : undefined });
+    cancelChatReply();
+}
+function handleChatFileSelected(event) {
+    const file = event.target.files[0];
+    event.target.value = '';
+    if (!file || !activeTopicId) return;
+    // Resize before sending — a raw phone photo (several MB) double-base64'd for
+    // the WAF shield can silently blow past post_max_size, dropping the whole
+    // request (surfaces as "Incomplete data"). Same resizeAndEncode() the
+    // no-show/voucher camera flow already uses.
+    const img = new Image();
+    img.onload = () => postChatSend({ conversation_id: activeTopicId, message: '', image_data: resizeAndEncode(img, 1000, 0.75) });
+    img.src = URL.createObjectURL(file);
+}
+async function postChatSend(payload) {
+    try {
+        const data = await apiFetch('/SRMT/public/api/driver-chat.php', {
+            method: 'POST', headers: WAF_HEADERS, body: wafBody(payload),
+        });
+        if (data.success) { loadChatMessages(activeTopicId); loadChatTopics(); }
+        else srToast('error', data.error || 'Failed to send.');
+    } catch (e) { apiErrorToast(e, 'Failed to send.'); }
+}
+
+function setChatBadge(n) {
+    const dot = document.getElementById('chatHeaderDot');
+    if (!dot) return;
+    if (n > 0) { dot.textContent = n > 9 ? '9+' : n; dot.style.display = 'flex'; }
+    else { dot.style.display = 'none'; }
+}
+async function refreshChatBadge() {
+    try {
+        const data = await apiFetch('/SRMT/public/api/driver-chat.php?count=1');
+        if (data.success) setChatBadge(data.unread);
+    } catch (e) { /* silent */ }
+}
+refreshChatBadge();
+setInterval(refreshChatBadge, 20000);
 
 // ── Auto-refresh ──────────────────────────────────────────────────────────
 function fetchLatestRides() {
-    fetch('/SRMT/public/driver/?api=refresh').then(r => r.json()).then(data => {
+    apiFetch('/SRMT/public/driver/?api=refresh').then(data => {
         if (!Array.isArray(data)) return;
         viagens = data;
         viagens.forEach(v => { if (localTripStatus[String(v.ServiceID)] === undefined) localTripStatus[String(v.ServiceID)] = parseInt(v.status_id) || 0; });
@@ -1123,6 +1614,56 @@ function fetchLatestRides() {
     }).catch(() => {});
 }
 setInterval(fetchLatestRides, 15000);
+// Refresh immediately when the app returns to the foreground — the WebView
+// page can be days old; don't wait for the next timer tick.
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') fetchLatestRides();
+});
+
+// ── Flight status (airport pickups) ──────────────────────────────────────
+// Server caches upstream 10 min + enforces the free-tier daily budget;
+// the 5-min client cache just avoids hammering our own endpoint on each poll.
+const flightStatusCache = {};
+function normFlight(f) { return String(f || '').replace(/\s+/g, '').toUpperCase(); }
+async function getFlightStatus(flight, date) {
+    const key = normFlight(flight) + '_' + date;
+    const hit = flightStatusCache[key];
+    if (hit && Date.now() - hit.t < 5 * 60 * 1000) return hit.data;
+    try {
+        const data = await apiFetch('/SRMT/public/api/flight-status.php?flight=' + encodeURIComponent(normFlight(flight)) + '&date=' + encodeURIComponent(date));
+        flightStatusCache[key] = { t: Date.now(), data };
+        return data;
+    } catch (_) { return null; }
+}
+function flightChipHtml(st) {
+    if (!st || !st.found) return '';
+    const eta = st.est_arr || st.sched_arr || '';
+    const plane = '<i class="bi bi-airplane-fill"></i>';
+    switch (st.status) {
+        case 'delayed': {
+            const late = (st.delay_min || 0) >= 30 ? ' fl-late' : '';
+            const mins = st.delay_min ? ' +' + st.delay_min + ' min' : '';
+            return `<span class="flight-chip fl-delayed${late}">${plane}${T.fl_delayed}${mins}${eta ? ' · ' + eta : ''}</span>`;
+        }
+        case 'landed':    return `<span class="flight-chip fl-landed">${plane}${T.fl_landed}${eta ? ' ' + eta : ''}</span>`;
+        case 'cancelled': return `<span class="flight-chip fl-cancelled">${plane}${T.fl_cancelled}</span>`;
+        case 'diverted':  return `<span class="flight-chip fl-cancelled">${plane}${T.fl_diverted}</span>`;
+        case 'ontime':    return `<span class="flight-chip fl-ontime">${plane}${T.fl_ontime}${eta ? ' · ' + eta : ''}</span>`;
+        default:          return '';
+    }
+}
+// Fill every [data-fbadge] placeholder currently in the DOM. Only today's
+// flights are looked up — anything else would waste the upstream budget.
+function updateFlightBadges() {
+    const today = formatDate(new Date());
+    document.querySelectorAll('[data-fbadge]').forEach(el => {
+        if (el.dataset.fdate !== today || !el.dataset.fbadge) return;
+        getFlightStatus(el.dataset.fbadge, el.dataset.fdate).then(st => {
+            const html = flightChipHtml(st);
+            if (html) el.innerHTML = html;
+        });
+    });
+}
 
 // ── GPS ───────────────────────────────────────────────────────────────────
 const WAF_HEADERS = { 'Content-Type': 'application/x-www-form-urlencoded' };
@@ -1134,6 +1675,7 @@ function sendPosition(position) {
     const lat = position.latitude  ?? position.coords?.latitude;
     const lng = position.longitude ?? position.coords?.longitude;
     if (lat === undefined || lng === undefined) { finishBg(); return; }
+    lastTrackLat = lat; lastTrackLng = lng;
     fetch('/SRMT/public/api/location-update.php', {
         method: 'POST',
         body: wafBody({ ride_id: currentRideId, driver_id: currentDriverId, lat, lng, speed: position.speed ?? position.coords?.speed ?? 0, heading: position.bearing ?? position.coords?.heading ?? 0 }),
@@ -1200,7 +1742,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     const savedRideId = sessionStorage.getItem('activeRideId');
     if (savedRideId && !currentRideId) {
-        fetch('/SRMT/public/driver/?api=refresh').then(r => r.json()).then(data => {
+        apiFetch('/SRMT/public/driver/?api=refresh').then(data => {
             if (!Array.isArray(data)) return;
             const ride = data.find(v => String(v.ServiceID) === savedRideId);
             if (ride && [1,2,5,3].includes(parseInt(ride.status_id))) { startLiveTracking(savedRideId); }
@@ -1293,8 +1835,8 @@ document.getElementById('saveDriverNoteBtn').addEventListener('click', function 
     fd.append('ride_id', currentRideData.id);
     fd.append('note_b64', btoa(unescape(encodeURIComponent(note))));
     btn.disabled = true;
-    fetch('/SRMT/public/api/driver-note.php', { method: 'POST', body: fd })
-        .then(r => r.json()).then(d => {
+    apiFetch('/SRMT/public/api/driver-note.php', { method: 'POST', body: fd })
+        .then(d => {
             btn.disabled = false;
             if (d && d.success) {
                 // keep the in-memory ride in sync so reopening shows the saved note
@@ -1305,23 +1847,26 @@ document.getElementById('saveDriverNoteBtn').addEventListener('click', function 
                 btn.innerHTML = '<i class="bi bi-check-circle-fill"></i> ' + T.saved;
                 setTimeout(() => { btn.classList.remove('saved'); btn.innerHTML = '<i class="bi bi-check-lg"></i> ' + T.save_note; }, 1800);
             }
-        }).catch(() => { btn.disabled = false; });
+        }).catch(err => { btn.disabled = false; apiErrorToast(err, 'Erro ao guardar nota'); });
 });
 
-function updateStatusBackend(rideId, nextStatus) {
+function updateStatusBackend(rideId, nextStatus, skipFinalReport = false) {
     const noteEl = document.getElementById('driverNoteInput');
     const note = noteEl ? noteEl.value.trim() : '';
     const payload = { ride_id: rideId, status: nextStatus };
     if (note) payload.note = note;
-    fetch('/SRMT/public/api/status-update.php', { method: 'POST', headers: WAF_HEADERS, body: wafBody(payload) })
-        .then(r => r.json()).then(d => {
-            if (!d.success) return;
+    // Attach the last known GPS fix so the report can pin each step (optional).
+    if (lastTrackLat != null && lastTrackLng != null) { payload.lat = lastTrackLat; payload.lng = lastTrackLng; }
+    apiFetch('/SRMT/public/api/status-update.php', { method: 'POST', headers: WAF_HEADERS, body: wafBody(payload) })
+        .then(d => {
+            if (!d.success) { srToast('error', d.error || 'Erro ao atualizar estado'); return; }
             localTripStatus[rideId] = nextStatus; updateButtonUI(nextStatus);
             if (parseInt(nextStatus) === 4) {
-                fetch('/SRMT/public/api/final-trip-report.php?ride_id=' + rideId);
+                if (!skipFinalReport) fetch('/SRMT/public/api/final-trip-report.php?ride_id=' + rideId);
                 setTimeout(() => { bootstrap.Modal.getInstance(document.getElementById('detailsModal')).hide(); fetchLatestRides(); }, 1200);
             }
-        });
+        })
+        .catch(err => apiErrorToast(err, 'Erro ao atualizar estado'));
 }
 document.getElementById('btnDynamicAction').addEventListener('click', function () {
     if (!currentRideData) return;
@@ -1460,11 +2005,11 @@ function updateMultiStopUI(rideId, stops) {
 }
 
 function stopStatusApi(masterId, stopId, action) {
-    return fetch('/SRMT/public/api/stop-status.php', {
+    return apiFetch('/SRMT/public/api/stop-status.php', {
         method: 'POST',
         headers: WAF_HEADERS,
         body: wafBody({ master_ride_id: masterId, stop_id: stopId, action })
-    }).catch(() => {});
+    }).catch(err => apiErrorToast(err, 'Erro ao registar paragem'));
 }
 
 // ── Multi-client header (shared rides) ────────────────────────────────────
@@ -1504,6 +2049,8 @@ function buildMultiClient(v) {
         const flightBtn  = c.flight
             ? `<a href="https://www.flightradar24.com/data/flights/${encodeURIComponent(c.flight.replace(/\s/g,''))}" target="_blank" class="client-col-btn flight"><i class="bi bi-airplane-fill"></i>${mcEsc(c.flight)}</a>`
             : '';
+        const flightSlot = c.flight
+            ? `<div style="margin-top:7px;" data-fbadge="${normFlight(c.flight)}" data-fdate="${v.serviceDate}"></div>` : '';
         return `<div class="client-col">
             <div class="client-col-idx">${T.client_n} ${i + 1}</div>
             <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
@@ -1515,11 +2062,13 @@ function buildMultiClient(v) {
                 ${flightBtn}
                 <button class="client-col-btn sign" onclick="signClient(${i})"><i class="bi bi-signpost-2-fill"></i> Sign</button>
             </div>
+            ${flightSlot}
         </div>`;
     }).join('');
 
     const sec = document.getElementById('multiClientSection');
     sec.innerHTML = `<div class="client-split cols-${cols}">${html}</div>`;
+    updateFlightBadges();
 }
 function signClient(i) { const c = _mcClients[i]; if (c) openAirportSign(c.name, c.flight); }
 
@@ -1592,9 +2141,13 @@ function filterTrips(filter) {
     const map = { yesterday: formatDate(y), today: formatDate(t), tomorrow: formatDate(tm) };
     renderList(viagens.filter(v => v.serviceDate === map[filter]));
 }
-// IN/OUT (arrival/departure): airport at pickup = IN, airport at dropoff = OUT.
+// IN/OUT (arrival/departure). Source of truth is leg_code (from the Excel import);
+// the airport-in-pickup/dropoff text match is only a fallback for rides without one.
 function isAirportPoint(s) { return /aeroport|airport|\bLIS\b|\bOPO\b|\bFAO\b|\bFNC\b|\bPDL\b/i.test(s || ''); }
 function serviceIO(v) {
+    const leg = (v.leg_code || '').toUpperCase();
+    if (leg === 'IN') return { cls: 'io-in',  text: 'IN'  };
+    if (leg === 'OT') return { cls: 'io-out', text: 'OUT' };
     const a = isAirportPoint(v.serviceStartPoint), b = isAirportPoint(v.serviceTargetPoint);
     if (a && !b) return { cls: 'io-in',  text: 'IN'  };
     if (b && !a) return { cls: 'io-out', text: 'OUT' };
@@ -1603,27 +2156,31 @@ function serviceIO(v) {
 function toMin(t) { const p = (t||'00:00').split(':'); return parseInt(p[0]||0)*60+parseInt(p[1]||0); }
 
 function pairInOut(data) {
-    const items = data.map(v => ({ v, io: serviceIO(v), min: toMin(v.serviceStartTime), paired: false, pairRole: null, pairDiff: 0 }));
+    const items = data.map(v => ({ v, io: serviceIO(v), min: toMin(v.serviceStartTime), paired: false, pairRole: null, partner: null }));
     const used  = new Set();
     // Pair each OUT with the closest IN within 30 min
     items.forEach((a, i) => {
         if (a.io?.text !== 'OUT' || used.has(i)) return;
         const j = items.findIndex((b, k) => k !== i && !used.has(k) && b.io?.text === 'IN' && Math.abs(b.min - a.min) <= 30);
         if (j === -1) return;
-        const diff = Math.abs(items[j].min - a.min);
-        a.paired = true; a.pairRole = 'out'; a.pairDiff = diff;
-        items[j].paired = true; items[j].pairRole = 'in'; items[j].pairDiff = diff;
+        a.paired = true; a.pairRole = 'out'; a.partner = items[j];
+        items[j].paired = true; items[j].pairRole = 'in'; items[j].partner = a;
         used.add(i); used.add(j);
     });
-    // Sort by time, OUT always above its paired IN
+    // Sort by time, OUT always above its paired IN — regardless of which one the
+    // raw clock time would otherwise put first (an IN scheduled earlier than its
+    // paired OUT must not hide the OUT below it; the driver needs the OUT to jump out).
     const sorted = [...items].sort((a, b) => a.min - b.min);
     const result = [], placed = new Set();
     sorted.forEach(a => {
         if (placed.has(a.v.ServiceID)) return;
-        result.push(a); placed.add(a.v.ServiceID);
-        if (a.pairRole === 'out') {
-            const partner = items.find(b => b.pairRole === 'in' && b.paired && !placed.has(b.v.ServiceID) && b.pairDiff === a.pairDiff);
-            if (partner) { result.push(partner); placed.add(partner.v.ServiceID); }
+        if (a.paired) {
+            const outItem = a.pairRole === 'out' ? a : a.partner;
+            const inItem  = a.pairRole === 'in'  ? a : a.partner;
+            result.push(outItem); placed.add(outItem.v.ServiceID);
+            result.push(inItem);  placed.add(inItem.v.ServiceID);
+        } else {
+            result.push(a); placed.add(a.v.ServiceID);
         }
     });
     return result;
@@ -1646,7 +2203,9 @@ function renderList(data) {
         const dotCls    = 'dot-' + (isDone ? 4 : (status >= 1 ? status : 0));
         const io        = serviceIO(v);
         const ioBadge   = io ? `<span class="io-badge ${io.cls}">${io.text}</span>` : '';
-
+        // Live flight chip placeholder — filled async by updateFlightBadges()
+        const flightSlot = (v.FlightNumber && String(v.FlightNumber).trim() && io?.text === 'IN')
+            ? `<span data-fbadge="${normFlight(v.FlightNumber)}" data-fdate="${v.serviceDate}"></span>` : '';
         let extraBadges = '';
         if (v.partner_id && v.partner_id > 0) {
             if (v.AgencyName) extraBadges += `<span class="ride-badge" style="background:rgba(59,130,246,.12);color:#3b82f6;border:1px solid rgba(59,130,246,.2);"><i class="bi bi-building-fill"></i> ${v.AgencyName}</span>`;
@@ -1680,6 +2239,7 @@ function renderList(data) {
         </div>
         <div class="d-flex align-items-start gap-2">
             <div class="badge-row">
+                ${flightSlot}
                 ${ioBadge}
                 <span class="ride-badge ${badgeCls}">${badgeText}</span>
                 ${extraBadges}
@@ -1814,10 +2374,22 @@ function renderList(data) {
             }
 
             const tl = document.getElementById('trackFlightLink');
+            const flStrip = document.getElementById('flightStatusStrip');
+            flStrip.style.display = 'none'; flStrip.innerHTML = '';
             // For aggregate masters, flight tracking is per-stop (shown inline above)
             if (!v?.is_aggregate_master && d.flight && d.flight.trim()) {
                 tl.style.display = 'inline-flex'; document.getElementById('modalFlight').textContent = d.flight;
                 tl.href = 'https://www.flightradar24.com/data/flights/' + d.flight.replace(/\s/g,'');
+                if (d.date === formatDate(new Date())) {
+                    const rideIdAtOpen = d.id;
+                    getFlightStatus(d.flight, d.date).then(st => {
+                        const html = flightChipHtml(st);
+                        if (html && currentRideData?.id === rideIdAtOpen) {
+                            flStrip.innerHTML = html + (st.airport ? ` <span style="font-size:.68rem;color:var(--text-3);font-weight:600;">${st.airport}</span>` : '');
+                            flStrip.style.display = 'block';
+                        }
+                    });
+                }
             } else { tl.style.display = 'none'; }
 
             const bebes = parseInt(d.paxbby || 0, 10);
@@ -1850,6 +2422,8 @@ function renderList(data) {
             new bootstrap.Modal(m).show();
         });
     });
+
+    updateFlightBadges();
 }
 
 document.querySelectorAll('.filter-btn').forEach(b => b.addEventListener('click', function () {
@@ -1958,46 +2532,43 @@ document.getElementById('uploadVoucher').onclick = () => { currentMode = 'vouche
 // Gallery button inside camera overlay — works for both voucher and no-show modes
 document.getElementById('cameraGalleryInput').addEventListener('change', function() {
     const file = this.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+        URL.revokeObjectURL(url);
         closeCameraOverlay();
-        submitPhotoBase64(e.target.result);
+        submitPhotoBase64(resizeAndEncode(img, 1600, 0.80));
     };
-    reader.readAsDataURL(file);
+    img.src = url;
     this.value = '';
 });
 
 function submitPhotoBase64(base64) {
     if (!currentRideData?.id) { srToast('warning', T.select_ride); return; }
     const url = currentMode === 'voucher' ? '/SRMT/public/admin/upload-voucher.php' : '/SRMT/public/admin/upload-no-show.php';
-    fetch(url, { method: 'POST', body: JSON.stringify({ trip_id: currentRideData.id, image_data: base64, lat: currentLat, lng: currentLng }) })
-        .then(r => r.json()).then(d => {
-            if (d.success) { srToast('success', d.message); if (currentMode === 'noshow') updateStatusBackend(currentRideData.id, 4); }
-            else srToast('error', d.message || 'Erro');
-        });
+    srToast('info', currentMode === 'voucher' ? 'A enviar voucher…' : 'A registar no-show…');
+    // WAF-shielded (p=base64) like every other POST — raw JSON bodies get
+    // blocked by mod_security on the production host.
+    apiFetch(url, { method: 'POST', headers: WAF_HEADERS, body: wafBody({ trip_id: currentRideData.id, image_data: base64, lat: currentLat, lng: currentLng }) })
+        .then(d => {
+            if (d.success) {
+                srToast('success', currentMode === 'voucher' ? 'Voucher registado!' : 'No-show registado!');
+                if (currentMode === 'noshow') updateStatusBackend(currentRideData.id, 4, true);
+            } else {
+                srToast('error', d.message || 'Erro ao enviar');
+            }
+        }).catch(err => apiErrorToast(err, 'Erro ao enviar foto'));
 }
 document.getElementById('btnRotateCamera').onclick = () => { currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment'; startCamera(); };
-document.getElementById('btnCapture').onclick = async () => {
-    const track = stream?.getVideoTracks()[0];
-    if (track && typeof ImageCapture !== 'undefined') {
-        try {
-            const ic   = new ImageCapture(track);
-            const blob = await ic.takePhoto();
-            const bmp  = await createImageBitmap(blob);
-            canvas.width  = bmp.width;
-            canvas.height = bmp.height;
-            canvas.getContext('2d').drawImage(bmp, 0, 0);
-            updateCameraUI('review');
-            return;
-        } catch(e) { /* fallback below */ }
-    }
-    // Fallback: canvas crop
+function doCapture() {
     const vw = video.videoWidth, vh = video.videoHeight;
-    const sw = vw/cameraZoomLevel, sh = vh/cameraZoomLevel;
+    const sw = vw / cameraZoomLevel, sh = vh / cameraZoomLevel;
     canvas.width = vw; canvas.height = vh;
-    canvas.getContext('2d').drawImage(video, (vw-sw)/2, (vh-sh)/2, sw, sh, 0, 0, vw, vh);
+    canvas.getContext('2d').drawImage(video, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, 0, vw, vh);
     updateCameraUI('review');
-};
+}
+document.getElementById('btnCapture').addEventListener('touchend', e => { e.preventDefault(); doCapture(); });
+document.getElementById('btnCapture').addEventListener('click', doCapture);
 document.getElementById('btnRetake').onclick = () => updateCameraUI('capture');
 document.getElementById('btnCameraZoomIn').onclick  = e => { e.stopPropagation(); applyCameraZoom(.5); };
 document.getElementById('btnCameraZoomOut').onclick = e => { e.stopPropagation(); applyCameraZoom(-.5); };
@@ -2012,14 +2583,45 @@ cameraViewArea.addEventListener('touchmove', e => {
 }, { passive: true });
 btnSend.onclick = () => {
     btnSend.disabled = true;
-    const img = canvas.toDataURL('image/jpeg', 0.96);
+    btnSend.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>' + (currentMode === 'voucher' ? 'A enviar voucher…' : 'A registar no-show…');
+    const img = resizeAndEncode(canvas, 1600, 0.80);
     const url = currentMode === 'voucher' ? '/SRMT/public/admin/upload-voucher.php' : '/SRMT/public/admin/upload-no-show.php';
-    fetch(url, { method: 'POST', body: JSON.stringify({ trip_id: currentRideData.id, image_data: img, lat: currentLat, lng: currentLng }) })
-        .then(r => r.json()).then(d => {
-            if (d.success) { srToast('success', d.message); closeCameraOverlay(); if (currentMode === 'noshow') updateStatusBackend(currentRideData.id, 4); }
-            else { btnSend.disabled = false; }
+    apiFetch(url, { method: 'POST', headers: WAF_HEADERS, body: wafBody({ trip_id: currentRideData.id, image_data: img, lat: currentLat, lng: currentLng }) })
+        .then(d => {
+            if (d.success) {
+                showCameraSuccess(currentMode === 'voucher' ? 'Voucher registado!' : 'No-show registado!', () => {
+                    closeCameraOverlay();
+                    if (currentMode === 'noshow') updateStatusBackend(currentRideData.id, 4, true);
+                });
+            } else {
+                btnSend.disabled = false;
+                btnSend.innerHTML = T.send;
+                srToast('error', d.message || 'Erro ao enviar');
+            }
+        }).catch(err => {
+            btnSend.disabled = false;
+            btnSend.innerHTML = T.send;
+            apiErrorToast(err, 'Erro ao enviar foto');
         });
 };
+
+function resizeAndEncode(src, maxDim, quality) {
+    const scale = Math.min(1, maxDim / Math.max(src.width, src.height));
+    const dw = Math.round(src.width * scale), dh = Math.round(src.height * scale);
+    const tmp = document.createElement('canvas');
+    tmp.width = dw; tmp.height = dh;
+    tmp.getContext('2d').drawImage(src, 0, 0, dw, dh);
+    return tmp.toDataURL('image/jpeg', quality);
+}
+
+function showCameraSuccess(label, onDone) {
+    const overlay = document.getElementById('cameraOverlay');
+    const el = document.createElement('div');
+    el.style.cssText = 'position:absolute;inset:0;background:rgba(0,0,0,.82);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20;gap:16px;animation:fadeIn .2s ease';
+    el.innerHTML = `<div style="width:72px;height:72px;border-radius:50%;background:#16a34a;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 12px rgba(22,163,74,.25)"><i class="bi bi-check-lg" style="color:#fff;font-size:2rem;"></i></div><div style="color:#fff;font-size:1.1rem;font-weight:700;text-align:center;">${label}</div>`;
+    overlay.appendChild(el);
+    setTimeout(() => { el.remove(); onDone(); }, 900);
+}
 // ── Trip finish modal ─────────────────────────────────────────────────────
 function showFinishModal(rideId) {
     const d = currentRideData;

@@ -133,4 +133,34 @@ final class ExcelServiceImporterTest extends TestCase
         $multi = array_filter($groups, static fn($g) => count($g) > 1);
         $this->assertNotEmpty($multi);
     }
+
+    /**
+     * Regressão: uma ida-e-volta partilha o mesmo voucher/"Reference No" nas
+     * duas direções (Chegada=IN, Saída=OT). O fixture já traz este caso real
+     * (TRANSAVIA). Sem o leg_code na chave de deduplicação, a Saída aparecia
+     * sempre marcada como duplicada da Chegada — ver queixa do Gonçalo.
+     */
+    public function testRoundTripSameReferenceIsNotFlaggedDuplicate(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->exec('CREATE TABLE Services (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            serviceDate TEXT, serviceStartTime TEXT, NomeCliente TEXT, FlightNumber TEXT,
+            reference_no TEXT NULL, leg_code TEXT NULL
+        )');
+
+        $importer = new ExcelServiceImporter($pdo, 7);
+        $result   = $importer->preview(self::FIXTURE);
+
+        $transavia = array_values(array_filter($result['rows'], static fn($r) => $r['reference_no'] === 'TRANSAVIA'));
+        $this->assertCount(2, $transavia, 'fixture deve ter as duas pernas TRANSAVIA (OT + IN)');
+        $legs = array_column($transavia, 'leg_code');
+        $this->assertContains('OT', $legs);
+        $this->assertContains('IN', $legs);
+
+        foreach ($transavia as $row) {
+            $this->assertSame('new', $row['_status'], "leg {$row['leg_code']} não devia ser marcada duplicada");
+        }
+    }
 }

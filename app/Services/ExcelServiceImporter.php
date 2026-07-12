@@ -67,15 +67,18 @@ final class ExcelServiceImporter
                 continue;
             }
             $ref = $row['reference_no'];
-            // Duplicado dentro do próprio ficheiro
-            if ($ref !== null && $ref !== '' && isset($seenRefs[$ref])) {
+            // Duplicado dentro do próprio ficheiro. A chave inclui o leg_code porque
+            // uma ida-e-volta (IN + OT) partilha o mesmo voucher/"Reference No" —
+            // sem o leg_code, a Saída aparecia sempre como duplicada da Chegada.
+            $dupKey = $ref . '|' . ($row['leg_code'] ?? '');
+            if ($ref !== null && $ref !== '' && isset($seenRefs[$dupKey])) {
                 $row['_status'] = 'duplicate';
                 $row['_reason'] = 'Repetido no ficheiro';
                 $dupCount++;
                 continue;
             }
             if ($ref !== null && $ref !== '') {
-                $seenRefs[$ref] = true;
+                $seenRefs[$dupKey] = true;
             }
             // Duplicado contra a base de dados
             if ($this->existsInDb($row)) {
@@ -394,20 +397,34 @@ final class ExcelServiceImporter
     {
         $ref = $row['reference_no'] ?? null;
         if ($ref !== null && $ref !== '') {
-            // When a reference number is present, it is the sole identifier.
+            // When a reference number is present, it is the identifier — but a
+            // round trip shares the same voucher/"Reference No" for both legs
+            // (Chegada=IN, Saída=OT), so leg_code must be part of the key too,
+            // or the second leg always looks like a duplicate of the first.
             // Do NOT fall through to the tuple fallback — services with identical
             // client/time/flight but different references are distinct (e.g. Transavia crew legs).
-            $stmt = $this->db->prepare('SELECT COUNT(*) FROM Services WHERE reference_no = ?');
-            $stmt->execute([$ref]);
+            $stmt = $this->db->prepare('
+                SELECT COUNT(*) FROM Services
+                WHERE reference_no = ? AND (leg_code = ? OR (leg_code IS NULL AND ? IS NULL))
+            ');
+            $leg = $row['leg_code'] ?? null;
+            $stmt->execute([$ref, $leg, $leg]);
             return (int) $stmt->fetchColumn() > 0;
         }
         // Fallback (sem reference): mesma tupla data+hora+cliente+voo (como o XML).
+        // Comparação null-safe escrita de forma portátil (evita o operador
+        // `<=>`, que é MySQL-only e não existe no SQLite usado nos testes).
         $stmt = $this->db->prepare('
             SELECT COUNT(*) FROM Services
             WHERE serviceDate = ? AND serviceStartTime = ?
-              AND NomeCliente <=> ? AND FlightNumber <=> ?
+              AND (NomeCliente = ? OR (NomeCliente IS NULL AND ? IS NULL))
+              AND (FlightNumber = ? OR (FlightNumber IS NULL AND ? IS NULL))
         ');
-        $stmt->execute([$row['serviceDate'], $row['serviceStartTime'], $row['NomeCliente'], $row['FlightNumber']]);
+        $stmt->execute([
+            $row['serviceDate'], $row['serviceStartTime'],
+            $row['NomeCliente'], $row['NomeCliente'],
+            $row['FlightNumber'], $row['FlightNumber'],
+        ]);
         return (int) $stmt->fetchColumn() > 0;
     }
 

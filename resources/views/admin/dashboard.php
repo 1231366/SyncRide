@@ -16,13 +16,90 @@ View::layout('layouts.admin', [
                 modalFlight: "' . t('dash.flight') . '",
                 modalOcc: "' . t('dash.occupancy') . '",
                 aiHello: "' . addslashes(t('dash.syncai_hello')) . '",
-                aiThinking: "' . t('dash.syncai_thinking') . '"
+                aiThinking: "' . t('dash.syncai_thinking') . '",
+                aiNewChat: "' . addslashes(t('dash.syncai_new_chat')) . '",
+                aiNoConvos: "' . addslashes(t('dash.syncai_no_convos')) . '",
+                aiDeleteConfirm: "' . addslashes(t('dash.syncai_delete_confirm')) . '",
+                aiError: "' . addslashes(t('dash.syncai_error')) . '"
             };
+            let aiConversationId = 0;
+            let aiConversations  = [];
+
             function toggleAI() {
                 const overlay = document.getElementById("ai-overlay");
                 overlay.classList.toggle("active");
                 document.body.style.overflow = overlay.classList.contains("active") ? "hidden" : "";
-                if (overlay.classList.contains("active")) setTimeout(() => document.getElementById("ai-input").focus(), 400);
+                if (overlay.classList.contains("active")) {
+                    setTimeout(() => document.getElementById("ai-input").focus(), 400);
+                    loadAiConversations();
+                }
+            }
+            function toggleAiRail() {
+                document.getElementById("ai-rail").classList.toggle("open");
+            }
+            async function loadAiConversations() {
+                try {
+                    const r = await fetch("/SRMT/public/api/sync-ai-engine.php?conversations=1");
+                    const data = await r.json();
+                    if (!data.success) return;
+                    aiConversations = data.conversations;
+                    renderAiRail();
+                } catch (e) { /* silent */ }
+            }
+            function renderAiRail() {
+                const list = document.getElementById("ai-rail-list");
+                list.innerHTML = aiConversations.map(c => `
+                    <div class="ai-rail-item ${c.id === aiConversationId ? "active" : ""}" onclick="selectAiConversation(${c.id})">
+                        <span class="ai-rail-title">${escAi(c.title || SR.aiNewChat)}</span>
+                        <button class="ai-rail-del" onclick="event.stopPropagation();deleteAiConversation(${c.id})">✕</button>
+                    </div>
+                `).join("") || `<p class="ai-rail-empty">${SR.aiNoConvos}</p>`;
+            }
+            function escAi(s) { return (s == null ? "" : String(s)).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
+            window.newAiConversation = function () {
+                aiConversationId = 0;
+                document.getElementById("ai-chat-content").innerHTML = `<div class="glass p-4 rounded-2xl rounded-tl-none text-zinc-300 border-indigo-500/20 max-w-[85%]">${SR.aiHello}</div>`;
+                document.getElementById("ai-rail").classList.remove("open");
+                renderAiRail();
+            };
+            window.selectAiConversation = async function (id) {
+                aiConversationId = id;
+                document.getElementById("ai-rail").classList.remove("open");
+                renderAiRail();
+                try {
+                    const r = await fetch("/SRMT/public/api/sync-ai-engine.php?history=1&conversation_id=" + id);
+                    const data = await r.json();
+                    if (!data.success) return;
+                    const content = document.getElementById("ai-chat-content");
+                    content.innerHTML = data.messages.map(renderAiBubble).join("") ||
+                        `<div class="glass p-4 rounded-2xl rounded-tl-none text-zinc-300 border-indigo-500/20 max-w-[85%]">${SR.aiHello}</div>`;
+                    content.scrollTop = content.scrollHeight;
+                } catch (e) { /* silent */ }
+            };
+            window.deleteAiConversation = async function (id) {
+                if (!confirm(SR.aiDeleteConfirm)) return;
+                try {
+                    await fetch("/SRMT/public/api/sync-ai-engine.php?action=delete_conversation", {
+                        method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({conversation_id: id}),
+                    });
+                    if (id === aiConversationId) newAiConversation();
+                    loadAiConversations();
+                } catch (e) { /* silent */ }
+            };
+            function renderAiBubble(m) {
+                const atts   = m.attachments || [];
+                const photos = atts.filter(a => a.type === "photo")
+                    .map(a => `<img src="${escAi(a.url)}" title="${escAi(a.caption)}" class="ai-bubble-photo" onclick="window.open(this.src)">`).join("");
+                const rides  = atts.filter(a => a.type === "ride")
+                    .map(a => `<button class="ai-ride-chip" data-ride="${escAi(JSON.stringify(a.ride))}" onclick="openRideModal(JSON.parse(this.dataset.ride))"><i data-lucide="car" class="w-3 h-3"></i> ${escAi(a.label)}</button>`).join("");
+                if (m.role === "user") {
+                    return `<div class="flex justify-end"><div class="bg-indigo-600 p-3 rounded-2xl rounded-tr-none max-w-[80%] border border-white/10 text-white text-xs font-medium shadow-lg">${escAi(m.content)}</div></div>`;
+                }
+                const html = `<div class="flex justify-start"><div class="glass p-4 rounded-2xl rounded-tl-none max-w-[90%] text-zinc-200 border-white/10 text-xs leading-relaxed shadow-xl">
+                    ${escAi(m.content)}${photos ? `<div class="ai-bubble-photos">${photos}</div>` : ""}${rides ? `<div class="ai-ride-chips">${rides}</div>` : ""}
+                </div></div>`;
+                setTimeout(() => window.lucide?.createIcons(), 0);
+                return html;
             }
             function openRideModal(data) {
                 document.getElementById("modalClient").innerText = data.NomeCliente || "—";
@@ -45,18 +122,27 @@ View::layout('layouts.admin', [
                 const typing = document.getElementById("ai-typing");
                 const msg = input.value.trim();
                 if (!msg) return;
-                content.innerHTML += `<div class="flex justify-end"><div class="bg-indigo-600 p-3 rounded-2xl rounded-tr-none max-w-[80%] border border-white/10 text-white text-xs font-medium shadow-lg">${msg}</div></div>`;
+                content.innerHTML += `<div class="flex justify-end"><div class="bg-indigo-600 p-3 rounded-2xl rounded-tr-none max-w-[80%] border border-white/10 text-white text-xs font-medium shadow-lg">${escAi(msg)}</div></div>`;
                 input.value = "";
                 typing.classList.remove("hidden");
                 content.scrollTop = content.scrollHeight;
                 try {
-                    const r = await fetch("/SRMT/public/api/sync-ai-engine.php", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({message: msg}) });
+                    const r = await fetch("/SRMT/public/api/sync-ai-engine.php", {
+                        method: "POST", headers: {"Content-Type":"application/json"},
+                        body: JSON.stringify({message: msg, conversation_id: aiConversationId}),
+                    });
                     const data = await r.json();
                     typing.classList.add("hidden");
-                    content.innerHTML += `<div class="flex justify-start"><div class="glass p-4 rounded-2xl rounded-tl-none max-w-[90%] text-zinc-200 border-white/10 text-xs leading-relaxed shadow-xl">${data.response || ""}</div></div>`;
+                    if (data.success) {
+                        aiConversationId = data.conversation_id;
+                        content.innerHTML += renderAiBubble(data.message);
+                        loadAiConversations();
+                    } else {
+                        content.innerHTML += `<div class="text-red-500 text-[9px] font-black text-center uppercase tracking-widest">${SR.aiError}</div>`;
+                    }
                 } catch(e) {
                     typing.classList.add("hidden");
-                    content.innerHTML += `<div class="text-red-500 text-[9px] font-black text-center uppercase tracking-widest">SyncAI sync error</div>`;
+                    content.innerHTML += `<div class="text-red-500 text-[9px] font-black text-center uppercase tracking-widest">${SR.aiError}</div>`;
                 }
                 content.scrollTop = content.scrollHeight;
             }
@@ -79,13 +165,79 @@ View::layout('layouts.admin', [
         <style>
             #ai-overlay {
                 position: fixed; top: 100%; left: 0; width: 100%; height: 92vh;
-                background: rgba(10,10,10,0.95); backdrop-filter: blur(40px);
-                border-radius: 32px 32px 0 0; border: 1px solid rgba(255,255,255,0.1);
-                z-index: 3000; transition: top 0.4s cubic-bezier(0.19, 1, 0.22, 1);
-                display: flex; flex-direction: column;
+                backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+                border-radius: 28px 28px 0 0;
+                z-index: 3000; transition: top 0.45s cubic-bezier(0.19, 1, 0.22, 1);
+                display: flex; flex-direction: column; overflow: hidden;
             }
+            [data-theme="dark"] #ai-overlay { background: rgba(10,10,14,0.97); border: 1px solid rgba(255,255,255,0.08); }
+            [data-theme="light"] #ai-overlay { background: rgba(255,255,255,0.97); border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 -24px 64px rgba(0,0,0,0.14); }
             #ai-overlay.active { top: 8vh; }
             #ai-input { font-size: 16px !important; }
+
+            .ai-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 14px; flex-shrink: 0; }
+            [data-theme="dark"] .ai-head { border-bottom: 1px solid rgba(255,255,255,0.06); }
+            [data-theme="light"] .ai-head { border-bottom: 1px solid rgba(0,0,0,0.06); }
+            .ai-head-icon-btn {
+                width: 34px; height: 34px; border-radius: 11px; display: flex; align-items: center; justify-content: center;
+                cursor: pointer; flex-shrink: 0; transition: background .15s;
+            }
+            [data-theme="dark"] .ai-head-icon-btn { background: rgba(255,255,255,0.06); color: #e2e8f0; }
+            [data-theme="light"] .ai-head-icon-btn { background: rgba(0,0,0,0.05); color: #334155; }
+            [data-theme="dark"] .ai-head-icon-btn:hover { background: rgba(255,255,255,0.12); }
+            [data-theme="light"] .ai-head-icon-btn:hover { background: rgba(0,0,0,0.09); }
+            .ai-title { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
+            [data-theme="dark"] .ai-title { color: #fff; }
+            [data-theme="light"] .ai-title { color: #0f172a; }
+            .ai-subtitle { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: #818cf8; }
+
+            .ai-body { flex: 1; position: relative; min-height: 0; display: flex; }
+            .ai-rail {
+                position: absolute; inset: 0 auto 0 0; width: min(280px, 78%); z-index: 5;
+                transform: translateX(-105%); transition: transform .28s ease;
+                display: flex; flex-direction: column; padding: 14px 10px;
+            }
+            [data-theme="dark"] .ai-rail { background: rgba(18,18,24,0.98); border-right: 1px solid rgba(255,255,255,0.08); }
+            [data-theme="light"] .ai-rail { background: rgba(248,250,252,0.98); border-right: 1px solid rgba(0,0,0,0.08); box-shadow: 12px 0 32px rgba(0,0,0,0.12); }
+            .ai-rail.open { transform: translateX(0); }
+            .ai-rail-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px 10px; }
+            .ai-rail-head span { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: #94a3b8; }
+            .ai-rail-new {
+                font-size: 10.5px; font-weight: 800; color: #fff; background: #4f46e5; border: none;
+                border-radius: 999px; padding: 5px 11px; cursor: pointer;
+            }
+            #ai-rail-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+            .ai-rail-item {
+                display: flex; align-items: center; justify-content: space-between; gap: 6px;
+                padding: 9px 10px; border-radius: 10px; cursor: pointer; font-size: 12px; font-weight: 600;
+            }
+            [data-theme="dark"] .ai-rail-item { color: #cbd5e1; }
+            [data-theme="light"] .ai-rail-item { color: #334155; }
+            [data-theme="dark"] .ai-rail-item:hover { background: rgba(255,255,255,0.06); }
+            [data-theme="light"] .ai-rail-item:hover { background: rgba(0,0,0,0.05); }
+            .ai-rail-item.active { background: rgba(79,70,229,0.16); color: #818cf8; }
+            .ai-rail-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .ai-rail-del { border: none; background: none; color: #94a3b8; cursor: pointer; font-size: 11px; flex-shrink: 0; opacity: .6; }
+            .ai-rail-del:hover { opacity: 1; color: #f87171; }
+            .ai-rail-empty { font-size: 11.5px; color: #94a3b8; text-align: center; padding: 20px 8px; }
+            .ai-canvas { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+            .ai-bubble-photo { max-width: 200px; border-radius: 12px; margin-top: 8px; display: block; cursor: pointer; }
+            .ai-bubble-photos { display: flex; flex-wrap: wrap; gap: 8px; }
+            .ai-ride-chips { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+            .ai-ride-chip {
+                display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700;
+                color: #a5b4fc; background: rgba(99,102,241,0.14); border: 1px solid rgba(99,102,241,0.3);
+                border-radius: 10px; padding: 7px 10px; cursor: pointer; text-align: left;
+            }
+            .ai-ride-chip:hover { background: rgba(99,102,241,0.22); }
+
+            /* Desktop: the rail is a permanent docked column, not a mobile-style
+               slide-in drawer — full width stays, only the sidebar behavior changes. */
+            @media (min-width: 781px) {
+                .ai-rail-toggle { display: none !important; }
+                .ai-rail { position: static; width: 280px; flex-shrink: 0; transform: none !important; }
+                #ai-chat-content, #ai-input-container { max-width: 760px; margin-left: auto; margin-right: auto; width: 100%; }
+            }
             #rideModal {
                 position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0.9);
                 width: 85%; max-width: 360px; visibility: hidden; opacity: 0;
@@ -235,33 +387,54 @@ View::layout('layouts.admin', [
 
 <!-- SyncAI overlay -->
 <div id="ai-overlay">
-    <div class="flex-1 flex flex-col p-6 relative min-h-0">
-        <div class="w-12 h-1 bg-zinc-800 rounded-full mx-auto mb-8 cursor-pointer" onclick="toggleAI()"></div>
-        <div class="flex justify-between items-center mb-6 px-2">
-            <div class="flex items-center gap-3">
-                <div class="relative">
-                    <i data-lucide="bot" class="w-7 h-7 text-indigo-500"></i>
-                    <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-black animate-pulse"></span>
-                </div>
-                <div>
-                    <h3 class="text-xl font-black text-white italic tracking-tighter"><?= t('dash.syncai_cmd') ?></h3>
-                    <p class="text-[8px] text-zinc-500 font-bold uppercase tracking-widest"><?= t('dash.syncai_intel') ?></p>
-                </div>
+    <div class="w-10 h-1 bg-zinc-500/40 rounded-full mx-auto mt-3 cursor-pointer" onclick="toggleAI()"></div>
+    <div class="ai-head">
+        <div class="flex items-center gap-3">
+            <button class="ai-head-icon-btn ai-rail-toggle" title="<?= t('dash.syncai_conversations') ?>" onclick="toggleAiRail()">
+                <i data-lucide="menu" class="w-4 h-4"></i>
+            </button>
+            <div class="relative flex-shrink-0">
+                <i data-lucide="bot" class="w-6 h-6 text-indigo-500"></i>
+                <span class="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full border-2 border-black/40 animate-pulse"></span>
             </div>
-            <button onclick="toggleAI()" class="w-9 h-9 glass rounded-full flex items-center justify-center"><i data-lucide="x" class="w-4 h-4 text-white"></i></button>
-        </div>
-        <div id="ai-chat-content" class="flex-1 overflow-y-auto space-y-4 px-2 pb-4">
-            <div class="glass p-4 rounded-2xl rounded-tl-none text-zinc-300 border-indigo-500/20 max-w-[85%]">
-                <?= t('dash.syncai_hello') ?>
+            <div>
+                <h3 class="ai-title"><?= t('dash.syncai_cmd') ?></h3>
+                <p class="ai-subtitle"><?= t('dash.syncai_intel') ?></p>
             </div>
         </div>
-        <div id="ai-input-container" class="pb-6 px-2 mt-2">
-            <div id="ai-typing" class="hidden text-[9px] text-indigo-400 font-black mb-2 ml-4 uppercase italic tracking-widest"><?= t('dash.syncai_thinking') ?></div>
-            <div class="glass p-2 rounded-[24px] flex items-center gap-2 border-indigo-500/30">
-                <input type="text" id="ai-input" placeholder="<?= t('dash.ask_anything') ?>" class="bg-transparent flex-1 outline-none text-white px-4 py-2" style="font-size:16px;">
-                <button onclick="sendToAI()" class="w-11 h-11 bg-indigo-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
-                    <i data-lucide="send" class="w-5 h-5"></i>
-                </button>
+        <div class="flex items-center gap-2">
+            <button class="ai-head-icon-btn" title="<?= t('dash.syncai_new_chat') ?>" onclick="newAiConversation()">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+            </button>
+            <button class="ai-head-icon-btn" title="<?= t('chat.close_btn') ?>" onclick="toggleAI()">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="ai-body">
+        <div class="ai-rail" id="ai-rail">
+            <div class="ai-rail-head">
+                <span><?= t('dash.syncai_conversations') ?></span>
+                <button class="ai-rail-new" onclick="newAiConversation()">+ <?= t('dash.syncai_new_chat') ?></button>
+            </div>
+            <div id="ai-rail-list"></div>
+        </div>
+
+        <div class="ai-canvas">
+            <div id="ai-chat-content" class="flex-1 overflow-y-auto space-y-4 px-4 py-4">
+                <div class="glass p-4 rounded-2xl rounded-tl-none text-zinc-300 border-indigo-500/20 max-w-[85%]">
+                    <?= t('dash.syncai_hello') ?>
+                </div>
+            </div>
+            <div id="ai-input-container" class="pb-6 px-4 pt-2 flex-shrink-0">
+                <div id="ai-typing" class="hidden text-[9px] text-indigo-400 font-black mb-2 ml-4 uppercase italic tracking-widest"><?= t('dash.syncai_thinking') ?></div>
+                <div class="glass p-2 rounded-[24px] flex items-center gap-2 border-indigo-500/30">
+                    <input type="text" id="ai-input" placeholder="<?= t('dash.ask_anything') ?>" class="bg-transparent flex-1 outline-none text-white px-4 py-2" style="font-size:16px;">
+                    <button onclick="sendToAI()" class="w-11 h-11 bg-indigo-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 flex-shrink-0">
+                        <i data-lucide="send" class="w-5 h-5"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </div>

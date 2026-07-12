@@ -1108,6 +1108,102 @@ final class ServiceRepository
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Approximate search over no-show records for SyncAI — "find the no-show
+     * from a few months ago" with a driver name and rough dates, not an exact ID.
+     * @return array<array<string,mixed>>
+     */
+    public function searchNoShows(?string $driverName, ?string $dateFrom, ?string $dateTo, ?string $route): array
+    {
+        $where  = ['s.noShowStatus = 1'];
+        $params = $this->cb();
+        if ($driverName) { $where[] = 'u.name LIKE :dname'; $params['dname'] = '%' . $driverName . '%'; }
+        if ($dateFrom)   { $where[] = 's.serviceDate >= :dfrom'; $params['dfrom'] = $dateFrom; }
+        if ($dateTo)     { $where[] = 's.serviceDate <= :dto'; $params['dto'] = $dateTo; }
+        if ($route)      { $where[] = '(s.serviceStartPoint LIKE :route1 OR s.serviceTargetPoint LIKE :route2)'; $params['route1'] = $params['route2'] = '%' . $route . '%'; }
+        $companyClause = $this->companyId !== null ? 'AND s.company_id = :company_id' : '';
+        $sql = "SELECT s.ID, s.serviceDate, s.serviceStartTime, s.serviceStartPoint, s.serviceTargetPoint,
+                       s.noShowPhotoPath, s.noShowReportPath, s.NomeCliente, s.FlightNumber, s.paxADT, s.paxCHD, u.name AS driverName
+                FROM Services s
+                LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
+                LEFT JOIN Users u ON sr.UserID = u.ID
+                WHERE " . implode(' AND ', $where) . " {$companyClause}
+                ORDER BY s.serviceDate DESC, s.serviceStartTime DESC
+                LIMIT 15";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** Same shape as searchNoShows() but over voucher photos. */
+    public function searchVouchers(?string $driverName, ?string $dateFrom, ?string $dateTo, ?string $route, ?string $clientName): array
+    {
+        $where  = ['s.voucher_photo IS NOT NULL'];
+        $params = $this->cb();
+        if ($driverName) { $where[] = 'u.name LIKE :dname'; $params['dname'] = '%' . $driverName . '%'; }
+        if ($clientName) { $where[] = 's.NomeCliente LIKE :cname'; $params['cname'] = '%' . $clientName . '%'; }
+        if ($dateFrom)   { $where[] = 's.serviceDate >= :dfrom'; $params['dfrom'] = $dateFrom; }
+        if ($dateTo)     { $where[] = 's.serviceDate <= :dto'; $params['dto'] = $dateTo; }
+        if ($route)      { $where[] = '(s.serviceStartPoint LIKE :route1 OR s.serviceTargetPoint LIKE :route2)'; $params['route1'] = $params['route2'] = '%' . $route . '%'; }
+        $companyClause = $this->companyId !== null ? 'AND s.company_id = :company_id' : '';
+        $sql = "SELECT s.ID, s.serviceDate, s.serviceStartTime, s.NomeCliente, s.FlightNumber, s.paxADT, s.paxCHD,
+                       s.serviceStartPoint, s.serviceTargetPoint, s.voucher_photo, u.name AS driverName
+                FROM Services s
+                LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
+                LEFT JOIN Users u ON sr.UserID = u.ID
+                WHERE " . implode(' AND ', $where) . " {$companyClause}
+                ORDER BY s.serviceDate DESC, s.serviceStartTime DESC
+                LIMIT 15";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** General ride/service search for SyncAI — any combination of filters, all optional. */
+    public function searchRides(?string $driverName, ?string $clientName, ?string $dateFrom, ?string $dateTo, ?string $route): array
+    {
+        $where  = ['1=1'];
+        $params = $this->cb();
+        if ($driverName) { $where[] = 'u.name LIKE :dname'; $params['dname'] = '%' . $driverName . '%'; }
+        if ($clientName) { $where[] = 's.NomeCliente LIKE :cname'; $params['cname'] = '%' . $clientName . '%'; }
+        if ($dateFrom)   { $where[] = 's.serviceDate >= :dfrom'; $params['dfrom'] = $dateFrom; }
+        if ($dateTo)     { $where[] = 's.serviceDate <= :dto'; $params['dto'] = $dateTo; }
+        if ($route)      { $where[] = '(s.serviceStartPoint LIKE :route1 OR s.serviceTargetPoint LIKE :route2)'; $params['route1'] = $params['route2'] = '%' . $route . '%'; }
+        $companyClause = $this->companyId !== null ? 'AND s.company_id = :company_id' : '';
+        $sql = "SELECT s.ID, s.serviceDate, s.serviceStartTime, s.NomeCliente, s.FlightNumber, s.paxADT, s.paxCHD,
+                       s.serviceStartPoint, s.serviceTargetPoint, s.noShowStatus, s.total_price, u.name AS driverName
+                FROM Services s
+                LEFT JOIN Services_Rides sr ON s.ID = sr.RideID
+                LEFT JOIN Users u ON sr.UserID = u.ID
+                WHERE " . implode(' AND ', $where) . " {$companyClause}
+                ORDER BY s.serviceDate DESC, s.serviceStartTime DESC
+                LIMIT 20";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** Stats for one named driver — SyncAI's "how's X doing" tool. */
+    public function statsForDriverByName(string $driverName, int $month, int $year): ?array
+    {
+        $ucsc  = $this->companyId !== null ? 'AND u.company_id = :company_id' : '';
+        $stmt  = $this->db->prepare("
+            SELECT u.id, u.name,
+                   COUNT(s.ID) AS trips_month,
+                   AVG(s.driver_rating) AS avg_rating,
+                   SUM(s.noShowStatus) AS no_shows_month
+            FROM Users u
+            LEFT JOIN Services_Rides sr ON sr.UserID = u.id
+            LEFT JOIN Services s ON s.ID = sr.RideID AND MONTH(s.serviceDate) = :month AND YEAR(s.serviceDate) = :year
+            WHERE u.name LIKE :dname {$ucsc}
+            GROUP BY u.id, u.name
+            LIMIT 1
+        ");
+        $params = array_merge(['dname' => '%' . $driverName . '%', 'month' => $month, 'year' => $year], $this->cb());
+        $stmt->execute($params);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+
     /** @return array<string,mixed>|null */
     public function findWithPartner(int $id): ?array
     {
@@ -1732,6 +1828,33 @@ final class ServiceRepository
             ORDER BY total_this_month DESC
         ");
         $stmt->execute(array_merge(['month' => $month, 'year' => $year], $this->cb()));
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Full company ranking for SyncAI's driver-comparison tool — every driver
+     * with all three metrics for one month, so it can answer "who's top/bottom"
+     * on trips, rating, or no-shows without a separate query per driver.
+     * @return array<array<string,mixed>>
+     */
+    public function driverRankingForMonth(int $month, int $year): array
+    {
+        $ucsc = $this->companyId !== null ? 'AND u.company_id = :company_id' : '';
+        $stmt = $this->db->prepare("
+            SELECT u.name,
+                   COUNT(CASE WHEN MONTH(s.serviceDate) = :month1 AND YEAR(s.serviceDate) = :year1 THEN sr.RideID END) AS trips,
+                   AVG(CASE WHEN MONTH(s.serviceDate) = :month2 AND YEAR(s.serviceDate) = :year2 THEN s.driver_rating END) AS rating,
+                   SUM(CASE WHEN MONTH(s.serviceDate) = :month3 AND YEAR(s.serviceDate) = :year3 THEN s.noShowStatus ELSE 0 END) AS no_shows
+            FROM Users u
+            LEFT JOIN Services_Rides sr ON u.id = sr.UserID
+            LEFT JOIN Services s ON sr.RideID = s.ID
+            WHERE u.role = 2 {$ucsc}
+            GROUP BY u.id, u.name
+        ");
+        $stmt->execute(array_merge(
+            ['month1' => $month, 'year1' => $year, 'month2' => $month, 'year2' => $year, 'month3' => $month, 'year3' => $year],
+            $this->cb()
+        ));
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 

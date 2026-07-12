@@ -101,6 +101,15 @@ final class UserRepository
         return $row ? User::fromRow($row) : null;
     }
 
+    /** Fuzzy name match, scoped to this repo's company — SyncAI resolving "the Diogo driver" to a real user id. */
+    public function findByNameLike(string $name): ?User
+    {
+        $stmt = $this->db->prepare('SELECT * FROM Users WHERE name LIKE :name ' . $this->companyClause('AND') . ' LIMIT 1');
+        $stmt->execute(array_merge(['name' => '%' . $name . '%'], $this->companyBindings()));
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? User::fromRow($row) : null;
+    }
+
     /**
      * Base de pagamento habitual do motorista (viatura empresa vs carro próprio).
      * Usada para pré-selecionar o preçário-motorista na atribuição.

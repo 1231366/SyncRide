@@ -92,6 +92,11 @@ return [
     'dash.syncai_hello'    => "Hi, I'm SyncAI — your operations assistant. How can I help?",
     'dash.ask_anything'    => 'Ask anything…',
     'dash.syncai_thinking' => 'SyncAI thinking…',
+    'dash.syncai_conversations'  => 'Conversations',
+    'dash.syncai_new_chat'       => 'New chat',
+    'dash.syncai_no_convos'      => 'No conversations yet.',
+    'dash.syncai_delete_confirm' => 'Delete this conversation?',
+    'dash.syncai_error'          => 'SyncAI sync error',
     'dash.xml_imported'    => 'new ride(s) imported from XML.',
     'dash.xml_skipped'     => 'No new rides imported (duplicates skipped).',
     // Rides
